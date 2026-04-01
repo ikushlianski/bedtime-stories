@@ -138,7 +138,9 @@ router.post('/:id/approve-text', validate(approveTextSchema), async (req, res) =
 router.post('/:id/annotations', validate(createAnnotationSchema), async (req, res) => {
   try {
     // DB: stub — insert annotation
-    const storyId = parseInt(req.params['id'] ?? '', 10)
+    const idParam = req.params['id']
+    const rawId = Array.isArray(idParam) ? (idParam[0] ?? '') : (idParam ?? '')
+    const storyId = parseInt(rawId, 10)
 
     if (isNaN(storyId)) {
       res.status(400).json({ error: 'Invalid story id' })

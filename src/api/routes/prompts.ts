@@ -24,7 +24,8 @@ function parseAgent(agent: string): z.infer<typeof agentSchema> | null {
 router.get('/:agent', async (req, res) => {
   try {
     // DB: stub — replace with real db calls after merge
-    const agentParam: string = req.params['agent'] ?? ''
+    const raw = req.params['agent']
+    const agentParam = Array.isArray(raw) ? (raw[0] ?? '') : (raw ?? '')
     const agent = parseAgent(agentParam)
 
     if (!agent) {
@@ -47,7 +48,8 @@ router.get('/:agent', async (req, res) => {
 router.get('/:agent/current', async (req, res) => {
   try {
     // DB: stub — replace with real db calls after merge
-    const agentParam: string = req.params['agent'] ?? ''
+    const raw = req.params['agent']
+    const agentParam = Array.isArray(raw) ? (raw[0] ?? '') : (raw ?? '')
     const agent = parseAgent(agentParam)
 
     if (!agent) {
@@ -77,7 +79,8 @@ router.get('/:agent/current', async (req, res) => {
 router.post('/:agent', validate(createPromptSchema), async (req, res) => {
   try {
     // DB: stub — replace with real db calls after merge
-    const agentParam: string = req.params['agent'] ?? ''
+    const raw = req.params['agent']
+    const agentParam = Array.isArray(raw) ? (raw[0] ?? '') : (raw ?? '')
     const agent = parseAgent(agentParam)
 
     if (!agent) {
