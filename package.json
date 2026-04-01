@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "mastra dev",
     "build": "tsc --build",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "notion-import": "tsx packages/core/src/scripts/notion-import.ts"
   },
   "keywords": [],
   "author": "",
