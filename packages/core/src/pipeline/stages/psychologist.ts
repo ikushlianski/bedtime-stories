@@ -1,4 +1,4 @@
-import { runAgent } from '../agent-runner'
+import { claudeCliRunner } from '../../ai'
 import { PsychologistOutputSchema, type PsychologistOutput } from '../schemas'
 
 export async function runPsychologist(options: {
@@ -17,8 +17,8 @@ export async function runPsychologist(options: {
     `Iteration number: ${iterationNumber}`,
   ].join('\n\n')
 
-  return runAgent({
-    skillName: 'psychologist',
+  return claudeCliRunner.runStructured({
+    skill: 'psychologist',
     model,
     prompt,
     outputSchema: PsychologistOutputSchema,

@@ -1,4 +1,4 @@
-import { runAgent } from '../agent-runner'
+import { claudeCliRunner } from '../../ai'
 import { CriticOutputSchema, type CriticOutput, type PsychologistOutput } from '../schemas'
 
 export async function runWriterCritic(options: {
@@ -17,8 +17,8 @@ export async function runWriterCritic(options: {
     `Final approved plan (for checking story matches plan):\n${finalPlan}`,
   ].join('\n\n')
 
-  return runAgent({
-    skillName: 'writer-critic',
+  return claudeCliRunner.runStructured({
+    skill: 'writer-critic',
     model,
     prompt,
     outputSchema: CriticOutputSchema,

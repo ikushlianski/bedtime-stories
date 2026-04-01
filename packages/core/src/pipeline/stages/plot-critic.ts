@@ -1,4 +1,4 @@
-import { runAgent } from '../agent-runner'
+import { claudeCliRunner } from '../../ai'
 import { CriticOutputSchema, type CriticOutput, type PsychologistOutput } from '../schemas'
 
 export async function runPlotCritic(options: {
@@ -17,8 +17,8 @@ export async function runPlotCritic(options: {
     `Iteration number: ${iterationNumber}`,
   ].join('\n\n')
 
-  return runAgent({
-    skillName: 'plot-critic',
+  return claudeCliRunner.runStructured({
+    skill: 'plot-critic',
     model,
     prompt,
     outputSchema: CriticOutputSchema,

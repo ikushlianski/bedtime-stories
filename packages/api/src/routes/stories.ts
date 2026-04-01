@@ -1,12 +1,17 @@
 import { Router } from 'express'
 import { z } from 'zod'
+import { eq, desc } from 'drizzle-orm'
+import { db } from '@bedtime/core/db/client'
+import { stories, annotations } from '@bedtime/core/db/schema'
+import type { NewStory, NewAnnotation } from '@bedtime/core/db/types'
 import { validate } from '../middleware/validate'
 
-// TODO: import { db } from '../db/client' when BE-1 is merged
-// For now use a stub:
-const db = null as any // will be replaced
-
 const router = Router()
+
+function parseIntParam(raw: string | string[] | undefined): number {
+  const value = Array.isArray(raw) ? (raw[0] ?? '') : (raw ?? '')
+  return parseInt(value, 10)
+}
 
 const createStorySchema = z.object({
   seed: z.string().min(1).max(5000),
@@ -33,10 +38,11 @@ const createAnnotationSchema = z.object({
 
 router.post('/', validate(createStorySchema), async (req, res) => {
   try {
-    // DB: stub — replace with real db calls after merge
     const { seed } = req.body as z.infer<typeof createStorySchema>
     const title = seed.trim().slice(0, 60)
-    const story = await db.insert('stories').values({ seed, title, status: 'draft' }).returning()
+
+    const newStory: NewStory = { seed, title, status: 'draft', source: 'agent' }
+    const [story] = await db.insert(stories).values(newStory).returning()
 
     res.status(201).json(story)
   } catch {
@@ -46,7 +52,6 @@ router.post('/', validate(createStorySchema), async (req, res) => {
 
 router.get('/', async (req, res) => {
   try {
-    // DB: stub — replace with real db calls after merge
     const { status } = req.query
 
     if (status !== undefined && typeof status !== 'string') {
@@ -54,9 +59,15 @@ router.get('/', async (req, res) => {
       return
     }
 
-    const stories = await db.select().from('stories').orderBy('createdAt', 'desc')
+    const result = status
+      ? await db
+          .select()
+          .from(stories)
+          .where(eq(stories.status, status as 'draft' | 'ready' | 'read' | 'archived'))
+          .orderBy(desc(stories.createdAt))
+      : await db.select().from(stories).orderBy(desc(stories.createdAt))
 
-    res.json(stories)
+    res.json(result)
   } catch {
     res.status(500).json({ error: 'Failed to fetch stories' })
   }
@@ -64,9 +75,14 @@ router.get('/', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
   try {
-    // DB: stub — replace with real db calls after merge
-    const { id } = req.params
-    const story = await db.select().from('stories').where({ id }).first()
+    const storyId = parseIntParam(req.params['id'])
+
+    if (isNaN(storyId)) {
+      res.status(400).json({ error: 'Invalid story id' })
+      return
+    }
+
+    const [story] = await db.select().from(stories).where(eq(stories.id, storyId))
 
     if (!story) {
       res.status(404).json({ error: 'Story not found' })
@@ -81,10 +97,19 @@ router.get('/:id', async (req, res) => {
 
 router.patch('/:id/status', validate(updateStatusSchema), async (req, res) => {
   try {
-    // DB: stub — replace with real db calls after merge
-    const { id } = req.params
+    const storyId = parseIntParam(req.params['id'])
+
+    if (isNaN(storyId)) {
+      res.status(400).json({ error: 'Invalid story id' })
+      return
+    }
+
     const { status } = req.body as z.infer<typeof updateStatusSchema>
-    const story = await db.update('stories').set({ status }).where({ id }).returning()
+    const [story] = await db
+      .update(stories)
+      .set({ status })
+      .where(eq(stories.id, storyId))
+      .returning()
 
     if (!story) {
       res.status(404).json({ error: 'Story not found' })
@@ -99,11 +124,32 @@ router.patch('/:id/status', validate(updateStatusSchema), async (req, res) => {
 
 router.post('/:id/approve-plan', validate(approvePlanSchema), async (req, res) => {
   try {
-    // DB: stub — replace with real db calls after merge
-    const { id } = req.params
+    const storyId = parseIntParam(req.params['id'])
+
+    if (isNaN(storyId)) {
+      res.status(400).json({ error: 'Invalid story id' })
+      return
+    }
+
     const { approved } = req.body as z.infer<typeof approvePlanSchema>
-    const updateData = approved ? { status: 'ready' } : {}
-    const story = await db.update('stories').set(updateData).where({ id }).returning()
+
+    if (!approved) {
+      const [existing] = await db.select().from(stories).where(eq(stories.id, storyId))
+
+      if (!existing) {
+        res.status(404).json({ error: 'Story not found' })
+        return
+      }
+
+      res.json(existing)
+      return
+    }
+
+    const [story] = await db
+      .update(stories)
+      .set({ status: 'ready' })
+      .where(eq(stories.id, storyId))
+      .returning()
 
     if (!story) {
       res.status(404).json({ error: 'Story not found' })
@@ -118,11 +164,32 @@ router.post('/:id/approve-plan', validate(approvePlanSchema), async (req, res) =
 
 router.post('/:id/approve-text', validate(approveTextSchema), async (req, res) => {
   try {
-    // DB: stub — replace with real db calls after merge
-    const { id } = req.params
+    const storyId = parseIntParam(req.params['id'])
+
+    if (isNaN(storyId)) {
+      res.status(400).json({ error: 'Invalid story id' })
+      return
+    }
+
     const { approved } = req.body as z.infer<typeof approveTextSchema>
-    const updateData = approved ? { status: 'ready' } : {}
-    const story = await db.update('stories').set(updateData).where({ id }).returning()
+
+    if (!approved) {
+      const [existing] = await db.select().from(stories).where(eq(stories.id, storyId))
+
+      if (!existing) {
+        res.status(404).json({ error: 'Story not found' })
+        return
+      }
+
+      res.json(existing)
+      return
+    }
+
+    const [story] = await db
+      .update(stories)
+      .set({ status: 'ready' })
+      .where(eq(stories.id, storyId))
+      .returning()
 
     if (!story) {
       res.status(404).json({ error: 'Story not found' })
@@ -137,27 +204,26 @@ router.post('/:id/approve-text', validate(approveTextSchema), async (req, res) =
 
 router.post('/:id/annotations', validate(createAnnotationSchema), async (req, res) => {
   try {
-    // DB: stub — insert annotation
-    const idParam = req.params['id']
-    const rawId = Array.isArray(idParam) ? (idParam[0] ?? '') : (idParam ?? '')
-    const storyId = parseInt(rawId, 10)
+    const storyId = parseIntParam(req.params['id'])
 
     if (isNaN(storyId)) {
       res.status(400).json({ error: 'Invalid story id' })
       return
     }
 
-    const { type, selected_text, position_start, position_end } = req.body as z.infer<typeof createAnnotationSchema>
+    const { type, selected_text, position_start, position_end } = req.body as z.infer<
+      typeof createAnnotationSchema
+    >
 
-    const annotation = {
-      id: 0,
+    const newAnnotation: NewAnnotation = {
       storyId,
       type,
       selectedText: selected_text,
       positionStart: position_start,
       positionEnd: position_end,
-      createdAt: new Date(),
     }
+
+    const [annotation] = await db.insert(annotations).values(newAnnotation).returning()
 
     res.status(201).json(annotation)
   } catch {
@@ -167,10 +233,19 @@ router.post('/:id/annotations', validate(createAnnotationSchema), async (req, re
 
 router.get('/:id/annotations', async (req, res) => {
   try {
-    // DB: stub — returns annotations[]
-    void req.params['id']
+    const storyId = parseIntParam(req.params['id'])
 
-    res.json([])
+    if (isNaN(storyId)) {
+      res.status(400).json({ error: 'Invalid story id' })
+      return
+    }
+
+    const result = await db
+      .select()
+      .from(annotations)
+      .where(eq(annotations.storyId, storyId))
+
+    res.json(result)
   } catch {
     res.status(500).json({ error: 'Failed to fetch annotations' })
   }

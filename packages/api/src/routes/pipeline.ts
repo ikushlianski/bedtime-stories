@@ -1,11 +1,11 @@
 import { Router } from 'express'
+import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { validate } from '../middleware/validate'
 import { runPipeline } from '@bedtime/core/pipeline/orchestrator'
-
-// TODO: import { db } from '../db/client' when BE-1 is merged
-// For now use a stub:
-const db = null as unknown // will be replaced
+import { db } from '@bedtime/core/db/client'
+import { runSnapshots, stories } from '@bedtime/core/db/schema'
+import type { NewRunSnapshot } from '@bedtime/core/db/types'
 
 const router = Router()
 
@@ -46,19 +46,58 @@ router.post('/run', validate(runPipelineSchema), async (req, res) => {
       storyId,
       models: defaultModels,
       promptVersions: defaultPromptVersions,
-    }).then((result) => {
+    }).then(async (result) => {
       pipelineStatusMap.set(storyId, 'done')
-      // DB: stub — insert run_snapshot here
-      // shape: { storyId, models: result.models, promptVersions: result.promptVersions,
-      //   planV1: result.planV1, planFinal: result.planFinal,
-      //   planIterationsCount: result.planIterationsCount,
-      //   psychologistPlanOutput: result.psychologistPlanOutput,
-      //   plotCriticOutput: result.plotCriticOutput,
-      //   textV1: result.textV1, textV2: result.textV2,
-      //   psychologistTextOutput: result.psychologistTextOutput,
-      //   writerCriticOutput: result.writerCriticOutput }
-      void db
-      void result
+
+      const snapshotRow: NewRunSnapshot = {
+        storyId,
+        plotterModel: result.models.plotter,
+        plotterPromptVersion: result.promptVersions.plotter,
+        psychologistPlanModel: result.models.psychologist,
+        psychologistPlanPromptVersion: result.promptVersions.psychologistPlan,
+        plotCriticModel: result.models.plotCritic,
+        plotCriticPromptVersion: result.promptVersions.plotCritic,
+        writerModel: result.models.writer,
+        writerPromptVersion: result.promptVersions.writer,
+        psychologistTextModel: result.models.psychologist,
+        psychologistTextPromptVersion: result.promptVersions.psychologistText,
+        writerCriticModel: result.models.writerCritic,
+        writerCriticPromptVersion: result.promptVersions.writerCritic,
+        planIterationsCount: result.planIterationsCount,
+        planV1: result.planV1,
+        planFinal: result.planFinal,
+        psychologistPlanOutput: result.psychologistPlanOutput,
+        plotCriticOutput: result.plotCriticOutput,
+        textV1: result.textV1,
+        textV2: result.textV2,
+        psychologistTextOutput: result.psychologistTextOutput,
+        writerCriticOutput: result.writerCriticOutput,
+      }
+
+      try {
+        await db.insert(runSnapshots).values(snapshotRow)
+
+        await db
+          .update(stories)
+          .set({
+            planV1: result.planV1,
+            planFinal: result.planFinal,
+            planIterations: result.planIterationsCount,
+            textV1: result.textV1,
+            textV2: result.textV2,
+            plotterModel: result.models.plotter,
+            plotterPromptVersion: result.promptVersions.plotter,
+            plotCriticModel: result.models.plotCritic,
+            plotCriticPromptVersion: result.promptVersions.plotCritic,
+            writerModel: result.models.writer,
+            writerPromptVersion: result.promptVersions.writer,
+            writerCriticModel: result.models.writerCritic,
+            writerCriticPromptVersion: result.promptVersions.writerCritic,
+          })
+          .where(eq(stories.id, storyId))
+      } catch (dbError) {
+        console.error('Failed to persist pipeline result to DB:', dbError)
+      }
     }).catch(() => {
       pipelineStatusMap.set(storyId, 'error')
     })

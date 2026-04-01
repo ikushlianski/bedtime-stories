@@ -1,12 +1,17 @@
 import { Router, Request } from 'express'
 import { z } from 'zod'
+import { eq, desc } from 'drizzle-orm'
+import { db } from '@bedtime/core/db/client'
+import { feedback } from '@bedtime/core/db/schema'
+import type { NewFeedback } from '@bedtime/core/db/types'
 import { validate } from '../middleware/validate'
 
-// TODO: import { db } from '../db/client' when BE-1 is merged
-// For now use a stub:
-const db = null as any // will be replaced
-
 type StoryParams = { id: string }
+
+function parseIntParam(raw: string | string[] | undefined): number {
+  const value = Array.isArray(raw) ? (raw[0] ?? '') : (raw ?? '')
+  return parseInt(value, 10)
+}
 
 const router = Router({ mergeParams: true })
 
@@ -18,15 +23,25 @@ const createFeedbackSchema = z.object({
 
 router.post('/', validate(createFeedbackSchema), async (req: Request<StoryParams>, res) => {
   try {
-    // DB: stub — replace with real db calls after merge
-    const { id } = req.params
-    const { rating, comment, feedback_type } = req.body as z.infer<typeof createFeedbackSchema>
-    const feedback = await db
-      .insert('feedback')
-      .values({ story_id: id, rating, comment, feedback_type })
-      .returning()
+    const storyId = parseIntParam(req.params['id'])
 
-    res.status(201).json(feedback)
+    if (isNaN(storyId)) {
+      res.status(400).json({ error: 'Invalid story id' })
+      return
+    }
+
+    const { rating, comment, feedback_type } = req.body as z.infer<typeof createFeedbackSchema>
+
+    const newFeedback: NewFeedback = {
+      storyId,
+      rating,
+      comment,
+      feedbackType: feedback_type,
+    }
+
+    const [created] = await db.insert(feedback).values(newFeedback).returning()
+
+    res.status(201).json(created)
   } catch {
     res.status(500).json({ error: 'Failed to create feedback' })
   }
@@ -34,11 +49,20 @@ router.post('/', validate(createFeedbackSchema), async (req: Request<StoryParams
 
 router.get('/', async (req: Request<StoryParams>, res) => {
   try {
-    // DB: stub — replace with real db calls after merge
-    const { id } = req.params
-    const feedbackList = await db.select().from('feedback').where({ story_id: id })
+    const storyId = parseIntParam(req.params['id'])
 
-    res.json(feedbackList)
+    if (isNaN(storyId)) {
+      res.status(400).json({ error: 'Invalid story id' })
+      return
+    }
+
+    const result = await db
+      .select()
+      .from(feedback)
+      .where(eq(feedback.storyId, storyId))
+      .orderBy(desc(feedback.createdAt))
+
+    res.json(result)
   } catch {
     res.status(500).json({ error: 'Failed to fetch feedback' })
   }
