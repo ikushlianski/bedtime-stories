@@ -5,6 +5,9 @@
     "moduleResolution": "bundler",
     "lib": ["ES2022"],
     "outDir": "dist",
+    "rootDir": "src",
+    "composite": true,
+    "declaration": true,
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
@@ -12,14 +15,7 @@
     "noFallthroughCasesInSwitch": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
-    "resolveJsonModule": true,
-    "paths": {
-      "@bedtime/core/*": ["./packages/core/src/*"]
-    }
+    "resolveJsonModule": true
   },
-  "include": [
-    "packages/core/src",
-    "packages/api/src"
-  ],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src"]
 }

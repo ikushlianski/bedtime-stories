@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { validate } from '../middleware/validate'
-import { runPipeline } from '../../pipeline/orchestrator'
+import { runPipeline } from '@bedtime/core/pipeline/orchestrator'
 
 // TODO: import { db } from '../db/client' when BE-1 is merged
 // For now use a stub:

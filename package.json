@@ -2,16 +2,17 @@
   "name": "bedtime-agent",
   "version": "1.0.0",
   "description": "",
-  "main": "src/mastra/index.ts",
+  "main": "packages/core/src/mastra/index.ts",
   "scripts": {
     "dev": "mastra dev",
-    "build": "tsc",
+    "build": "tsc --build",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
+  "workspaces": ["packages/*"],
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.89",
     "@mastra/core": "^1.17.0",
