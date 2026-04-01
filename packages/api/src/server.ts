@@ -5,6 +5,7 @@ import feedbackRouter from './routes/feedback'
 import promptsRouter from './routes/prompts'
 import pipelineRouter from './routes/pipeline'
 import dashboardRouter from './routes/dashboard'
+import improverRouter from './routes/improver'
 
 export const app = express()
 
@@ -16,6 +17,7 @@ app.use('/api/stories/:id/feedback', feedbackRouter)
 app.use('/api/prompts', promptsRouter)
 app.use('/api/pipeline', pipelineRouter)
 app.use('/api/dashboard', dashboardRouter)
+app.use('/api/improver', improverRouter)
 
 const PORT = process.env['PORT'] ?? 3001
 

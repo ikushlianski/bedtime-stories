@@ -24,5 +24,24 @@ export const CriticOutputSchema = z.object({
   improvement_needed: z.boolean(),
 })
 
+export const ImproverOutputSchema = z.object({
+  patterns: z.array(
+    z.object({
+      description: z.string(),
+      evidence_count: z.number().int(),
+    }),
+  ),
+  proposed_changes: z.array(
+    z.object({
+      agent: z.enum(['plotter', 'plot_critic', 'writer', 'writer_critic']),
+      current_text: z.string(),
+      proposed_text: z.string(),
+      rationale: z.string(),
+      confidence: z.enum(['high', 'medium', 'low']),
+    }),
+  ),
+})
+
 export type PsychologistOutput = z.infer<typeof PsychologistOutputSchema>
 export type CriticOutput = z.infer<typeof CriticOutputSchema>
+export type ImproverOutput = z.infer<typeof ImproverOutputSchema>
