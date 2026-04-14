@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { api, type Story, type PsychologistOutput } from '../lib/api'
+import { api, type Story, type RunSnapshot } from '../lib/api'
 import { PageHeader, PlanReviewCard, StatusCallout } from '../components'
+import DiffViewer from '../components/diff-viewer'
+import { derivePlanReviewSnapshotState } from './plan-review-state'
 
 function usePlanReviewStory(id: number) {
   const [story, setStory] = useState<Story | null>(null)
@@ -23,16 +25,24 @@ function usePlanReviewStory(id: number) {
 }
 
 function useRunSnapshot(id: number) {
-  const [psychOutput, setPsychOutput] = useState<PsychologistOutput | null>(null)
+  const [snapshot, setSnapshot] = useState<RunSnapshot | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
 
   useEffect(() => {
+    setLoading(true)
+    setError(null)
+
     api.pipeline
       .snapshot(id)
-      .then((snapshot) => setPsychOutput(snapshot.psychologist_plan_output))
-      .catch(() => setPsychOutput(null))
+      .then((data) => setSnapshot(data))
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? err : new Error('Failed to load pipeline snapshot'))
+      })
+      .finally(() => setLoading(false))
   }, [id])
 
-  return psychOutput
+  return { snapshot, loading, error }
 }
 
 export function PlanReviewPage() {
@@ -40,7 +50,12 @@ export function PlanReviewPage() {
   const navigate = useNavigate()
   const storyId = Number(id)
   const { story, loading, error } = usePlanReviewStory(storyId)
-  const psychOutput = useRunSnapshot(storyId)
+  const snapshotFetch = useRunSnapshot(storyId)
+  const snapshotState = derivePlanReviewSnapshotState({
+    loading: snapshotFetch.loading,
+    error: snapshotFetch.error,
+    snapshot: snapshotFetch.snapshot,
+  })
   const [approving, setApproving] = useState(false)
   const [approveError, setApproveError] = useState<string | null>(null)
 
@@ -70,8 +85,14 @@ export function PlanReviewPage() {
     return <StatusCallout tone="warning" title="Story not found" message="The requested story does not exist." />
   }
 
-  if (!psychOutput) {
+  if (snapshotState.kind === 'loading') {
     return <StatusCallout title="Loading assessment" message="Waiting for psychologist output." />
+  }
+
+  const approveHandler = () => {
+    if (!approving) {
+      void handleApprove()
+    }
   }
 
   return (
@@ -93,17 +114,50 @@ export function PlanReviewPage() {
         </div>
       )}
 
-      <PlanReviewCard
-        planV1={story.plan_v1 ?? ''}
-        planFinal={story.plan_final ?? ''}
-        iterationsCount={story.plan_iterations ?? 0}
-        psychologistOutput={psychOutput}
-        onApprove={() => {
-          if (!approving) {
-            void handleApprove()
-          }
-        }}
-      />
+      {snapshotState.kind === 'ready' ? (
+        <PlanReviewCard
+          planV1={story.plan_v1 ?? ''}
+          planFinal={story.plan_final ?? ''}
+          iterationsCount={story.plan_iterations ?? 0}
+          psychologistOutput={snapshotState.psychOutput}
+          onApprove={approveHandler}
+        />
+      ) : (
+        <div className="space-y-4">
+          <StatusCallout
+            tone={snapshotState.reason === 'error' ? 'error' : 'warning'}
+            title={
+              snapshotState.reason === 'error'
+                ? 'Psychologist assessment unavailable'
+                : 'No psychologist assessment recorded'
+            }
+            message={snapshotState.message}
+          />
+
+          <section className="card border border-base-300 bg-base-100 shadow-sm">
+            <div className="card-body gap-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="font-serif text-3xl text-base-content">Plan Review</h2>
+                  <p className="text-sm text-base-content/65">
+                    Iterations: {story.plan_iterations ?? 0}
+                  </p>
+                </div>
+
+                <button className="btn btn-success btn-wide" onClick={approveHandler} disabled={approving}>
+                  Approve Plan
+                </button>
+              </div>
+
+              <DiffViewer
+                originalText={story.plan_v1 ?? ''}
+                revisedText={story.plan_final ?? ''}
+                label="Plan v1 → Final"
+              />
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   )
 }
