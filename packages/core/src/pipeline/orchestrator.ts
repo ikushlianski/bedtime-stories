@@ -78,7 +78,8 @@ export async function runPipeline(options: {
 
     if (isFirstIteration || isFinalIteration) {
       const psych = await runPsychologist({
-        plan: currentPlan,
+        content: currentPlan,
+        contentType: 'plan',
         seed,
         iterationNumber,
         model: models.psychologist,
@@ -130,7 +131,8 @@ export async function runPipeline(options: {
   })
 
   const psychologistTextOutput = await runPsychologist({
-    plan: textV1,
+    content: textV1,
+    contentType: 'text',
     seed,
     iterationNumber: 1,
     model: models.psychologist,

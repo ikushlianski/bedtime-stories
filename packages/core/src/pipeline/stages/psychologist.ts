@@ -2,17 +2,21 @@ import { claudeCliRunner } from '../../ai'
 import { PsychologistOutputSchema, type PsychologistOutput } from '../schemas'
 
 export async function runPsychologist(options: {
-  plan: string
+  content: string
+  contentType: 'plan' | 'text'
   seed: string
   iterationNumber: number
   model: string
   cwd?: string
 }): Promise<PsychologistOutput> {
-  const { plan, seed, iterationNumber, model } = options
+  const { content, contentType, seed, iterationNumber, model } = options
   const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
 
+  const label = contentType === 'plan' ? 'Story plan (from plotter)' : 'Written story text (from writer)'
+
   const prompt = [
-    `Plan:\n${plan}`,
+    `Content type: ${contentType}`,
+    `${label}:\n${content}`,
     `Seed (original situation from Sasha's life):\n${seed}`,
     `Iteration number: ${iterationNumber}`,
   ].join('\n\n')
