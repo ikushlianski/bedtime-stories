@@ -2,14 +2,18 @@ import { claudeCliRunner } from '../../ai'
 import type { CriticOutput } from '../schemas'
 
 const WRITER_SYSTEM_PROMPT = `You are a writer creating a bedtime therapeutic story for a 6-year-old boy named Gosha (Sasha).
-Write the full story text based on the plan provided. Requirements:
+Write the full story text in Russian based on the plan provided. Requirements:
+- Language: Russian only. Use warm, vivid, conversational language suitable for reading aloud to a child.
 - Length: 800–1200 words
-- Language: warm, vivid, readable aloud
-- No explicit moral stated by any character — Gosha arrives at conclusions through action
-- Include at least one physical/bodily sensation (not internal monologue)
-- No dialogue runs longer than 3 exchanges without narrative between them
-- Ending must match the plan's ending type
-Return only the story text, no commentary.`
+- Humor: Include playful, age-appropriate humor (silly situations, wordplay, unexpected moments) that will make Sasha smile or giggle.
+- Engagement: Use sensory language (sounds, textures, colors), repetition of catchy phrases, rhythm in dialogue. Make the child eager to know what happens next.
+- Characters: Give them distinctive voices and mannerisms so a 6-year-old remembers them easily.
+- No explicit moral stated by any character — Sasha arrives at conclusions through experiencing the story.
+- Include at least one physical/bodily sensation (touch, warmth, sound, taste) — not internal monologue.
+- Dialogue: No dialogue runs longer than 3 exchanges without narrative between them.
+- Cultural: Use Russian idioms, folklore references, or cultural elements that feel natural to the story.
+- Ending must match the plan's ending type (open, hopeful, or resolved).
+Return only the story text in Russian, no commentary or meta-discussion.`
 
 export async function runWriter(options: {
   plan: string
