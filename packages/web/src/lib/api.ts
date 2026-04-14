@@ -75,9 +75,18 @@ export interface FeedbackData {
   feedback_type: 'agent_run' | 'retrospective'
 }
 
+export type PipelineStatusValue =
+  | 'plan_running'
+  | 'plan_ready'
+  | 'text_running'
+  | 'text_ready'
+  | 'failed'
+  | 'pending'
+
 export interface PipelineStatus {
   story_id: number
-  status: 'running' | 'completed' | 'failed' | 'pending'
+  status: PipelineStatusValue
+  phase: 'plan' | 'text' | null
   current_step: string | null
   steps: Array<{
     name: string

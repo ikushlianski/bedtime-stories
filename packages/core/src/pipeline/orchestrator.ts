@@ -7,53 +7,51 @@ import type { PsychologistOutput, CriticOutput } from './schemas'
 
 const MAX_PLAN_ITERATIONS = 3
 
-export interface PipelineResult {
+export interface PipelineModels {
+  plotter: string
+  psychologist: string
+  plotCritic: string
+  writer: string
+  writerCritic: string
+}
+
+export interface PipelinePromptVersions {
+  plotter: number
+  psychologistPlan: number
+  psychologistText: number
+  plotCritic: number
+  writer: number
+  writerCritic: number
+}
+
+export interface PlanPhaseResult {
   planV1: string
   planFinal: string
   planIterationsCount: number
   psychologistPlanOutput: PsychologistOutput
   plotCriticOutput: CriticOutput
+  models: PipelineModels
+  promptVersions: PipelinePromptVersions
+}
+
+export interface TextPhaseResult {
   textV1: string
   textV2: string
   psychologistTextOutput: PsychologistOutput
   writerCriticOutput: CriticOutput
-  models: {
-    plotter: string
-    psychologist: string
-    plotCritic: string
-    writer: string
-    writerCritic: string
-  }
-  promptVersions: {
-    plotter: number
-    psychologistPlan: number
-    psychologistText: number
-    plotCritic: number
-    writer: number
-    writerCritic: number
-  }
+  models: PipelineModels
+  promptVersions: PipelinePromptVersions
 }
 
-export async function runPipeline(options: {
+export interface PipelineResult extends PlanPhaseResult, TextPhaseResult {}
+
+export async function runPlanPhase(options: {
   seed: string
   storyId: number
-  models: {
-    plotter: string
-    psychologist: string
-    plotCritic: string
-    writer: string
-    writerCritic: string
-  }
-  promptVersions: {
-    plotter: number
-    psychologistPlan: number
-    psychologistText: number
-    plotCritic: number
-    writer: number
-    writerCritic: number
-  }
+  models: PipelineModels
+  promptVersions: PipelinePromptVersions
   cwd?: string
-}): Promise<PipelineResult> {
+}): Promise<PlanPhaseResult> {
   const { seed, models, promptVersions } = options
   const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
 
@@ -96,9 +94,13 @@ export async function runPipeline(options: {
         ...cwdArg,
       })
     } else {
+      if (psychologistPlanOutput === undefined) {
+        throw new Error('Invariant violated: psychologistPlanOutput missing on intermediate iteration')
+      }
+
       plotCriticOutput = await runPlotCritic({
         plan: currentPlan,
-        psychologistOutput: psychologistPlanOutput!,
+        psychologistOutput: psychologistPlanOutput,
         iterationNumber,
         model: models.plotCritic,
         ...cwdArg,
@@ -121,7 +123,31 @@ export async function runPipeline(options: {
     }
   }
 
-  const planFinal = currentPlan
+  if (psychologistPlanOutput === undefined || plotCriticOutput === undefined) {
+    throw new Error('Plan phase completed without psychologist or critic output')
+  }
+
+  return {
+    planV1,
+    planFinal: currentPlan,
+    planIterationsCount: iterationsCount,
+    psychologistPlanOutput,
+    plotCriticOutput,
+    models,
+    promptVersions,
+  }
+}
+
+export async function runTextPhase(options: {
+  seed: string
+  planFinal: string
+  storyId: number
+  models: PipelineModels
+  promptVersions: PipelinePromptVersions
+  cwd?: string
+}): Promise<TextPhaseResult> {
+  const { seed, planFinal, models, promptVersions } = options
+  const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
 
   const textV1 = await runWriter({
     plan: planFinal,
@@ -156,11 +182,6 @@ export async function runPipeline(options: {
   })
 
   return {
-    planV1,
-    planFinal,
-    planIterationsCount: iterationsCount,
-    psychologistPlanOutput: psychologistPlanOutput!,
-    plotCriticOutput: plotCriticOutput!,
     textV1,
     textV2,
     psychologistTextOutput,
@@ -168,4 +189,25 @@ export async function runPipeline(options: {
     models,
     promptVersions,
   }
+}
+
+export async function runPipeline(options: {
+  seed: string
+  storyId: number
+  models: PipelineModels
+  promptVersions: PipelinePromptVersions
+  cwd?: string
+}): Promise<PipelineResult> {
+  const planPhase = await runPlanPhase(options)
+
+  const textPhase = await runTextPhase({
+    seed: options.seed,
+    planFinal: planPhase.planFinal,
+    storyId: options.storyId,
+    models: options.models,
+    promptVersions: options.promptVersions,
+    ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
+  })
+
+  return { ...planPhase, ...textPhase }
 }

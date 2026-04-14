@@ -2,16 +2,39 @@ import { Router } from 'express'
 import { eq, desc } from 'drizzle-orm'
 import { z } from 'zod'
 import { validate } from '../middleware/validate'
-import { runPipeline } from '@bedtime/core/pipeline/orchestrator'
+import {
+  runPlanPhase,
+  runTextPhase,
+  type PipelineModels,
+  type PipelinePromptVersions,
+  type PlanPhaseResult,
+  type TextPhaseResult,
+} from '@bedtime/core/pipeline/orchestrator'
 import { db } from '@bedtime/core/db/client'
 import { runSnapshots, stories } from '@bedtime/core/db/schema'
 import type { NewRunSnapshot } from '@bedtime/core/db/types'
 
 const router = Router()
 
-const pipelineStatusMap = new Map<number, string>()
+export type PipelineInternalStatus =
+  | 'plan_running'
+  | 'plan_ready'
+  | 'plan_failed'
+  | 'text_running'
+  | 'text_ready'
+  | 'text_failed'
 
-const defaultModels = {
+const pipelineStatusMap = new Map<number, PipelineInternalStatus>()
+
+export function getPipelineStatus(storyId: number): PipelineInternalStatus | undefined {
+  return pipelineStatusMap.get(storyId)
+}
+
+export function setPipelineStatus(storyId: number, status: PipelineInternalStatus): void {
+  pipelineStatusMap.set(storyId, status)
+}
+
+export const defaultModels: PipelineModels = {
   plotter: 'claude-sonnet-4-6',
   psychologist: 'claude-sonnet-4-6',
   plotCritic: 'claude-haiku-4-5-20251001',
@@ -19,13 +42,133 @@ const defaultModels = {
   writerCritic: 'claude-haiku-4-5-20251001',
 }
 
-const defaultPromptVersions = {
+export const defaultPromptVersions: PipelinePromptVersions = {
   plotter: 1,
   psychologistPlan: 1,
   psychologistText: 1,
   plotCritic: 1,
   writer: 1,
   writerCritic: 1,
+}
+
+async function persistPlanPhase(storyId: number, plan: PlanPhaseResult): Promise<void> {
+  const snapshotRow: NewRunSnapshot = {
+    storyId,
+    plotterModel: plan.models.plotter,
+    plotterPromptVersion: plan.promptVersions.plotter,
+    psychologistPlanModel: plan.models.psychologist,
+    psychologistPlanPromptVersion: plan.promptVersions.psychologistPlan,
+    plotCriticModel: plan.models.plotCritic,
+    plotCriticPromptVersion: plan.promptVersions.plotCritic,
+    writerModel: plan.models.writer,
+    writerPromptVersion: plan.promptVersions.writer,
+    psychologistTextModel: plan.models.psychologist,
+    psychologistTextPromptVersion: plan.promptVersions.psychologistText,
+    writerCriticModel: plan.models.writerCritic,
+    writerCriticPromptVersion: plan.promptVersions.writerCritic,
+    planIterationsCount: plan.planIterationsCount,
+    planV1: plan.planV1,
+    planFinal: plan.planFinal,
+    psychologistPlanOutput: plan.psychologistPlanOutput,
+    plotCriticOutput: plan.plotCriticOutput,
+  }
+
+  await db.insert(runSnapshots).values(snapshotRow)
+
+  await db
+    .update(stories)
+    .set({
+      planV1: plan.planV1,
+      planFinal: plan.planFinal,
+      planIterations: plan.planIterationsCount,
+      plotterModel: plan.models.plotter,
+      plotterPromptVersion: plan.promptVersions.plotter,
+      plotCriticModel: plan.models.plotCritic,
+      plotCriticPromptVersion: plan.promptVersions.plotCritic,
+    })
+    .where(eq(stories.id, storyId))
+}
+
+async function persistTextPhase(storyId: number, text: TextPhaseResult): Promise<void> {
+  const [existing] = await db
+    .select()
+    .from(runSnapshots)
+    .where(eq(runSnapshots.storyId, storyId))
+    .orderBy(desc(runSnapshots.createdAt))
+    .limit(1)
+
+  if (existing) {
+    await db
+      .update(runSnapshots)
+      .set({
+        textV1: text.textV1,
+        textV2: text.textV2,
+        psychologistTextOutput: text.psychologistTextOutput,
+        writerCriticOutput: text.writerCriticOutput,
+      })
+      .where(eq(runSnapshots.id, existing.id))
+  }
+
+  await db
+    .update(stories)
+    .set({
+      textV1: text.textV1,
+      textV2: text.textV2,
+      writerModel: text.models.writer,
+      writerPromptVersion: text.promptVersions.writer,
+      writerCriticModel: text.models.writerCritic,
+      writerCriticPromptVersion: text.promptVersions.writerCritic,
+    })
+    .where(eq(stories.id, storyId))
+}
+
+export function triggerPlanPhase(storyId: number, seed: string): void {
+  setPipelineStatus(storyId, 'plan_running')
+
+  runPlanPhase({
+    seed,
+    storyId,
+    models: defaultModels,
+    promptVersions: defaultPromptVersions,
+  })
+    .then(async (plan) => {
+      try {
+        await persistPlanPhase(storyId, plan)
+        setPipelineStatus(storyId, 'plan_ready')
+      } catch (dbError) {
+        console.error(`Failed to persist plan phase for storyId=${storyId}:`, dbError)
+        setPipelineStatus(storyId, 'plan_failed')
+      }
+    })
+    .catch((planError) => {
+      setPipelineStatus(storyId, 'plan_failed')
+      console.error(`Plan phase failed for storyId=${storyId}:`, planError)
+    })
+}
+
+export function triggerTextPhase(storyId: number, seed: string, planFinal: string): void {
+  setPipelineStatus(storyId, 'text_running')
+
+  runTextPhase({
+    seed,
+    planFinal,
+    storyId,
+    models: defaultModels,
+    promptVersions: defaultPromptVersions,
+  })
+    .then(async (text) => {
+      try {
+        await persistTextPhase(storyId, text)
+        setPipelineStatus(storyId, 'text_ready')
+      } catch (dbError) {
+        console.error(`Failed to persist text phase for storyId=${storyId}:`, dbError)
+        setPipelineStatus(storyId, 'text_failed')
+      }
+    })
+    .catch((textError) => {
+      setPipelineStatus(storyId, 'text_failed')
+      console.error(`Text phase failed for storyId=${storyId}:`, textError)
+    })
 }
 
 const runPipelineSchema = z.object({
@@ -37,82 +180,37 @@ router.post('/run', validate(runPipelineSchema), async (req, res) => {
   try {
     const { storyId, seed } = req.body as z.infer<typeof runPipelineSchema>
 
-    pipelineStatusMap.set(storyId, 'running')
+    triggerPlanPhase(storyId, seed)
 
-    res.json({ started: true, storyId })
-
-    runPipeline({
-      seed,
-      storyId,
-      models: defaultModels,
-      promptVersions: defaultPromptVersions,
-    }).then(async (result) => {
-      pipelineStatusMap.set(storyId, 'done')
-
-      const snapshotRow: NewRunSnapshot = {
-        storyId,
-        plotterModel: result.models.plotter,
-        plotterPromptVersion: result.promptVersions.plotter,
-        psychologistPlanModel: result.models.psychologist,
-        psychologistPlanPromptVersion: result.promptVersions.psychologistPlan,
-        plotCriticModel: result.models.plotCritic,
-        plotCriticPromptVersion: result.promptVersions.plotCritic,
-        writerModel: result.models.writer,
-        writerPromptVersion: result.promptVersions.writer,
-        psychologistTextModel: result.models.psychologist,
-        psychologistTextPromptVersion: result.promptVersions.psychologistText,
-        writerCriticModel: result.models.writerCritic,
-        writerCriticPromptVersion: result.promptVersions.writerCritic,
-        planIterationsCount: result.planIterationsCount,
-        planV1: result.planV1,
-        planFinal: result.planFinal,
-        psychologistPlanOutput: result.psychologistPlanOutput,
-        plotCriticOutput: result.plotCriticOutput,
-        textV1: result.textV1,
-        textV2: result.textV2,
-        psychologistTextOutput: result.psychologistTextOutput,
-        writerCriticOutput: result.writerCriticOutput,
-      }
-
-      try {
-        await db.insert(runSnapshots).values(snapshotRow)
-
-        await db
-          .update(stories)
-          .set({
-            planV1: result.planV1,
-            planFinal: result.planFinal,
-            planIterations: result.planIterationsCount,
-            textV1: result.textV1,
-            textV2: result.textV2,
-            plotterModel: result.models.plotter,
-            plotterPromptVersion: result.promptVersions.plotter,
-            plotCriticModel: result.models.plotCritic,
-            plotCriticPromptVersion: result.promptVersions.plotCritic,
-            writerModel: result.models.writer,
-            writerPromptVersion: result.promptVersions.writer,
-            writerCriticModel: result.models.writerCritic,
-            writerCriticPromptVersion: result.promptVersions.writerCritic,
-          })
-          .where(eq(stories.id, storyId))
-      } catch (dbError) {
-        console.error('Failed to persist pipeline result to DB:', dbError)
-      }
-    }).catch((pipelineError) => {
-      pipelineStatusMap.set(storyId, 'error')
-      console.error(`Pipeline run failed for storyId=${storyId}:`, pipelineError)
-    })
+    res.json({ started: true, storyId, phase: 'plan' })
   } catch (err) {
     console.error('POST /pipeline/run failed:', err)
     res.status(500).json({ error: 'Failed to start pipeline' })
   }
 })
 
-const INTERNAL_TO_PUBLIC_STATUS: Record<string, 'running' | 'completed' | 'failed' | 'pending'> = {
-  running: 'running',
-  done: 'completed',
-  error: 'failed',
-  unknown: 'pending',
+export interface PublicPipelineStatus {
+  status: 'plan_running' | 'plan_ready' | 'text_running' | 'text_ready' | 'failed' | 'pending'
+  phase: 'plan' | 'text' | null
+}
+
+export function toPublicStatus(internal: PipelineInternalStatus | undefined): PublicPipelineStatus {
+  switch (internal) {
+    case 'plan_running':
+      return { status: 'plan_running', phase: 'plan' }
+    case 'plan_ready':
+      return { status: 'plan_ready', phase: 'plan' }
+    case 'plan_failed':
+      return { status: 'failed', phase: 'plan' }
+    case 'text_running':
+      return { status: 'text_running', phase: 'text' }
+    case 'text_ready':
+      return { status: 'text_ready', phase: 'text' }
+    case 'text_failed':
+      return { status: 'failed', phase: 'text' }
+    default:
+      return { status: 'pending', phase: null }
+  }
 }
 
 const PIPELINE_STEP_NAMES = ['Plotter', 'Psychologist', 'PlotCritic', 'Writer', 'WriterCritic'] as const
@@ -126,28 +224,32 @@ router.get('/status/:storyId', async (req, res) => {
       return
     }
 
-    const internalStatus = pipelineStatusMap.get(storyIdRaw) ?? 'unknown'
-    const publicStatus = INTERNAL_TO_PUBLIC_STATUS[internalStatus] ?? 'pending'
-
-    const stepStatus: 'pending' | 'running' | 'completed' | 'failed' =
-      publicStatus === 'completed'
-        ? 'completed'
-        : publicStatus === 'failed'
-          ? 'failed'
-          : publicStatus === 'running'
-            ? 'running'
-            : 'pending'
+    const internal = getPipelineStatus(storyIdRaw)
+    const publicStatus = toPublicStatus(internal)
 
     const steps = PIPELINE_STEP_NAMES.map((name) => ({
       name,
-      status: stepStatus,
+      status:
+        publicStatus.status === 'plan_ready' || publicStatus.status === 'text_ready'
+          ? 'completed'
+          : publicStatus.status === 'failed'
+            ? 'failed'
+            : publicStatus.status === 'plan_running' || publicStatus.status === 'text_running'
+              ? 'running'
+              : 'pending',
       agent: name,
     }))
 
     res.json({
       story_id: storyIdRaw,
-      status: publicStatus,
-      current_step: publicStatus === 'running' ? 'Plotter' : null,
+      status: publicStatus.status,
+      phase: publicStatus.phase,
+      current_step:
+        publicStatus.status === 'plan_running'
+          ? 'Plotter'
+          : publicStatus.status === 'text_running'
+            ? 'Writer'
+            : null,
       steps,
     })
   } catch (err) {

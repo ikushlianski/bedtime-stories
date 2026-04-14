@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { api, type PipelineStatus } from '../lib/api'
+import { api, type PipelineStatus, type PipelineStatusValue } from '../lib/api'
 import { PageHeader, PipelineProgress, StatusCallout } from '../components'
 import type { PipelineStep, AgentName, AgentStatus } from '../components/types'
 
@@ -37,6 +37,29 @@ function toPipelineSteps(status: PipelineStatus): PipelineStep[] {
   }))
 }
 
+function isActivePolling(status: PipelineStatusValue): boolean {
+  return status === 'plan_running' || status === 'text_running' || status === 'pending'
+}
+
+function describeStatus(status: PipelineStatusValue): string {
+  switch (status) {
+    case 'plan_running':
+      return 'Plan phase is running.'
+    case 'plan_ready':
+      return 'Plan is ready for review.'
+    case 'text_running':
+      return 'Text phase is running.'
+    case 'text_ready':
+      return 'Text is ready for review.'
+    case 'failed':
+      return 'Pipeline failed.'
+    case 'pending':
+      return 'Waiting for pipeline to start.'
+    default:
+      return 'Unknown status.'
+  }
+}
+
 export function PipelineStatusPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -52,7 +75,7 @@ export function PipelineStatusPage() {
 
         setStatus(data)
 
-        if (data.status !== 'running' && data.status !== 'pending') {
+        if (!isActivePolling(data.status)) {
           if (intervalRef.current) {
             clearInterval(intervalRef.current)
             intervalRef.current = null
@@ -79,9 +102,6 @@ export function PipelineStatusPage() {
     }
   }, [storyId])
 
-  const isRunning = status?.status === 'running' || status?.status === 'pending'
-  const isDone = status && !isRunning
-
   return (
     <div>
       <PageHeader
@@ -89,7 +109,7 @@ export function PipelineStatusPage() {
         title="Pipeline Status"
         description={
           status
-            ? `${isRunning ? 'Pipeline is running.' : `Pipeline ${status.status}.`}${status.current_step ? ` Current step: ${status.current_step}.` : ''}`
+            ? `${describeStatus(status.status)}${status.current_step ? ` Current step: ${status.current_step}.` : ''}`
             : 'Polling the current generation pipeline.'
         }
       />
@@ -106,7 +126,7 @@ export function PipelineStatusPage() {
         <div className="space-y-6">
           <PipelineProgress steps={toPipelineSteps(status)} />
 
-          {isDone && status.status === 'completed' && (
+          {status.status === 'plan_ready' && (
             <div className="flex justify-end">
               <button className="btn btn-primary" onClick={() => navigate(`/stories/${storyId}/plan-review`)}>
                 Review Plan →
@@ -114,10 +134,18 @@ export function PipelineStatusPage() {
             </div>
           )}
 
-          {isDone && status.status === 'failed' && (
+          {status.status === 'text_ready' && (
+            <div className="flex justify-end">
+              <button className="btn btn-primary" onClick={() => navigate(`/stories/${storyId}/text-review`)}>
+                Review Text →
+              </button>
+            </div>
+          )}
+
+          {status.status === 'failed' && (
             <StatusCallout
               tone="error"
-              title="Pipeline failed"
+              title={status.phase === 'text' ? 'Text phase failed' : 'Plan phase failed'}
               message="Check the API logs for the failing stage before retrying the story."
             />
           )}

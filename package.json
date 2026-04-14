@@ -9,6 +9,8 @@
     "dev:web": "npm run dev -w @bedtime/web",
     "build": "tsc --build",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "notion-import": "tsx packages/core/src/scripts/notion-import.ts"
   },
   "keywords": [],
@@ -36,6 +38,7 @@
     "@types/node": "^25.5.0",
     "drizzle-kit": "^0.31.10",
     "tsx": "^4.21.0",
-    "typescript": "^6.0.2"
+    "typescript": "^6.0.2",
+    "vitest": "^2.1.9"
   }
 }

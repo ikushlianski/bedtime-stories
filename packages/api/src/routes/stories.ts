@@ -5,6 +5,7 @@ import { db } from '@bedtime/core/db/client'
 import { stories, annotations } from '@bedtime/core/db/schema'
 import type { Story, NewStory, NewAnnotation } from '@bedtime/core/db/types'
 import { validate } from '../middleware/validate'
+import { triggerTextPhase } from './pipeline'
 
 const router = Router()
 
@@ -165,30 +166,31 @@ router.post('/:id/approve-plan', validate(approvePlanSchema), async (req, res) =
 
     const { approved } = req.body as z.infer<typeof approvePlanSchema>
 
-    if (!approved) {
-      const [existing] = await db.select().from(stories).where(eq(stories.id, storyId))
+    const [existing] = await db.select().from(stories).where(eq(stories.id, storyId))
 
-      if (!existing) {
-        res.status(404).json({ error: 'Story not found' })
-        return
-      }
-
-      res.json(toSnakeCase(existing as Story))
-      return
-    }
-
-    const [story] = await db
-      .update(stories)
-      .set({ status: 'ready' })
-      .where(eq(stories.id, storyId))
-      .returning()
-
-    if (!story) {
+    if (!existing) {
       res.status(404).json({ error: 'Story not found' })
       return
     }
 
-    res.json(toSnakeCase(story as Story))
+    if (!approved) {
+      res.json(toSnakeCase(existing as Story))
+      return
+    }
+
+    if (existing.planFinal === null || existing.planFinal === undefined) {
+      res.status(409).json({ error: 'Plan has not been generated yet; cannot approve' })
+      return
+    }
+
+    if (existing.seed === null || existing.seed === undefined) {
+      res.status(409).json({ error: 'Story seed is missing; cannot start text phase' })
+      return
+    }
+
+    triggerTextPhase(storyId, existing.seed, existing.planFinal)
+
+    res.json(toSnakeCase(existing as Story))
   } catch (err) {
     console.error('POST /stories/:id/approve-plan failed:', err)
     res.status(500).json({ error: 'Failed to approve plan' })
