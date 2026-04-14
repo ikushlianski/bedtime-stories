@@ -1,4 +1,4 @@
-import { eq, desc, max } from 'drizzle-orm'
+import { eq, desc } from 'drizzle-orm'
 import { db } from '../../db/client'
 import { feedback, prompts } from '../../db/schema'
 import type { Feedback, Prompt } from '../../db/types'
@@ -44,17 +44,6 @@ async function fetchCurrentPrompts(): Promise<Prompt[]> {
   const results: Prompt[] = []
 
   for (const agent of agentNames) {
-    const [maxRow] = await db
-      .select({ maxVersion: max(prompts.version) })
-      .from(prompts)
-      .where(eq(prompts.agent, agent))
-
-    const currentVersion = maxRow?.maxVersion
-
-    if (currentVersion === null || currentVersion === undefined) {
-      continue
-    }
-
     const [promptRow] = await db
       .select()
       .from(prompts)
