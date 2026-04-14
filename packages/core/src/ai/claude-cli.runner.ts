@@ -108,7 +108,10 @@ export class ClaudeCliRunner implements AiRunner {
         for await (const msg of messages as AsyncIterable<SDKMessage>) {
           if (msg.type === 'result') {
             if (msg.subtype !== 'success') {
-              throw new AiExecutionError(`subtype=${msg.subtype}`)
+              const errDetails = 'errors' in msg && Array.isArray(msg.errors) && msg.errors.length > 0
+                ? msg.errors.join('; ')
+                : 'no error details'
+              throw new AiExecutionError(`subtype=${msg.subtype} errors=[${errDetails}]`)
             }
 
             resultText = msg.result
