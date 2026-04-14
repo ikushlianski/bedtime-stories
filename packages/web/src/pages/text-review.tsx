@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { api, type Story, type PsychologistOutput } from '../lib/api'
+import { api, type Story, type RunSnapshot } from '../lib/api'
 import { PageHeader, StatusCallout, TextReviewCard } from '../components'
+import DiffViewer from '../components/diff-viewer'
+import { deriveReviewSnapshotState } from './review-snapshot-state'
 
 function useTextReviewStory(id: number) {
   const [story, setStory] = useState<Story | null>(null)
@@ -23,16 +25,24 @@ function useTextReviewStory(id: number) {
 }
 
 function useRunSnapshot(id: number) {
-  const [psychOutput, setPsychOutput] = useState<PsychologistOutput | null>(null)
+  const [snapshot, setSnapshot] = useState<RunSnapshot | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
 
   useEffect(() => {
+    setLoading(true)
+    setError(null)
+
     api.pipeline
       .snapshot(id)
-      .then((snapshot) => setPsychOutput(snapshot.psychologist_text_output))
-      .catch(() => setPsychOutput(null))
+      .then((data) => setSnapshot(data))
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? err : new Error('Failed to load pipeline snapshot'))
+      })
+      .finally(() => setLoading(false))
   }, [id])
 
-  return psychOutput
+  return { snapshot, loading, error }
 }
 
 export function TextReviewPage() {
@@ -40,7 +50,13 @@ export function TextReviewPage() {
   const navigate = useNavigate()
   const storyId = Number(id)
   const { story, loading, error } = useTextReviewStory(storyId)
-  const psychOutput = useRunSnapshot(storyId)
+  const snapshotFetch = useRunSnapshot(storyId)
+  const snapshotState = deriveReviewSnapshotState({
+    loading: snapshotFetch.loading,
+    error: snapshotFetch.error,
+    snapshot: snapshotFetch.snapshot,
+    phase: 'text',
+  })
   const [approving, setApproving] = useState(false)
   const [approveError, setApproveError] = useState<string | null>(null)
 
@@ -70,8 +86,14 @@ export function TextReviewPage() {
     return <StatusCallout tone="warning" title="Story not found" message="The requested story does not exist." />
   }
 
-  if (!psychOutput) {
+  if (snapshotState.kind === 'loading') {
     return <StatusCallout title="Loading assessment" message="Waiting for psychologist output." />
+  }
+
+  const approveHandler = () => {
+    if (!approving) {
+      void handleApprove()
+    }
   }
 
   return (
@@ -93,16 +115,44 @@ export function TextReviewPage() {
         </div>
       )}
 
-      <TextReviewCard
-        textV1={story.text_v1 ?? ''}
-        textV2={story.text_v2 ?? ''}
-        psychologistOutput={psychOutput}
-        onApprove={() => {
-          if (!approving) {
-            void handleApprove()
-          }
-        }}
-      />
+      {snapshotState.kind === 'ready' ? (
+        <TextReviewCard
+          textV1={story.text_v1 ?? ''}
+          textV2={story.text_v2 ?? ''}
+          psychologistOutput={snapshotState.psychOutput}
+          onApprove={approveHandler}
+        />
+      ) : (
+        <div className="space-y-4">
+          <StatusCallout
+            tone={snapshotState.reason === 'error' ? 'error' : 'warning'}
+            title={
+              snapshotState.reason === 'error'
+                ? 'Psychologist assessment unavailable'
+                : 'No psychologist assessment recorded'
+            }
+            message={snapshotState.message}
+          />
+
+          <section className="card border border-base-300 bg-base-100 shadow-sm">
+            <div className="card-body gap-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="font-serif text-3xl text-base-content">Text Review</h2>
+
+                <button className="btn btn-success btn-wide" onClick={approveHandler} disabled={approving}>
+                  Approve Text
+                </button>
+              </div>
+
+              <DiffViewer
+                originalText={story.text_v1 ?? ''}
+                revisedText={story.text_v2 ?? ''}
+                label="Text v1 → v2"
+              />
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   )
 }

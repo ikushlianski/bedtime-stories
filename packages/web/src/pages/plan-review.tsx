@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { api, type Story, type RunSnapshot } from '../lib/api'
 import { PageHeader, PlanReviewCard, StatusCallout } from '../components'
 import DiffViewer from '../components/diff-viewer'
-import { derivePlanReviewSnapshotState } from './plan-review-state'
+import { deriveReviewSnapshotState } from './review-snapshot-state'
 
 function usePlanReviewStory(id: number) {
   const [story, setStory] = useState<Story | null>(null)
@@ -51,10 +51,11 @@ export function PlanReviewPage() {
   const storyId = Number(id)
   const { story, loading, error } = usePlanReviewStory(storyId)
   const snapshotFetch = useRunSnapshot(storyId)
-  const snapshotState = derivePlanReviewSnapshotState({
+  const snapshotState = deriveReviewSnapshotState({
     loading: snapshotFetch.loading,
     error: snapshotFetch.error,
     snapshot: snapshotFetch.snapshot,
+    phase: 'plan',
   })
   const [approving, setApproving] = useState(false)
   const [approveError, setApproveError] = useState<string | null>(null)
