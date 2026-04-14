@@ -12,12 +12,17 @@ import {
 } from '@bedtime/core/pipeline/orchestrator'
 import { db } from '@bedtime/core/db/client'
 import { runSnapshots, stories } from '@bedtime/core/db/schema'
-import type { NewRunSnapshot } from '@bedtime/core/db/types'
 import {
   toPublicStatus,
   type PipelineInternalStatus,
   type PublicPipelineStatus,
 } from './pipeline-status'
+import {
+  buildPlanSnapshotInsert,
+  buildTextSnapshotUpdate,
+  buildPlanStoriesUpdate,
+  buildTextStoriesUpdate,
+} from './pipeline-persistence'
 
 export { toPublicStatus, type PipelineInternalStatus, type PublicPipelineStatus }
 
@@ -51,41 +56,9 @@ export const defaultPromptVersions: PipelinePromptVersions = {
 }
 
 async function persistPlanPhase(storyId: number, plan: PlanPhaseResult): Promise<void> {
-  const snapshotRow: NewRunSnapshot = {
-    storyId,
-    plotterModel: plan.models.plotter,
-    plotterPromptVersion: plan.promptVersions.plotter,
-    psychologistPlanModel: plan.models.psychologist,
-    psychologistPlanPromptVersion: plan.promptVersions.psychologistPlan,
-    plotCriticModel: plan.models.plotCritic,
-    plotCriticPromptVersion: plan.promptVersions.plotCritic,
-    writerModel: plan.models.writer,
-    writerPromptVersion: plan.promptVersions.writer,
-    psychologistTextModel: plan.models.psychologist,
-    psychologistTextPromptVersion: plan.promptVersions.psychologistText,
-    writerCriticModel: plan.models.writerCritic,
-    writerCriticPromptVersion: plan.promptVersions.writerCritic,
-    planIterationsCount: plan.planIterationsCount,
-    planV1: plan.planV1,
-    planFinal: plan.planFinal,
-    psychologistPlanOutput: plan.psychologistPlanOutput,
-    plotCriticOutput: plan.plotCriticOutput,
-  }
+  await db.insert(runSnapshots).values(buildPlanSnapshotInsert(storyId, plan))
 
-  await db.insert(runSnapshots).values(snapshotRow)
-
-  await db
-    .update(stories)
-    .set({
-      planV1: plan.planV1,
-      planFinal: plan.planFinal,
-      planIterations: plan.planIterationsCount,
-      plotterModel: plan.models.plotter,
-      plotterPromptVersion: plan.promptVersions.plotter,
-      plotCriticModel: plan.models.plotCritic,
-      plotCriticPromptVersion: plan.promptVersions.plotCritic,
-    })
-    .where(eq(stories.id, storyId))
+  await db.update(stories).set(buildPlanStoriesUpdate(plan)).where(eq(stories.id, storyId))
 }
 
 async function persistTextPhase(storyId: number, text: TextPhaseResult): Promise<void> {
@@ -99,26 +72,11 @@ async function persistTextPhase(storyId: number, text: TextPhaseResult): Promise
   if (existing) {
     await db
       .update(runSnapshots)
-      .set({
-        textV1: text.textV1,
-        textV2: text.textV2,
-        psychologistTextOutput: text.psychologistTextOutput,
-        writerCriticOutput: text.writerCriticOutput,
-      })
+      .set(buildTextSnapshotUpdate(text))
       .where(eq(runSnapshots.id, existing.id))
   }
 
-  await db
-    .update(stories)
-    .set({
-      textV1: text.textV1,
-      textV2: text.textV2,
-      writerModel: text.models.writer,
-      writerPromptVersion: text.promptVersions.writer,
-      writerCriticModel: text.models.writerCritic,
-      writerCriticPromptVersion: text.promptVersions.writerCritic,
-    })
-    .where(eq(stories.id, storyId))
+  await db.update(stories).set(buildTextStoriesUpdate(text)).where(eq(stories.id, storyId))
 }
 
 export function triggerPlanPhase(storyId: number, seed: string): void {
