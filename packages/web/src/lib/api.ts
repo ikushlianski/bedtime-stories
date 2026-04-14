@@ -142,7 +142,7 @@ export const api = {
 
   pipeline: {
     run: (storyId: number, seed: string) =>
-      request<{ started: boolean; storyId: number }>('/api/pipeline/run', {
+      request<{ started: boolean; storyId: number; phase: 'plan' }>('/api/pipeline/run', {
         method: 'POST',
         body: JSON.stringify({ storyId, seed }),
       }),
