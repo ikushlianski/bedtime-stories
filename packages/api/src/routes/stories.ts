@@ -6,6 +6,7 @@ import { stories, annotations } from '@bedtime/core/db/schema'
 import type { Story, NewStory, NewAnnotation } from '@bedtime/core/db/types'
 import { validate } from '../middleware/validate'
 import { triggerTextPhase, getPipelineStatus } from './pipeline'
+import { decideApprovePlan } from './approve-plan-decision'
 
 const router = Router()
 
@@ -178,24 +179,27 @@ router.post('/:id/approve-plan', validate(approvePlanSchema), async (req, res) =
       return
     }
 
-    if (existing.planFinal === null || existing.planFinal === undefined) {
-      res.status(409).json({ error: 'Plan has not been generated yet; cannot approve' })
+    const decision = decideApprovePlan(
+      {
+        planFinal: existing.planFinal ?? null,
+        seed: existing.seed ?? null,
+        textV2: existing.textV2 ?? null,
+      },
+      getPipelineStatus(storyId),
+    )
+
+    if (decision.action === 'reject') {
+      const message =
+        decision.reason === 'plan_missing'
+          ? 'Plan has not been generated yet; cannot approve'
+          : 'Story seed is missing; cannot start text phase'
+      res.status(decision.httpStatus).json({ error: message })
       return
     }
 
-    if (existing.seed === null || existing.seed === undefined) {
-      res.status(409).json({ error: 'Story seed is missing; cannot start text phase' })
-      return
+    if (decision.action === 'start_text_phase') {
+      triggerTextPhase(storyId, decision.seed, decision.planFinal)
     }
-
-    const currentPipelineStatus = getPipelineStatus(storyId)
-
-    if (currentPipelineStatus === 'text_running' || currentPipelineStatus === 'text_ready') {
-      res.json(toSnakeCase(existing as Story))
-      return
-    }
-
-    triggerTextPhase(storyId, existing.seed, existing.planFinal)
 
     res.json(toSnakeCase(existing as Story))
   } catch (err) {
