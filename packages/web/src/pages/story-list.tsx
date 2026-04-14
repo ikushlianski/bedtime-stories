@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api, type Story } from '../lib/api'
 import { CreateStoryModal, PageHeader, StatusCallout, StoryCard, StoryFilterTabs } from '../components'
 
@@ -7,11 +7,13 @@ type StatusFilter = 'all' | 'draft' | 'ready' | 'read' | 'archived'
 
 export function StoryListPage() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const seedFromUrl = searchParams.get('seed')
   const [stories, setStories] = useState<Story[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<StatusFilter>('all')
-  const [showModal, setShowModal] = useState(false)
+  const [showModal, setShowModal] = useState(seedFromUrl !== null)
 
   const fetchStories = useCallback(async () => {
     setLoading(true)
@@ -88,7 +90,16 @@ export function StoryListPage() {
 
       <CreateStoryModal
         open={showModal}
-        onClose={() => setShowModal(false)}
+        initialSeed={seedFromUrl ?? ''}
+        onClose={() => {
+          setShowModal(false)
+
+          if (seedFromUrl !== null) {
+            const next = new URLSearchParams(searchParams)
+            next.delete('seed')
+            setSearchParams(next, { replace: true })
+          }
+        }}
         onSubmit={handleCreateStory}
       />
     </div>

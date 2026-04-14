@@ -5,6 +5,7 @@ import { PlanReviewPage } from './pages/plan-review'
 import { TextReviewPage } from './pages/text-review'
 import { PipelineStatusPage } from './pages/pipeline-status'
 import { DashboardPage } from './pages/dashboard'
+import { IdeasPage } from './pages/ideas'
 
 function Nav() {
   return (
@@ -20,6 +21,9 @@ function Nav() {
         <div className="join">
           <Link to="/" className="btn btn-ghost join-item btn-sm sm:btn-md">
             Stories
+          </Link>
+          <Link to="/ideas" className="btn btn-ghost join-item btn-sm sm:btn-md">
+            Ideas
           </Link>
           <Link to="/dashboard" className="btn btn-ghost join-item btn-sm sm:btn-md">
             Dashboard
@@ -44,6 +48,7 @@ function App() {
             <Route path="/stories/:id/text-review" element={<TextReviewPage />} />
             <Route path="/stories/:id/pipeline" element={<PipelineStatusPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/ideas" element={<IdeasPage />} />
           </Routes>
         </main>
       </div>

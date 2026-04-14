@@ -1,15 +1,20 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 interface CreateStoryModalProps {
   open: boolean
   onClose: () => void
   onSubmit: (seed: string) => Promise<void>
+  initialSeed?: string
 }
 
-function CreateStoryModal({ open, onClose, onSubmit }: CreateStoryModalProps) {
-  const [seed, setSeed] = useState('')
+function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '' }: CreateStoryModalProps) {
+  const [seed, setSeed] = useState(initialSeed)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (open) setSeed(initialSeed)
+  }, [open, initialSeed])
 
   if (!open) {
     return null
