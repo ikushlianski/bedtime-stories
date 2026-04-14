@@ -6,6 +6,7 @@ import { TextReviewPage } from './pages/text-review'
 import { PipelineStatusPage } from './pages/pipeline-status'
 import { DashboardPage } from './pages/dashboard'
 import { IdeasPage } from './pages/ideas'
+import { InboxPage } from './pages/inbox'
 
 function Nav() {
   return (
@@ -19,6 +20,9 @@ function Nav() {
         </div>
 
         <div className="join">
+          <Link to="/inbox" className="btn btn-ghost join-item btn-sm sm:btn-md">
+            Inbox
+          </Link>
           <Link to="/" className="btn btn-ghost join-item btn-sm sm:btn-md">
             Stories
           </Link>
@@ -49,6 +53,7 @@ function App() {
             <Route path="/stories/:id/pipeline" element={<PipelineStatusPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/ideas" element={<IdeasPage />} />
+            <Route path="/inbox" element={<InboxPage />} />
           </Routes>
         </main>
       </div>
