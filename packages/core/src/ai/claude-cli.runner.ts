@@ -23,34 +23,47 @@ export class ClaudeCliRunner implements AiRunner {
     const { model, prompt } = options
     const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
 
+    const startedAt = Date.now()
+    const label = options.label ?? 'runText'
+    console.log(`[ai] ${label} start model=${model} promptLen=${prompt.length}`)
+
     let resultText = ''
 
-    const messages = query({
-      prompt,
-      options: {
-        model,
-        ...cwdArg,
-        tools: [],
-        permissionMode: 'dontAsk',
-        persistSession: false,
-      },
-    })
+    try {
+      const messages = query({
+        prompt,
+        options: {
+          model,
+          ...cwdArg,
+          tools: [],
+          permissionMode: 'dontAsk',
+          persistSession: false,
+        },
+      })
 
-    for await (const msg of messages as AsyncIterable<SDKMessage>) {
-      if (msg.type === 'result') {
-        if (msg.subtype !== 'success') {
-          throw new AiExecutionError(`subtype=${msg.subtype}`)
+      for await (const msg of messages as AsyncIterable<SDKMessage>) {
+        if (msg.type === 'result') {
+          if (msg.subtype !== 'success') {
+            throw new AiExecutionError(`subtype=${msg.subtype}`)
+          }
+
+          resultText = msg.result
         }
-
-        resultText = msg.result
       }
-    }
 
-    if (!resultText) {
-      throw new AiExecutionError('no result received')
-    }
+      if (!resultText) {
+        throw new AiExecutionError('no result received')
+      }
 
-    return resultText
+      const durationMs = Date.now() - startedAt
+      console.log(`[ai] ${label} done model=${model} durationMs=${durationMs} resultLen=${resultText.length}`)
+
+      return resultText
+    } catch (err) {
+      const durationMs = Date.now() - startedAt
+      console.error(`[ai] ${label} failed model=${model} durationMs=${durationMs}:`, err)
+      throw err
+    }
   }
 
   async runStructured<T>(options: RunStructuredOptions<T>): Promise<T> {
@@ -58,7 +71,7 @@ export class ClaudeCliRunner implements AiRunner {
     const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
 
     const fullPrompt = `/${skill}\n\n${prompt}`
-    const resultText = await this.runText({ model, prompt: fullPrompt, ...cwdArg })
+    const resultText = await this.runText({ model, prompt: fullPrompt, label: `skill:${skill}`, ...cwdArg })
 
     const jsonText = this.extractJson(resultText)
 

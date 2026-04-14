@@ -4,6 +4,7 @@ export interface RunTextOptions {
   model: string
   prompt: string
   cwd?: string
+  label?: string
 }
 
 export interface RunStructuredOptions<T> {
