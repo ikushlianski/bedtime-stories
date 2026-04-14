@@ -1,76 +1,79 @@
-import { Card, CardBody, CardHeader } from "@heroui/react";
-
 interface DiffViewerProps {
-  originalText: string;
-  revisedText: string;
-  label: string;
+  originalText: string
+  revisedText: string
+  label: string
 }
 
 interface DiffLine {
-  type: "added" | "removed" | "unchanged";
-  text: string;
+  type: 'added' | 'removed' | 'unchanged'
+  text: string
 }
 
 function computeDiff(original: string, revised: string): DiffLine[] {
-  const originalLines = original.split("\n");
-  const revisedLines = revised.split("\n");
-  const result: DiffLine[] = [];
+  const originalLines = original.split('\n')
+  const revisedLines = revised.split('\n')
+  const result: DiffLine[] = []
 
-  const maxLen = Math.max(originalLines.length, revisedLines.length);
+  const maxLen = Math.max(originalLines.length, revisedLines.length)
 
   for (let i = 0; i < maxLen; i++) {
-    const orig = originalLines[i];
-    const rev = revisedLines[i];
+    const orig = originalLines[i]
+    const rev = revisedLines[i]
 
     if (orig === rev) {
-      result.push({ type: "unchanged", text: orig ?? "" });
+      result.push({ type: 'unchanged', text: orig ?? '' })
     } else {
       if (orig !== undefined) {
-        result.push({ type: "removed", text: orig });
+        result.push({ type: 'removed', text: orig })
       }
 
       if (rev !== undefined) {
-        result.push({ type: "added", text: rev });
+        result.push({ type: 'added', text: rev })
       }
     }
   }
 
-  return result;
+  return result
 }
 
-const lineStyle: Record<DiffLine["type"], string> = {
-  added: "bg-green-50 text-green-800 border-l-4 border-green-400 pl-2",
-  removed: "bg-red-50 text-red-800 border-l-4 border-red-400 pl-2 line-through",
-  unchanged: "text-default-700 pl-2",
-};
+const lineStyle: Record<DiffLine['type'], string> = {
+  added: 'border-success/40 bg-success/10 text-success-content',
+  removed: 'border-error/40 bg-error/10 text-error-content line-through',
+  unchanged: 'border-base-300 bg-base-200/70 text-base-content/80',
+}
 
-const linePrefix: Record<DiffLine["type"], string> = {
-  added: "+ ",
-  removed: "- ",
-  unchanged: "  ",
-};
+const linePrefix: Record<DiffLine['type'], string> = {
+  added: '+ ',
+  removed: '- ',
+  unchanged: '  ',
+}
 
 function DiffViewer({ originalText, revisedText, label }: DiffViewerProps) {
-  const diffLines = computeDiff(originalText, revisedText);
+  const diffLines = computeDiff(originalText, revisedText)
 
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <h3 className="text-sm font-semibold text-default-700">{label}</h3>
-      </CardHeader>
+    <section className="rounded-box border border-base-300 bg-base-100 shadow-sm">
+      <header className="border-b border-base-300 px-4 py-3">
+        <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
+          {label}
+        </h3>
+      </header>
 
-      <CardBody>
-        <pre className="text-xs font-mono overflow-auto max-h-96 space-y-0.5">
+      <div className="p-3">
+        <pre className="max-h-96 space-y-1 overflow-auto text-xs">
           {diffLines.map((line, i) => (
-            <div key={i} className={`${lineStyle[line.type]} py-0.5 rounded-sm`}>
+            <div
+              key={i}
+              className={`rounded-box border px-3 py-2 font-mono ${lineStyle[line.type]}`}
+            >
               <span className="select-none opacity-50">{linePrefix[line.type]}</span>
               {line.text}
             </div>
           ))}
         </pre>
-      </CardBody>
-    </Card>
-  );
+      </div>
+    </section>
+  )
 }
 
-export default DiffViewer;
+export default DiffViewer

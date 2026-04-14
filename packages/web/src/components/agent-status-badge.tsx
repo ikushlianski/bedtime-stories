@@ -1,40 +1,26 @@
-import { Chip } from "@heroui/react";
-import type { AgentName, AgentStatus } from "./types";
+import type { AgentName, AgentStatus } from './types'
 
 interface AgentStatusBadgeProps {
-  agentName: AgentName;
-  status: AgentStatus;
+  agentName: AgentName
+  status: AgentStatus
 }
 
-const statusConfig: Record<
-  AgentStatus,
-  {
-    color: "default" | "primary" | "success" | "danger";
-    label: string;
-    dot: string;
-  }
-> = {
-  idle: { color: "default", label: "Idle", dot: "bg-default-400" },
-  running: { color: "primary", label: "Running", dot: "bg-primary animate-pulse" },
-  done: { color: "success", label: "Done", dot: "bg-success" },
-  error: { color: "danger", label: "Error", dot: "bg-danger" },
-};
+const statusConfig: Record<AgentStatus, { tone: string; label: string; dot: string }> = {
+  idle: { tone: 'badge-ghost', label: 'Idle', dot: 'bg-base-content/30' },
+  running: { tone: 'badge-primary', label: 'Running', dot: 'bg-primary animate-pulse' },
+  done: { tone: 'badge-success', label: 'Done', dot: 'bg-success' },
+  error: { tone: 'badge-error', label: 'Error', dot: 'bg-error' },
+}
 
 function AgentStatusBadge({ agentName, status }: AgentStatusBadgeProps) {
-  const config = statusConfig[status];
+  const config = statusConfig[status]
 
   return (
-    <Chip
-      color={config.color}
-      variant="flat"
-      size="sm"
-      startContent={
-        <span className={`w-2 h-2 rounded-full ${config.dot} ml-1`} />
-      }
-    >
+    <span className={`badge gap-2 px-3 py-3 ${config.tone}`}>
+      <span className={`h-2 w-2 rounded-full ${config.dot}`} />
       {agentName} — {config.label}
-    </Chip>
-  );
+    </span>
+  )
 }
 
-export default AgentStatusBadge;
+export default AgentStatusBadge

@@ -1,14 +1,13 @@
 import type { Preview } from '@storybook/react'
-import { HeroUIProvider } from '@heroui/react'
 import React from 'react'
 import '../src/index.css'
 
 const preview: Preview = {
   decorators: [
     (Story) => (
-      <HeroUIProvider>
+      <div data-theme="bedtime" className="min-h-screen bg-base-200 p-6 text-base-content">
         <Story />
-      </HeroUIProvider>
+      </div>
     ),
   ],
   parameters: {

@@ -1,59 +1,53 @@
-import { useState } from "react";
-import { Progress, Button } from "@heroui/react";
+import { useState } from 'react'
 
 interface TherapeuticScoreBarProps {
-  score: number;
-  strengths: string[];
-  gaps: string[];
+  score: number
+  strengths: string[]
+  gaps: string[]
 }
 
-function scoreToColor(score: number): "success" | "warning" | "danger" {
-  if (score >= 4) return "success";
-  if (score >= 3) return "warning";
-  return "danger";
+function scoreToColor(score: number): string {
+  if (score >= 4) {
+    return 'progress-success'
+  }
+
+  if (score >= 3) {
+    return 'progress-warning'
+  }
+
+  return 'progress-error'
 }
 
-function TherapeuticScoreBar({
-  score,
-  strengths,
-  gaps,
-}: TherapeuticScoreBarProps) {
-  const [expanded, setExpanded] = useState(false);
-  const color = scoreToColor(score);
-  const percentage = (score / 5) * 100;
+function TherapeuticScoreBar({ score, strengths, gaps }: TherapeuticScoreBarProps) {
+  const [expanded, setExpanded] = useState(false)
+  const color = scoreToColor(score)
+  const percentage = (score / 5) * 100
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-3">
-        <span className="text-sm font-medium text-default-600">
-          Therapeutic score: {score}/5
-        </span>
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <span className="text-sm font-medium text-base-content/75">Therapeutic score: {score}/5</span>
 
-        <Button
-          size="sm"
-          variant="light"
-          onPress={() => setExpanded((prev) => !prev)}
-        >
-          {expanded ? "Hide" : "Show details"}
-        </Button>
+        <button className="btn btn-ghost btn-xs" onClick={() => setExpanded((prev) => !prev)}>
+          {expanded ? 'Hide details' : 'Show details'}
+        </button>
       </div>
 
-      <Progress
+      <progress
+        className={`progress h-3 w-full ${color}`}
         value={percentage}
-        color={color}
-        size="sm"
+        max={100}
         aria-label="Therapeutic score"
       />
 
       {expanded && (
-        <div className="flex flex-col gap-2 mt-1">
+        <div className="grid gap-3 md:grid-cols-2">
           {strengths.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-success-600 mb-1">
+            <div className="rounded-box border border-success/20 bg-success/10 p-3">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-success">
                 Strengths
               </p>
-
-              <ul className="list-disc list-inside text-xs text-default-600 space-y-0.5">
+              <ul className="list-disc space-y-1 pl-4 text-sm text-base-content/75">
                 {strengths.map((s, i) => (
                   <li key={i}>{s}</li>
                 ))}
@@ -62,12 +56,11 @@ function TherapeuticScoreBar({
           )}
 
           {gaps.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-danger-600 mb-1">
+            <div className="rounded-box border border-warning/20 bg-warning/10 p-3">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-warning">
                 Gaps
               </p>
-
-              <ul className="list-disc list-inside text-xs text-default-600 space-y-0.5">
+              <ul className="list-disc space-y-1 pl-4 text-sm text-base-content/75">
                 {gaps.map((g, i) => (
                   <li key={i}>{g}</li>
                 ))}
@@ -77,7 +70,7 @@ function TherapeuticScoreBar({
         </div>
       )}
     </div>
-  );
+  )
 }
 
-export default TherapeuticScoreBar;
+export default TherapeuticScoreBar

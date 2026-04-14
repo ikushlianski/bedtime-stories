@@ -1,4 +1,3 @@
-// Components implemented in FE-1 worktree — will resolve after merge
 export { default as StoryCard } from './story-card'
 export { default as DiffViewer } from './diff-viewer'
 export { default as PlanReviewCard } from './plan-review-card'
@@ -7,3 +6,8 @@ export { default as FeedbackForm } from './feedback-form'
 export { default as AnnotationToolbar } from './annotation-toolbar'
 export { default as PipelineProgress } from './pipeline-progress'
 export { default as AgentStatusBadge } from './agent-status-badge'
+export { default as CreateStoryModal } from './create-story-modal'
+export { default as DashboardPanel } from './dashboard-panel'
+export { default as PageHeader } from './page-header'
+export { default as StatusCallout } from './status-callout'
+export { default as StoryFilterTabs } from './story-filter-tabs'

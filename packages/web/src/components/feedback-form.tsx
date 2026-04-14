@@ -1,25 +1,24 @@
-import { useState } from "react";
-import { Card, CardBody, CardHeader, CardFooter, Button, Textarea } from "@heroui/react";
-import { z } from "zod";
+import { useState } from 'react'
+import { z } from 'zod'
 
 const feedbackSchema = z.object({
   rating: z.number().int().min(1).max(5),
-  comment: z.string().min(1, "Comment is required"),
-});
+  comment: z.string().min(1, 'Comment is required'),
+})
 
-type FeedbackValues = z.infer<typeof feedbackSchema>;
+type FeedbackValues = z.infer<typeof feedbackSchema>
 
 interface FeedbackFormProps {
-  storyId: string;
-  onSubmit: (values: FeedbackValues) => Promise<void>;
+  storyId: string
+  onSubmit: (values: FeedbackValues) => Promise<void>
 }
 
 function StarRating({
   value,
   onChange,
 }: {
-  value: number;
-  onChange: (v: number) => void;
+  value: number
+  onChange: (v: number) => void
 }) {
   return (
     <div className="flex gap-1">
@@ -28,79 +27,79 @@ function StarRating({
           key={star}
           type="button"
           onClick={() => onChange(star)}
-          className={`text-2xl transition-colors ${
-            star <= value ? "text-yellow-400" : "text-default-300"
-          } hover:text-yellow-400`}
+          className={`btn btn-ghost btn-sm px-1 text-2xl ${
+            star <= value ? 'text-warning' : 'text-base-content/25'
+          }`}
           aria-label={`Rate ${star} out of 5`}
         >
           ★
         </button>
       ))}
     </div>
-  );
+  )
 }
 
 function FeedbackForm({ storyId: _storyId, onSubmit }: FeedbackFormProps) {
-  const [rating, setRating] = useState(0);
-  const [comment, setComment] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [rating, setRating] = useState(0)
+  const [comment, setComment] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function handleSubmit() {
-    const result = feedbackSchema.safeParse({ rating, comment });
+    const result = feedbackSchema.safeParse({ rating, comment })
 
     if (!result.success) {
-      setError(result.error.errors[0]?.message ?? "Invalid input");
-      return;
+      setError(result.error.errors[0]?.message ?? 'Invalid input')
+      return
     }
 
-    setError(null);
-    setLoading(true);
+    setError(null)
+    setLoading(true)
 
     try {
-      await onSubmit(result.data);
+      await onSubmit(result.data)
+      setComment('')
+      setRating(0)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   }
 
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <h2 className="text-base font-semibold text-default-900">
-          Leave Feedback
-        </h2>
-      </CardHeader>
+    <section className="card border border-base-300 bg-base-100 shadow-sm">
+      <div className="card-body gap-4">
+        <div>
+          <h2 className="font-serif text-2xl text-base-content">Leave Feedback</h2>
+          <p className="text-sm text-base-content/60">
+            Capture how the story landed after reading.
+          </p>
+        </div>
 
-      <CardBody className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <span className="text-sm text-default-600">Rating</span>
+        <div className="space-y-2">
+          <span className="text-sm text-base-content/60">Rating</span>
           <StarRating value={rating} onChange={setRating} />
         </div>
 
-        <Textarea
-          label="Comment"
+        <textarea
+          className={`textarea textarea-bordered min-h-28 w-full bg-base-100 ${error ? 'textarea-error' : ''}`}
           placeholder="What did Sasha think?"
           value={comment}
-          onValueChange={setComment}
-          minRows={3}
-          isInvalid={!!error}
-          errorMessage={error ?? undefined}
+          onChange={(event) => setComment(event.target.value)}
         />
-      </CardBody>
 
-      <CardFooter>
-        <Button
-          color="primary"
-          onPress={handleSubmit}
-          isLoading={loading}
-          fullWidth
-        >
-          Submit Feedback
-        </Button>
-      </CardFooter>
-    </Card>
-  );
+        {error && <p className="text-sm text-error">{error}</p>}
+
+        <div className="card-actions justify-end">
+          <button
+            className={`btn btn-primary ${loading ? 'btn-disabled' : ''}`}
+            onClick={() => void handleSubmit()}
+          >
+            Submit Feedback
+          </button>
+        </div>
+      </div>
+    </section>
+  )
 }
 
-export default FeedbackForm;
+export default FeedbackForm

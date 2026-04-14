@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { api, type Story } from '../lib/api'
-import { AnnotationToolbar, FeedbackForm } from '../components'
+import { AnnotationToolbar, FeedbackForm, PageHeader, StatusCallout } from '../components'
 import type { FeedbackValues } from '../components/types'
 
 interface SelectionState {
@@ -23,7 +23,7 @@ function useStoryFetch(id: number) {
     api.stories
       .get(id)
       .then(setStory)
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load story'))
+      .catch((fetchError) => setError(fetchError instanceof Error ? fetchError.message : 'Failed to load story'))
       .finally(() => setLoading(false))
   }, [id])
 
@@ -72,11 +72,13 @@ function StoryText({
   return (
     <div
       ref={containerRef}
-      className="relative prose prose-lg max-w-none font-serif leading-relaxed text-gray-800 select-text"
+      className="relative rounded-box border border-base-300 bg-base-100 p-8 font-serif text-xl leading-relaxed text-base-content shadow-sm"
       onMouseUp={handleMouseUp}
     >
       {text.split('\n').map((para, i) => (
-        <p key={i}>{para}</p>
+        <p key={i} className="mb-4 last:mb-0">
+          {para}
+        </p>
       ))}
     </div>
   )
@@ -92,41 +94,40 @@ export function StoryReaderPage() {
   const handleAnnotationDismiss = useCallback(() => setSelection(null), [])
 
   if (loading) {
-    return <p className="text-gray-500 text-sm">Loading story...</p>
+    return <StatusCallout title="Loading" message="Fetching the story text." />
   }
 
   if (error) {
-    return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm">
-        {error}
-      </div>
-    )
+    return <StatusCallout tone="error" title="Story load failed" message={error} />
   }
 
   if (!story) {
-    return <p className="text-gray-400 text-sm">Story not found.</p>
+    return <StatusCallout tone="warning" title="Story not found" message="The requested story does not exist." />
   }
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <button
-          onClick={() => navigate('/')}
-          className="text-sm text-indigo-600 hover:underline flex items-center gap-1"
-        >
-          ← Back to stories
-        </button>
-
-        <span className="text-xs text-gray-400 capitalize">{story.status}</span>
-      </div>
-
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">{story.title}</h1>
+      <PageHeader
+        eyebrow="Reading"
+        title={story.title}
+        description="Read the final story, annotate specific passages, and capture post-read feedback."
+        backAction={
+          <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>
+            ← Back to stories
+          </button>
+        }
+        action={<span className="badge badge-outline capitalize">{story.status}</span>}
+      />
 
       <div className="relative">
         {story.text_final ? (
           <StoryText text={story.text_final} onSelection={setSelection} />
         ) : (
-          <p className="text-gray-400 italic">Story text not yet available.</p>
+          <StatusCallout
+            tone="warning"
+            title="Text unavailable"
+            message="The final story text has not been generated yet."
+          />
         )}
 
         {selection && (
@@ -154,8 +155,12 @@ export function StoryReaderPage() {
         )}
       </div>
 
-      <div className="mt-16 border-t border-gray-200 pt-8">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Feedback</h2>
+      <section className="mt-12">
+        <PageHeader
+          eyebrow="Feedback"
+          title="Reader Response"
+          description="Capture the overall reaction after reading to improve later story generations."
+        />
 
         <FeedbackForm
           storyId={String(storyId)}
@@ -163,7 +168,7 @@ export function StoryReaderPage() {
             api.feedback.submit(storyId, { ...values, feedback_type: 'agent_run' }).then(() => undefined)
           }
         />
-      </div>
+      </section>
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { api, type PipelineStatus } from '../lib/api'
-import { PipelineProgress } from '../components'
+import { PageHeader, PipelineProgress, StatusCallout } from '../components'
 import type { PipelineStep, AgentName, AgentStatus } from '../components/types'
 
 const POLL_INTERVAL_MS = 3000
@@ -58,8 +58,8 @@ export function PipelineStatusPage() {
             intervalRef.current = null
           }
         }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load pipeline status')
+      } catch (fetchError) {
+        setError(fetchError instanceof Error ? fetchError.message : 'Failed to load pipeline status')
 
         if (intervalRef.current) {
           clearInterval(intervalRef.current)
@@ -84,52 +84,44 @@ export function PipelineStatusPage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Pipeline Status</h1>
-
-        {status && (
-          <p className="text-sm text-gray-500 mt-1 capitalize">
-            {isRunning ? 'Running...' : status.status}
-            {status.current_step && isRunning && (
-              <span className="ml-2 text-indigo-600">Step: {status.current_step}</span>
-            )}
-          </p>
-        )}
-      </div>
+      <PageHeader
+        eyebrow="Pipeline"
+        title="Pipeline Status"
+        description={
+          status
+            ? `${isRunning ? 'Pipeline is running.' : `Pipeline ${status.status}.`}${status.current_step ? ` Current step: ${status.current_step}.` : ''}`
+            : 'Polling the current generation pipeline.'
+        }
+      />
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm mb-4">
-          {error}
-        </div>
+        <StatusCallout tone="error" title="Pipeline request failed" message={error} />
       )}
 
       {!status && !error && (
-        <p className="text-gray-500 text-sm">Loading pipeline status...</p>
+        <StatusCallout title="Loading" message="Fetching the latest pipeline status." />
       )}
 
       {status && (
-        <>
-          <div className="mb-8">
-            <PipelineProgress steps={toPipelineSteps(status)} />
-          </div>
+        <div className="space-y-6">
+          <PipelineProgress steps={toPipelineSteps(status)} />
 
           {isDone && status.status === 'completed' && (
             <div className="flex justify-end">
-              <button
-                onClick={() => navigate(`/stories/${storyId}/plan-review`)}
-                className="px-6 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700"
-              >
+              <button className="btn btn-primary" onClick={() => navigate(`/stories/${storyId}/plan-review`)}>
                 Review Plan →
               </button>
             </div>
           )}
 
           {isDone && status.status === 'failed' && (
-            <p className="text-red-600 text-sm">
-              Pipeline failed. Check server logs for details.
-            </p>
+            <StatusCallout
+              tone="error"
+              title="Pipeline failed"
+              message="Check the API logs for the failing stage before retrying the story."
+            />
           )}
-        </>
+        </div>
       )}
     </div>
   )

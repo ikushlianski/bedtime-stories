@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { api, type Story, type PsychologistOutput } from '../lib/api'
-import { TextReviewCard } from '../components'
+import { PageHeader, StatusCallout, TextReviewCard } from '../components'
 
 function useTextReviewStory(id: number) {
   const [story, setStory] = useState<Story | null>(null)
@@ -15,7 +15,7 @@ function useTextReviewStory(id: number) {
     api.stories
       .get(id)
       .then(setStory)
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load story'))
+      .catch((fetchError) => setError(fetchError instanceof Error ? fetchError.message : 'Failed to load story'))
       .finally(() => setLoading(false))
   }, [id])
 
@@ -51,48 +51,46 @@ export function TextReviewPage() {
     try {
       await api.stories.approveText(storyId)
       navigate(`/stories/${storyId}`)
-    } catch (err) {
-      setApproveError(err instanceof Error ? err.message : 'Failed to approve text')
+    } catch (approvalError) {
+      setApproveError(approvalError instanceof Error ? approvalError.message : 'Failed to approve text')
     } finally {
       setApproving(false)
     }
   }
 
   if (loading) {
-    return <p className="text-gray-500 text-sm">Loading story...</p>
+    return <StatusCallout title="Loading" message="Fetching the text review data." />
   }
 
   if (error) {
-    return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm">
-        {error}
-      </div>
-    )
+    return <StatusCallout tone="error" title="Story load failed" message={error} />
   }
 
   if (!story) {
-    return <p className="text-gray-400 text-sm">Story not found.</p>
+    return <StatusCallout tone="warning" title="Story not found" message="The requested story does not exist." />
   }
 
   if (!psychOutput) {
-    return <p className="text-gray-400 text-sm">Loading assessment...</p>
+    return <StatusCallout title="Loading assessment" message="Waiting for psychologist output." />
   }
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <button
-          onClick={() => navigate('/')}
-          className="text-sm text-indigo-600 hover:underline flex items-center gap-1"
-        >
-          ← Back to stories
-        </button>
-
-        <h1 className="text-xl font-semibold text-gray-800">Text Review</h1>
-      </div>
+      <PageHeader
+        eyebrow="Review"
+        title="Text Review"
+        description="Compare the two text drafts and confirm the final wording is safe and therapeutically useful."
+        backAction={
+          <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>
+            ← Back to stories
+          </button>
+        }
+      />
 
       {approveError && (
-        <p className="text-red-600 text-sm mb-4">{approveError}</p>
+        <div className="mb-4">
+          <StatusCallout tone="error" title="Approval failed" message={approveError} />
+        </div>
       )}
 
       <TextReviewCard
@@ -100,7 +98,9 @@ export function TextReviewPage() {
         textV2={story.text_v2 ?? ''}
         psychologistOutput={psychOutput}
         onApprove={() => {
-          if (!approving) void handleApprove()
+          if (!approving) {
+            void handleApprove()
+          }
         }}
       />
     </div>

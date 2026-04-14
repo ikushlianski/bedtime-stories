@@ -1,27 +1,19 @@
-import { Chip } from "@heroui/react";
-import type { SafetyVerdict } from "./types";
+import type { SafetyVerdict } from './types'
 
 interface SafetyVerdictBadgeProps {
-  verdict: SafetyVerdict;
+  verdict: SafetyVerdict
 }
 
-const verdictConfig: Record<
-  SafetyVerdict,
-  { label: string; color: "success" | "warning" | "danger" }
-> = {
-  safe: { label: "Safe", color: "success" },
-  concern: { label: "Concern", color: "warning" },
-  block: { label: "Block", color: "danger" },
-};
+const verdictConfig: Record<SafetyVerdict, { label: string; tone: string }> = {
+  safe: { label: 'Safe', tone: 'badge-success' },
+  concern: { label: 'Concern', tone: 'badge-warning' },
+  block: { label: 'Block', tone: 'badge-error' },
+}
 
 function SafetyVerdictBadge({ verdict }: SafetyVerdictBadgeProps) {
-  const config = verdictConfig[verdict];
+  const config = verdictConfig[verdict]
 
-  return (
-    <Chip color={config.color} variant="flat" size="sm">
-      {config.label}
-    </Chip>
-  );
+  return <span className={`badge ${config.tone} px-3 py-3`}>{config.label}</span>
 }
 
-export default SafetyVerdictBadge;
+export default SafetyVerdictBadge

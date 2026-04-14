@@ -1,41 +1,33 @@
-import { Button } from "@heroui/react";
-import type { AnnotationType } from "./types";
+import type { AnnotationType } from './types'
 
 interface AnnotationToolbarProps {
-  onAnnotate: (type: AnnotationType, selectedText: string) => void;
-  selectedText: string;
+  onAnnotate: (type: AnnotationType, selectedText: string) => void
+  selectedText: string
 }
 
 function AnnotationToolbar({ onAnnotate, selectedText }: AnnotationToolbarProps) {
   if (!selectedText) {
-    return null;
+    return null
   }
 
   return (
-    <div className="inline-flex items-center gap-2 bg-default-900 text-white rounded-lg px-3 py-2 shadow-lg">
-      <span className="text-xs text-default-300 max-w-32 truncate">
+    <div className="inline-flex items-center gap-2 rounded-full border border-neutral/20 bg-neutral px-3 py-2 text-neutral-content shadow-xl">
+      <span className="max-w-32 truncate text-xs text-neutral-content/70">
         &ldquo;{selectedText}&rdquo;
       </span>
 
-      <Button
-        size="sm"
-        color="secondary"
-        variant="flat"
-        onPress={() => onAnnotate("sasha_reaction", selectedText)}
+      <button
+        className="btn btn-secondary btn-xs"
+        onClick={() => onAnnotate('sasha_reaction', selectedText)}
       >
         Sasha&apos;s reaction
-      </Button>
+      </button>
 
-      <Button
-        size="sm"
-        color="primary"
-        variant="flat"
-        onPress={() => onAnnotate("my_note", selectedText)}
-      >
+      <button className="btn btn-primary btn-xs" onClick={() => onAnnotate('my_note', selectedText)}>
         My note
-      </Button>
+      </button>
     </div>
-  );
+  )
 }
 
-export default AnnotationToolbar;
+export default AnnotationToolbar

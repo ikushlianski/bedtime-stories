@@ -1,25 +1,9 @@
-import type { ReactNode } from 'react'
-
-interface DashboardPanelProps {
-  title: string
-  description: string
-  children: ReactNode
-}
-
-function DashboardPanel({ title, description, children }: DashboardPanelProps) {
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-      <h2 className="text-base font-semibold text-gray-900 mb-1">{title}</h2>
-      <p className="text-xs text-gray-500 mb-4">{description}</p>
-      {children}
-    </div>
-  )
-}
+import { DashboardPanel, PageHeader } from '../components'
 
 function ComingSoon({ label }: { label: string }) {
   return (
-    <div className="flex items-center justify-center h-32 rounded-lg bg-gray-50 border border-dashed border-gray-300">
-      <span className="text-sm text-gray-400">{label}</span>
+    <div className="flex h-40 items-center justify-center rounded-box border border-dashed border-base-300 bg-base-200 text-sm text-base-content/45">
+      <span>{label}</span>
     </div>
   )
 }
@@ -27,9 +11,13 @@ function ComingSoon({ label }: { label: string }) {
 export function DashboardPage() {
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Dashboard</h1>
+      <PageHeader
+        eyebrow="Analytics"
+        title="Dashboard"
+        description="Track quality, feedback, agent impact, reactions, and cost as the bedtime story system evolves."
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <DashboardPanel
           title="Quality Trend"
           description="Rating over time, with markers for prompt and model changes. Shows whether quality improves after agent updates."
@@ -52,8 +40,8 @@ export function DashboardPage() {
         </DashboardPanel>
 
         <DashboardPanel
-          title="Sasha's Reactions"
-          description="Annotations by type, most annotated passages, and Sasha's answers to discussion questions over time."
+          title="Sasha&apos;s Reactions"
+          description="Annotations by type, most annotated passages, and Sasha&apos;s answers to discussion questions over time."
         >
           <ComingSoon label="Coming soon — reaction analysis" />
         </DashboardPanel>
