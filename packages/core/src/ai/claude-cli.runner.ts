@@ -1,18 +1,42 @@
 import { readFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { existsSync } from 'node:fs'
+import { join, resolve, dirname } from 'node:path'
 import { query } from '@anthropic-ai/claude-agent-sdk'
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk'
 import { z } from 'zod'
 import type { AiRunner, RunStructuredOptions, RunTextOptions } from './runner.interface'
 
 const skillCache = new Map<string, string>()
+let cachedSkillsRoot: string | null = null
 
-async function loadSkillBody(skillName: string, cwd: string): Promise<string> {
-  const cacheKey = `${cwd}::${skillName}`
+function findSkillsRoot(startDir: string): string {
+  let dir = resolve(startDir)
+
+  while (true) {
+    if (existsSync(join(dir, '.claude', 'skills'))) {
+      return dir
+    }
+
+    const parent = dirname(dir)
+
+    if (parent === dir) {
+      throw new Error(`Could not find .claude/skills directory walking up from ${startDir}`)
+    }
+
+    dir = parent
+  }
+}
+
+async function loadSkillBody(skillName: string, startDir: string): Promise<string> {
+  if (cachedSkillsRoot === null) {
+    cachedSkillsRoot = findSkillsRoot(startDir)
+  }
+
+  const cacheKey = `${cachedSkillsRoot}::${skillName}`
   const cached = skillCache.get(cacheKey)
   if (cached !== undefined) return cached
 
-  const path = join(cwd, '.claude', 'skills', skillName, 'SKILL.md')
+  const path = join(cachedSkillsRoot, '.claude', 'skills', skillName, 'SKILL.md')
   const raw = await readFile(path, 'utf-8')
   const body = raw.replace(/^---\n[\s\S]*?\n---\n/, '').trim()
   skillCache.set(cacheKey, body)
