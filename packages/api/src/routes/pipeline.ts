@@ -108,6 +108,15 @@ router.post('/run', validate(runPipelineSchema), async (req, res) => {
   }
 })
 
+const INTERNAL_TO_PUBLIC_STATUS: Record<string, 'running' | 'completed' | 'failed' | 'pending'> = {
+  running: 'running',
+  done: 'completed',
+  error: 'failed',
+  unknown: 'pending',
+}
+
+const PIPELINE_STEP_NAMES = ['Plotter', 'Psychologist', 'PlotCritic', 'Writer', 'WriterCritic'] as const
+
 router.get('/status/:storyId', async (req, res) => {
   try {
     const storyIdRaw = parseInt(req.params['storyId'] ?? '', 10)
@@ -117,9 +126,30 @@ router.get('/status/:storyId', async (req, res) => {
       return
     }
 
-    const status = pipelineStatusMap.get(storyIdRaw) ?? 'unknown'
+    const internalStatus = pipelineStatusMap.get(storyIdRaw) ?? 'unknown'
+    const publicStatus = INTERNAL_TO_PUBLIC_STATUS[internalStatus] ?? 'pending'
 
-    res.json({ storyId: storyIdRaw, status })
+    const stepStatus: 'pending' | 'running' | 'completed' | 'failed' =
+      publicStatus === 'completed'
+        ? 'completed'
+        : publicStatus === 'failed'
+          ? 'failed'
+          : publicStatus === 'running'
+            ? 'running'
+            : 'pending'
+
+    const steps = PIPELINE_STEP_NAMES.map((name) => ({
+      name,
+      status: stepStatus,
+      agent: name,
+    }))
+
+    res.json({
+      story_id: storyIdRaw,
+      status: publicStatus,
+      current_step: publicStatus === 'running' ? 'Plotter' : null,
+      steps,
+    })
   } catch (err) {
     console.error('GET /pipeline/status/:storyId failed:', err)
     res.status(500).json({ error: 'Failed to get pipeline status' })
