@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { eq, desc } from 'drizzle-orm'
 import { db } from '@bedtime/core/db/client'
 import { stories, annotations } from '@bedtime/core/db/schema'
-import type { NewStory, NewAnnotation } from '@bedtime/core/db/types'
+import type { Story, NewStory, NewAnnotation } from '@bedtime/core/db/types'
 import { validate } from '../middleware/validate'
 
 const router = Router()
@@ -11,6 +11,34 @@ const router = Router()
 function parseIntParam(raw: string | string[] | undefined): number {
   const value = Array.isArray(raw) ? (raw[0] ?? '') : (raw ?? '')
   return parseInt(value, 10)
+}
+
+function toSnakeCase(row: Story) {
+  return {
+    id: row.id,
+    title: row.title,
+    text_final: row.textFinal,
+    plan_v1: row.planV1,
+    plan_final: row.planFinal,
+    plan_iterations: row.planIterations,
+    text_v1: row.textV1,
+    text_v2: row.textV2,
+    plotter_model: row.plotterModel,
+    plotter_prompt_version: row.plotterPromptVersion,
+    plot_critic_model: row.plotCriticModel,
+    plot_critic_prompt_version: row.plotCriticPromptVersion,
+    writer_model: row.writerModel,
+    writer_prompt_version: row.writerPromptVersion,
+    writer_critic_model: row.writerCriticModel,
+    writer_critic_prompt_version: row.writerCriticPromptVersion,
+    created_at: row.createdAt,
+    status: row.status,
+    tags: row.tags,
+    source: row.source,
+    is_legacy: row.isLegacy,
+    discussion_questions: row.discussionQuestions,
+    seed: row.seed,
+  }
 }
 
 const createStorySchema = z.object({
@@ -44,7 +72,7 @@ router.post('/', validate(createStorySchema), async (req, res) => {
     const newStory: NewStory = { seed, title, status: 'draft', source: 'agent' }
     const [story] = await db.insert(stories).values(newStory).returning()
 
-    res.status(201).json(story)
+    res.status(201).json(toSnakeCase(story as Story))
   } catch (err) {
     console.error('POST /stories failed:', err)
     res.status(500).json({ error: 'Failed to create story' })
@@ -68,8 +96,9 @@ router.get('/', async (req, res) => {
           .orderBy(desc(stories.createdAt))
       : await db.select().from(stories).orderBy(desc(stories.createdAt))
 
-    res.json(result)
-  } catch {
+    res.json(result.map((row) => toSnakeCase(row as Story)))
+  } catch (err) {
+    console.error('GET /stories failed:', err)
     res.status(500).json({ error: 'Failed to fetch stories' })
   }
 })
@@ -90,7 +119,7 @@ router.get('/:id', async (req, res) => {
       return
     }
 
-    res.json(story)
+    res.json(toSnakeCase(story as Story))
   } catch (err) {
     console.error('GET /stories/:id failed:', err)
     res.status(500).json({ error: 'Failed to fetch story' })
@@ -118,8 +147,9 @@ router.patch('/:id/status', validate(updateStatusSchema), async (req, res) => {
       return
     }
 
-    res.json(story)
-  } catch {
+    res.json(toSnakeCase(story as Story))
+  } catch (err) {
+    console.error('PATCH /stories/:id/status failed:', err)
     res.status(500).json({ error: 'Failed to update story status' })
   }
 })
@@ -143,7 +173,7 @@ router.post('/:id/approve-plan', validate(approvePlanSchema), async (req, res) =
         return
       }
 
-      res.json(existing)
+      res.json(toSnakeCase(existing as Story))
       return
     }
 
@@ -158,8 +188,9 @@ router.post('/:id/approve-plan', validate(approvePlanSchema), async (req, res) =
       return
     }
 
-    res.json(story)
-  } catch {
+    res.json(toSnakeCase(story as Story))
+  } catch (err) {
+    console.error('POST /stories/:id/approve-plan failed:', err)
     res.status(500).json({ error: 'Failed to approve plan' })
   }
 })
@@ -183,7 +214,7 @@ router.post('/:id/approve-text', validate(approveTextSchema), async (req, res) =
         return
       }
 
-      res.json(existing)
+      res.json(toSnakeCase(existing as Story))
       return
     }
 
@@ -207,7 +238,7 @@ router.post('/:id/approve-text', validate(approveTextSchema), async (req, res) =
       return
     }
 
-    res.json(story)
+    res.json(toSnakeCase(story as Story))
   } catch (err) {
     console.error('POST /stories/:id/approve-text failed:', err)
     res.status(500).json({ error: 'Failed to approve text' })
