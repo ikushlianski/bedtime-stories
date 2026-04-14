@@ -1,7 +1,23 @@
+import { readFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import { query } from '@anthropic-ai/claude-agent-sdk'
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk'
 import { z } from 'zod'
 import type { AiRunner, RunStructuredOptions, RunTextOptions } from './runner.interface'
+
+const skillCache = new Map<string, string>()
+
+async function loadSkillBody(skillName: string, cwd: string): Promise<string> {
+  const cacheKey = `${cwd}::${skillName}`
+  const cached = skillCache.get(cacheKey)
+  if (cached !== undefined) return cached
+
+  const path = join(cwd, '.claude', 'skills', skillName, 'SKILL.md')
+  const raw = await readFile(path, 'utf-8')
+  const body = raw.replace(/^---\n[\s\S]*?\n---\n/, '').trim()
+  skillCache.set(cacheKey, body)
+  return body
+}
 
 export class AiExecutionError extends Error {
   constructor(readonly detail: string) {
@@ -105,8 +121,22 @@ export class ClaudeCliRunner implements AiRunner {
   async runStructured<T>(options: RunStructuredOptions<T>): Promise<T> {
     const { skill, model, prompt, outputSchema } = options
     const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
+    const skillCwd = options.cwd ?? process.cwd()
 
-    const fullPrompt = `/${skill}\n\n${prompt}`
+    const skillBody = await loadSkillBody(skill, skillCwd)
+    const fullPrompt = [
+      `You are operating under the "${skill}" skill. Follow its instructions precisely and respond with the exact JSON shape the skill specifies.`,
+      '',
+      '=== SKILL INSTRUCTIONS ===',
+      skillBody,
+      '=== END SKILL INSTRUCTIONS ===',
+      '',
+      '=== INPUT ===',
+      prompt,
+      '',
+      'Return ONLY the JSON output described in the skill. No prose, no markdown fence, no commentary.',
+    ].join('\n')
+
     const resultText = await this.runText({ model, prompt: fullPrompt, label: `skill:${skill}`, ...cwdArg })
 
     const jsonText = this.extractJson(resultText)
