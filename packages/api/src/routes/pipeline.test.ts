@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { toPublicStatus, type PipelineInternalStatus } from './pipeline'
+import { toPublicStatus, type PipelineInternalStatus } from './pipeline-status'
 
 describe('toPublicStatus', () => {
   describe('when the pipeline has never started (undefined)', () => {

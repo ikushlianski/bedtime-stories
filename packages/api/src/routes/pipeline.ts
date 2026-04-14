@@ -13,16 +13,15 @@ import {
 import { db } from '@bedtime/core/db/client'
 import { runSnapshots, stories } from '@bedtime/core/db/schema'
 import type { NewRunSnapshot } from '@bedtime/core/db/types'
+import {
+  toPublicStatus,
+  type PipelineInternalStatus,
+  type PublicPipelineStatus,
+} from './pipeline-status'
+
+export { toPublicStatus, type PipelineInternalStatus, type PublicPipelineStatus }
 
 const router = Router()
-
-export type PipelineInternalStatus =
-  | 'plan_running'
-  | 'plan_ready'
-  | 'plan_failed'
-  | 'text_running'
-  | 'text_ready'
-  | 'text_failed'
 
 const pipelineStatusMap = new Map<number, PipelineInternalStatus>()
 
@@ -198,30 +197,6 @@ router.post('/run', validate(runPipelineSchema), async (req, res) => {
     res.status(500).json({ error: 'Failed to start pipeline' })
   }
 })
-
-export interface PublicPipelineStatus {
-  status: 'plan_running' | 'plan_ready' | 'text_running' | 'text_ready' | 'failed' | 'pending'
-  phase: 'plan' | 'text' | null
-}
-
-export function toPublicStatus(internal: PipelineInternalStatus | undefined): PublicPipelineStatus {
-  switch (internal) {
-    case 'plan_running':
-      return { status: 'plan_running', phase: 'plan' }
-    case 'plan_ready':
-      return { status: 'plan_ready', phase: 'plan' }
-    case 'plan_failed':
-      return { status: 'failed', phase: 'plan' }
-    case 'text_running':
-      return { status: 'text_running', phase: 'text' }
-    case 'text_ready':
-      return { status: 'text_ready', phase: 'text' }
-    case 'text_failed':
-      return { status: 'failed', phase: 'text' }
-    default:
-      return { status: 'pending', phase: null }
-  }
-}
 
 const PIPELINE_STEP_NAMES = ['Plotter', 'Psychologist', 'PlotCritic', 'Writer', 'WriterCritic'] as const
 
