@@ -225,6 +225,22 @@ export function toPublicStatus(internal: PipelineInternalStatus | undefined): Pu
 
 const PIPELINE_STEP_NAMES = ['Plotter', 'Psychologist', 'PlotCritic', 'Writer', 'WriterCritic'] as const
 
+async function inferStatusFromDb(storyId: number): Promise<PipelineInternalStatus | undefined> {
+  const [row] = await db.select().from(stories).where(eq(stories.id, storyId))
+
+  if (!row) return undefined
+
+  if (row.textV2 !== null && row.textV2 !== undefined) {
+    return 'text_ready'
+  }
+
+  if (row.planFinal !== null && row.planFinal !== undefined) {
+    return 'plan_ready'
+  }
+
+  return undefined
+}
+
 router.get('/status/:storyId', async (req, res) => {
   try {
     const storyIdRaw = parseInt(req.params['storyId'] ?? '', 10)
@@ -234,7 +250,12 @@ router.get('/status/:storyId', async (req, res) => {
       return
     }
 
-    const internal = getPipelineStatus(storyIdRaw)
+    let internal = getPipelineStatus(storyIdRaw)
+
+    if (internal === undefined) {
+      internal = await inferStatusFromDb(storyIdRaw)
+    }
+
     const publicStatus = toPublicStatus(internal)
 
     const steps = PIPELINE_STEP_NAMES.map((name) => ({
