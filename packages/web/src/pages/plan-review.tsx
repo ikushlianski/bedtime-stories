@@ -50,7 +50,7 @@ export function PlanReviewPage() {
 
     try {
       await api.stories.approvePlan(storyId)
-      navigate(`/stories/${storyId}/pipeline`)
+      navigate(`/stories/${storyId}/text-review`)
     } catch (approvalError) {
       setApproveError(approvalError instanceof Error ? approvalError.message : 'Failed to approve plan')
     } finally {
