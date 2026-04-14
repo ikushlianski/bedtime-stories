@@ -75,6 +75,25 @@ export interface FeedbackData {
   feedback_type: 'agent_run' | 'retrospective'
 }
 
+export type AnnotationType = 'sasha_reaction' | 'my_note'
+
+export interface Annotation {
+  id: number
+  storyId: number
+  type: AnnotationType
+  selectedText: string
+  positionStart: number | null
+  positionEnd: number | null
+  createdAt: string
+}
+
+export interface CreateAnnotationInput {
+  type: AnnotationType
+  selectedText: string
+  positionStart: number
+  positionEnd: number
+}
+
 export type PipelineStatusValue =
   | 'plan_running'
   | 'plan_ready'
@@ -133,11 +152,18 @@ export const api = {
   },
 
   annotations: {
-    create: (storyId: number, data: { text: string; type: string; start: number; end: number }) => {
-      console.log('annotation stub', storyId, data)
+    create: (storyId: number, data: CreateAnnotationInput) =>
+      request<Annotation>(`/api/stories/${storyId}/annotations`, {
+        method: 'POST',
+        body: JSON.stringify({
+          type: data.type,
+          selected_text: data.selectedText,
+          position_start: data.positionStart,
+          position_end: data.positionEnd,
+        }),
+      }),
 
-      return Promise.resolve({ ok: true })
-    },
+    list: (storyId: number) => request<Annotation[]>(`/api/stories/${storyId}/annotations`),
   },
 
   pipeline: {
