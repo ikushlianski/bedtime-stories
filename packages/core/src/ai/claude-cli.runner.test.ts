@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { isRetryable, extractJsonFromText, AiValidationError } from './claude-cli.runner'
+import { isRetryable, extractJsonFromText, jsonCandidates, AiValidationError } from './claude-cli.runner'
 
 describe('isRetryable', () => {
   describe('transient network errors', () => {
@@ -104,6 +104,83 @@ describe('extractJsonFromText', () => {
     it('extracts the outermost object when nested objects exist', () => {
       const raw = '{"outer": {"inner": 1}}'
       expect(extractJsonFromText(raw)).toBe('{"outer": {"inner": 1}}')
+    })
+  })
+})
+
+describe('jsonCandidates', () => {
+  describe('priority ordering', () => {
+    it('yields json-labeled fences before plain fences so the model can hint intent', () => {
+      const raw = '```\n{"unlabelled": 1}\n```\nand also:\n```json\n{"labelled": 2}\n```'
+      const result = [...jsonCandidates(raw)]
+
+      expect(result[0]).toBe('{"labelled": 2}')
+      expect(result).toContain('{"unlabelled": 1}')
+    })
+
+    it('yields every fenced block so a caller can pick the one that validates against a schema', () => {
+      const raw = [
+        'For example, a response might look like:',
+        '```json',
+        '{"kind": "example", "issues": ["stub"]}',
+        '```',
+        'My actual answer:',
+        '```json',
+        '{"kind": "answer", "issues": []}',
+        '```',
+      ].join('\n')
+
+      const result = [...jsonCandidates(raw)]
+
+      expect(result).toEqual(
+        expect.arrayContaining(['{"kind": "example", "issues": ["stub"]}', '{"kind": "answer", "issues": []}']),
+      )
+      expect(result.length).toBeGreaterThanOrEqual(2)
+    })
+
+    it('yields the balanced object from raw text when there is no fence', () => {
+      const raw = 'Preamble {"safety": "safe"} trailing prose'
+      const result = [...jsonCandidates(raw)]
+
+      expect(result).toContain('{"safety": "safe"}')
+    })
+  })
+
+  describe('balanced brace extraction (no lastIndexOf footgun)', () => {
+    it('stops at the first matching closing brace even when more JSON-like content follows', () => {
+      const raw = '{"first": 1} {"second": 2}'
+      const result = [...jsonCandidates(raw)]
+
+      expect(result[0]).toBe('{"first": 1}')
+    })
+
+    it('handles braces inside string literals without breaking nesting', () => {
+      const raw = 'Result: {"label": "value with }"}'
+      const result = [...jsonCandidates(raw)]
+
+      expect(result[0]).toBe('{"label": "value with }"}')
+    })
+
+    it('handles escaped quotes inside string literals', () => {
+      const raw = '{"label": "he said \\"hi\\" then"}'
+      const result = [...jsonCandidates(raw)]
+
+      expect(result[0]).toBe('{"label": "he said \\"hi\\" then"}')
+    })
+  })
+
+  describe('unparseable outputs', () => {
+    it('still yields the trimmed raw text as a final fallback', () => {
+      const raw = '   some prose   '
+      const result = [...jsonCandidates(raw)]
+
+      expect(result).toContain('some prose')
+    })
+
+    it('yields nothing from an empty string', () => {
+      const result = [...jsonCandidates('')]
+
+      expect(result).toEqual([])
     })
   })
 })

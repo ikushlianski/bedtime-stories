@@ -77,18 +77,78 @@ export function isRetryable(err: unknown): boolean {
   )
 }
 
-export function extractJsonFromText(raw: string): string {
-  const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/)
+function extractBalancedObject(raw: string): string | null {
+  const start = raw.indexOf('{')
 
-  if (fenceMatch?.[1] !== undefined) {
-    return fenceMatch[1].trim()
+  if (start === -1) return null
+
+  let depth = 0
+  let inString = false
+  let escape = false
+
+  for (let i = start; i < raw.length; i++) {
+    const c = raw[i]
+
+    if (escape) {
+      escape = false
+      continue
+    }
+
+    if (c === '\\') {
+      escape = true
+      continue
+    }
+
+    if (c === '"') {
+      inString = !inString
+      continue
+    }
+
+    if (inString) continue
+
+    if (c === '{') {
+      depth++
+    } else if (c === '}') {
+      depth--
+
+      if (depth === 0) {
+        return raw.slice(start, i + 1)
+      }
+    }
   }
 
-  const braceStart = raw.indexOf('{')
-  const braceEnd = raw.lastIndexOf('}')
+  return null
+}
 
-  if (braceStart !== -1 && braceEnd !== -1 && braceEnd > braceStart) {
-    return raw.slice(braceStart, braceEnd + 1)
+export function* jsonCandidates(raw: string): Iterable<string> {
+  const jsonFenced = raw.matchAll(/```json\s*([\s\S]*?)```/g)
+
+  for (const match of jsonFenced) {
+    const candidate = match[1]?.trim()
+
+    if (candidate !== undefined && candidate.length > 0) yield candidate
+  }
+
+  const plainFenced = raw.matchAll(/```\s*([\s\S]*?)```/g)
+
+  for (const match of plainFenced) {
+    const candidate = match[1]?.trim()
+
+    if (candidate !== undefined && candidate.length > 0) yield candidate
+  }
+
+  const balanced = extractBalancedObject(raw)
+
+  if (balanced !== null) yield balanced
+
+  const trimmed = raw.trim()
+
+  if (trimmed.length > 0) yield trimmed
+}
+
+export function extractJsonFromText(raw: string): string {
+  for (const candidate of jsonCandidates(raw)) {
+    return candidate
   }
 
   return raw.trim()
@@ -184,22 +244,27 @@ export class ClaudeCliRunner implements AiRunner {
 
     const resultText = await this.runText({ model, prompt: fullPrompt, label: `skill:${skill}`, ...cwdArg })
 
-    const jsonText = extractJsonFromText(resultText)
+    let lastError: unknown
 
-    let parsed: unknown
+    for (const candidate of jsonCandidates(resultText)) {
+      let parsed: unknown
 
-    try {
-      parsed = JSON.parse(jsonText)
-    } catch (err) {
-      throw new AiValidationError(resultText, err)
+      try {
+        parsed = JSON.parse(candidate)
+      } catch (err) {
+        lastError = err
+        continue
+      }
+
+      const validated = outputSchema.safeParse(parsed)
+
+      if (validated.success) {
+        return validated.data
+      }
+
+      lastError = validated.error
     }
 
-    const validated = outputSchema.safeParse(parsed)
-
-    if (!validated.success) {
-      throw new AiValidationError(resultText, validated.error)
-    }
-
-    return validated.data
+    throw new AiValidationError(resultText, lastError)
   }
 }
