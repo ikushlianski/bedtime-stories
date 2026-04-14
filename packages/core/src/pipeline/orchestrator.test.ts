@@ -7,11 +7,20 @@ import * as writerStage from './stages/writer'
 import * as writerCriticStage from './stages/writer-critic'
 import type { PsychologistOutput, CriticOutput } from './schemas'
 
-vi.mock('./stages/plotter')
+vi.mock('./stages/plotter', async () => {
+  const actual = await vi.importActual<typeof import('./stages/plotter')>('./stages/plotter')
+  return { ...actual, runPlotter: vi.fn() }
+})
 vi.mock('./stages/psychologist')
 vi.mock('./stages/plot-critic')
-vi.mock('./stages/writer')
+vi.mock('./stages/writer', async () => {
+  const actual = await vi.importActual<typeof import('./stages/writer')>('./stages/writer')
+  return { ...actual, runWriter: vi.fn() }
+})
 vi.mock('./stages/writer-critic')
+vi.mock('./prompt-resolver', () => ({
+  resolvePrompt: vi.fn().mockResolvedValue({ text: 'mocked prompt', version: 1 }),
+}))
 
 const baseModels = {
   plotter: 'claude-sonnet-4-6',

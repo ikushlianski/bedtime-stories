@@ -1,7 +1,8 @@
 import { claudeCliRunner } from '../../ai'
+import { resolvePrompt, type ResolvedPrompt } from '../prompt-resolver'
 import type { CriticOutput } from '../schemas'
 
-const PLOTTER_SYSTEM_PROMPT = `You are a story plotter for a bedtime therapeutic tale for a 6-year-old boy named Gosha (Sasha).
+export const PLOTTER_SYSTEM_PROMPT_DEFAULT = `You are a story plotter for a bedtime therapeutic tale for a 6-year-old boy named Gosha (Sasha).
 Your job is to produce a detailed story plan in plain text that will be the foundation for a story written in Russian.
 The plan must include:
 - Emotional task (the real-life situation the story addresses — be specific about what Sasha needs to explore)
@@ -20,14 +21,16 @@ export async function runPlotter(options: {
   previousPlan?: string
   criticNotes?: CriticOutput
   model: string
-  promptVersion: number
+  resolvedPrompt?: ResolvedPrompt
   cwd?: string
 }): Promise<string> {
   const { seed, previousPlan, criticNotes, model } = options
   const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
 
+  const resolved = options.resolvedPrompt ?? (await resolvePrompt('plotter', PLOTTER_SYSTEM_PROMPT_DEFAULT))
+
   const parts: string[] = [
-    PLOTTER_SYSTEM_PROMPT,
+    resolved.text,
     '',
     `SEED (real-life situation to base the story on):\n${seed}`,
   ]
@@ -60,5 +63,5 @@ export async function runPlotter(options: {
 
   const prompt = parts.join('\n')
 
-  return claudeCliRunner.runText({ model, prompt, ...cwdArg })
+  return claudeCliRunner.runText({ model, prompt, label: `plotter:v${resolved.version}`, ...cwdArg })
 }

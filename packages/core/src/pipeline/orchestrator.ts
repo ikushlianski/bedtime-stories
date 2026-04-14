@@ -1,8 +1,9 @@
-import { runPlotter } from './stages/plotter'
+import { runPlotter, PLOTTER_SYSTEM_PROMPT_DEFAULT } from './stages/plotter'
 import { runPsychologist } from './stages/psychologist'
 import { runPlotCritic } from './stages/plot-critic'
-import { runWriter } from './stages/writer'
+import { runWriter, WRITER_SYSTEM_PROMPT_DEFAULT } from './stages/writer'
 import { runWriterCritic } from './stages/writer-critic'
+import { resolvePrompt, type ResolvedPrompt } from './prompt-resolver'
 import type { PsychologistOutput, CriticOutput } from './schemas'
 
 const MAX_PLAN_ITERATIONS = 3
@@ -52,13 +53,20 @@ export async function runPlanPhase(options: {
   promptVersions: PipelinePromptVersions
   cwd?: string
 }): Promise<PlanPhaseResult> {
-  const { seed, models, promptVersions } = options
+  const { seed, models } = options
   const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
+
+  const plotterPrompt = await resolvePrompt('plotter', PLOTTER_SYSTEM_PROMPT_DEFAULT, options.promptVersions.plotter)
+
+  const resolvedVersions: PipelinePromptVersions = {
+    ...options.promptVersions,
+    plotter: plotterPrompt.version,
+  }
 
   const planV1 = await runPlotter({
     seed,
     model: models.plotter,
-    promptVersion: promptVersions.plotter,
+    resolvedPrompt: plotterPrompt,
     ...cwdArg,
   })
 
@@ -117,7 +125,7 @@ export async function runPlanPhase(options: {
         previousPlan: currentPlan,
         criticNotes: plotCriticOutput,
         model: models.plotter,
-        promptVersion: promptVersions.plotter,
+        resolvedPrompt: plotterPrompt,
         ...cwdArg,
       })
     }
@@ -134,7 +142,7 @@ export async function runPlanPhase(options: {
     psychologistPlanOutput,
     plotCriticOutput,
     models,
-    promptVersions,
+    promptVersions: resolvedVersions,
   }
 }
 
@@ -146,13 +154,24 @@ export async function runTextPhase(options: {
   promptVersions: PipelinePromptVersions
   cwd?: string
 }): Promise<TextPhaseResult> {
-  const { seed, planFinal, models, promptVersions } = options
+  const { seed, planFinal, models } = options
   const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
+
+  const writerPrompt: ResolvedPrompt = await resolvePrompt(
+    'writer',
+    WRITER_SYSTEM_PROMPT_DEFAULT,
+    options.promptVersions.writer,
+  )
+
+  const resolvedVersions: PipelinePromptVersions = {
+    ...options.promptVersions,
+    writer: writerPrompt.version,
+  }
 
   const textV1 = await runWriter({
     plan: planFinal,
     model: models.writer,
-    promptVersion: promptVersions.writer,
+    resolvedPrompt: writerPrompt,
     ...cwdArg,
   })
 
@@ -177,7 +196,7 @@ export async function runTextPhase(options: {
     plan: planFinal,
     criticNotes: writerCriticOutput,
     model: models.writer,
-    promptVersion: promptVersions.writer,
+    resolvedPrompt: writerPrompt,
     ...cwdArg,
   })
 
@@ -187,7 +206,7 @@ export async function runTextPhase(options: {
     psychologistTextOutput,
     writerCriticOutput,
     models,
-    promptVersions,
+    promptVersions: resolvedVersions,
   }
 }
 

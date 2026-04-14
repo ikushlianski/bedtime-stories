@@ -1,7 +1,8 @@
 import { claudeCliRunner } from '../../ai'
+import { resolvePrompt, type ResolvedPrompt } from '../prompt-resolver'
 import type { CriticOutput } from '../schemas'
 
-const WRITER_SYSTEM_PROMPT = `You are a writer creating a bedtime therapeutic story for a 6-year-old boy named Gosha (Sasha).
+export const WRITER_SYSTEM_PROMPT_DEFAULT = `You are a writer creating a bedtime therapeutic story for a 6-year-old boy named Gosha (Sasha).
 Write the full story text in Russian based on the plan provided. Requirements:
 - Language: Russian only. Use warm, vivid, conversational language suitable for reading aloud to a child.
 - Length: 800–1200 words
@@ -19,14 +20,16 @@ export async function runWriter(options: {
   plan: string
   criticNotes?: CriticOutput
   model: string
-  promptVersion: number
+  resolvedPrompt?: ResolvedPrompt
   cwd?: string
 }): Promise<string> {
   const { plan, criticNotes, model } = options
   const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
 
+  const resolved = options.resolvedPrompt ?? (await resolvePrompt('writer', WRITER_SYSTEM_PROMPT_DEFAULT))
+
   const parts: string[] = [
-    WRITER_SYSTEM_PROMPT,
+    resolved.text,
     '',
     `STORY PLAN:\n${plan}`,
   ]
@@ -55,5 +58,5 @@ export async function runWriter(options: {
 
   const prompt = parts.join('\n')
 
-  return claudeCliRunner.runText({ model, prompt, ...cwdArg })
+  return claudeCliRunner.runText({ model, prompt, label: `writer:v${resolved.version}`, ...cwdArg })
 }
