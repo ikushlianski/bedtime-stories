@@ -102,14 +102,16 @@ export const api = {
         body: JSON.stringify({ seed }),
       }),
 
-    approvePlan: (id: number) =>
-      request<{ ok: boolean }>(`/api/stories/${id}/approve-plan`, {
+    approvePlan: (id: number, approved = true) =>
+      request<Story>(`/api/stories/${id}/approve-plan`, {
         method: 'POST',
+        body: JSON.stringify({ approved }),
       }),
 
-    approveText: (id: number) =>
-      request<{ ok: boolean }>(`/api/stories/${id}/approve-text`, {
+    approveText: (id: number, approved = true) =>
+      request<Story>(`/api/stories/${id}/approve-text`, {
         method: 'POST',
+        body: JSON.stringify({ approved }),
       }),
   },
 
