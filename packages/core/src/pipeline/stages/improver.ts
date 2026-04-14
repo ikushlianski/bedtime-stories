@@ -4,7 +4,7 @@ import { feedback, prompts } from '../../db/schema'
 import type { Feedback, Prompt } from '../../db/types'
 import { claudeCliRunner } from '../../ai'
 import { ImproverOutputSchema, type ImproverOutput } from '../schemas'
-import { AiValidationError } from '../../ai/claude-cli.runner'
+import { AiValidationError, extractJsonFromText } from '../../ai/claude-cli.runner'
 
 const IMPROVER_MODEL = 'claude-sonnet-4-6'
 
@@ -102,23 +102,6 @@ function buildPass2Prompt(
   return parts.join('\n\n')
 }
 
-function extractJson(raw: string): string {
-  const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/)
-
-  if (fenceMatch?.[1] !== undefined) {
-    return fenceMatch[1].trim()
-  }
-
-  const braceStart = raw.indexOf('{')
-  const braceEnd = raw.lastIndexOf('}')
-
-  if (braceStart !== -1 && braceEnd !== -1 && braceEnd > braceStart) {
-    return raw.slice(braceStart, braceEnd + 1)
-  }
-
-  return raw.trim()
-}
-
 export async function runImprover(): Promise<ImproverOutput> {
   const allFeedbacks = await fetchAgentRunFeedbacks()
 
@@ -133,7 +116,7 @@ export async function runImprover(): Promise<ImproverOutput> {
 
   const rawOutput = await claudeCliRunner.runText({ model: IMPROVER_MODEL, prompt: pass2Prompt })
 
-  const jsonText = extractJson(rawOutput)
+  const jsonText = extractJsonFromText(rawOutput)
 
   let parsed: unknown
 

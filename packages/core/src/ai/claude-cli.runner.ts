@@ -61,7 +61,7 @@ export class AiValidationError extends Error {
 const MAX_ATTEMPTS = 3
 const RETRY_BASE_DELAY_MS = 1500
 
-function isRetryable(err: unknown): boolean {
+export function isRetryable(err: unknown): boolean {
   if (err instanceof AiValidationError) return false
   const message = err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase()
   return (
@@ -75,6 +75,23 @@ function isRetryable(err: unknown): boolean {
     message.includes('504') ||
     message.includes('529')
   )
+}
+
+export function extractJsonFromText(raw: string): string {
+  const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/)
+
+  if (fenceMatch?.[1] !== undefined) {
+    return fenceMatch[1].trim()
+  }
+
+  const braceStart = raw.indexOf('{')
+  const braceEnd = raw.lastIndexOf('}')
+
+  if (braceStart !== -1 && braceEnd !== -1 && braceEnd > braceStart) {
+    return raw.slice(braceStart, braceEnd + 1)
+  }
+
+  return raw.trim()
 }
 
 async function sleep(ms: number): Promise<void> {
@@ -167,7 +184,7 @@ export class ClaudeCliRunner implements AiRunner {
 
     const resultText = await this.runText({ model, prompt: fullPrompt, label: `skill:${skill}`, ...cwdArg })
 
-    const jsonText = this.extractJson(resultText)
+    const jsonText = extractJsonFromText(resultText)
 
     let parsed: unknown
 
@@ -184,22 +201,5 @@ export class ClaudeCliRunner implements AiRunner {
     }
 
     return validated.data
-  }
-
-  private extractJson(raw: string): string {
-    const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/)
-
-    if (fenceMatch?.[1] !== undefined) {
-      return fenceMatch[1].trim()
-    }
-
-    const braceStart = raw.indexOf('{')
-    const braceEnd = raw.lastIndexOf('}')
-
-    if (braceStart !== -1 && braceEnd !== -1 && braceEnd > braceStart) {
-      return raw.slice(braceStart, braceEnd + 1)
-    }
-
-    return raw.trim()
   }
 }
