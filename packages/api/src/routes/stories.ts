@@ -187,9 +187,18 @@ router.post('/:id/approve-text', validate(approveTextSchema), async (req, res) =
       return
     }
 
+    const [current] = await db.select().from(stories).where(eq(stories.id, storyId))
+
+    if (!current) {
+      res.status(404).json({ error: 'Story not found' })
+      return
+    }
+
+    const finalText = current.textV2 ?? current.textV1 ?? null
+
     const [story] = await db
       .update(stories)
-      .set({ status: 'ready' })
+      .set({ status: 'ready', textFinal: finalText })
       .where(eq(stories.id, storyId))
       .returning()
 
@@ -199,7 +208,8 @@ router.post('/:id/approve-text', validate(approveTextSchema), async (req, res) =
     }
 
     res.json(story)
-  } catch {
+  } catch (err) {
+    console.error('POST /stories/:id/approve-text failed:', err)
     res.status(500).json({ error: 'Failed to approve text' })
   }
 })
