@@ -5,6 +5,8 @@
   "main": "packages/core/src/mastra/index.ts",
   "scripts": {
     "dev": "mastra dev",
+    "dev:api": "npm run dev -w @bedtime/api",
+    "dev:web": "npm run dev -w @bedtime/web",
     "build": "tsc --build",
     "typecheck": "tsc --noEmit",
     "notion-import": "tsx packages/core/src/scripts/notion-import.ts"
