@@ -102,6 +102,7 @@ export class ClaudeCliRunner implements AiRunner {
             tools: [],
             permissionMode: 'dontAsk',
             persistSession: false,
+            systemPrompt: 'You are an AI assistant following the instructions in the user message exactly. Do not introduce yourself, do not explain what you are about to do, and do not add trailing commentary. Produce only the output the user asked for.',
           },
         })
 
