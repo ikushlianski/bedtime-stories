@@ -18,52 +18,88 @@ export class AiValidationError extends Error {
   }
 }
 
+const MAX_ATTEMPTS = 3
+const RETRY_BASE_DELAY_MS = 1500
+
+function isRetryable(err: unknown): boolean {
+  if (err instanceof AiValidationError) return false
+  const message = err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase()
+  return (
+    message.includes('timeout') ||
+    message.includes('econn') ||
+    message.includes('network') ||
+    message.includes('fetch') ||
+    message.includes('socket') ||
+    message.includes('rate') ||
+    message.includes('503') ||
+    message.includes('504') ||
+    message.includes('529')
+  )
+}
+
+async function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 export class ClaudeCliRunner implements AiRunner {
   async runText(options: RunTextOptions): Promise<string> {
     const { model, prompt } = options
     const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
-
-    const startedAt = Date.now()
     const label = options.label ?? 'runText'
-    console.log(`[ai] ${label} start model=${model} promptLen=${prompt.length}`)
 
-    let resultText = ''
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      const startedAt = Date.now()
+      console.log(`[ai] ${label} start model=${model} promptLen=${prompt.length} attempt=${attempt}/${MAX_ATTEMPTS}`)
 
-    try {
-      const messages = query({
-        prompt,
-        options: {
-          model,
-          ...cwdArg,
-          tools: [],
-          permissionMode: 'dontAsk',
-          persistSession: false,
-        },
-      })
+      let resultText = ''
 
-      for await (const msg of messages as AsyncIterable<SDKMessage>) {
-        if (msg.type === 'result') {
-          if (msg.subtype !== 'success') {
-            throw new AiExecutionError(`subtype=${msg.subtype}`)
+      try {
+        const messages = query({
+          prompt,
+          options: {
+            model,
+            ...cwdArg,
+            tools: [],
+            permissionMode: 'dontAsk',
+            persistSession: false,
+          },
+        })
+
+        for await (const msg of messages as AsyncIterable<SDKMessage>) {
+          if (msg.type === 'result') {
+            if (msg.subtype !== 'success') {
+              throw new AiExecutionError(`subtype=${msg.subtype}`)
+            }
+
+            resultText = msg.result
           }
-
-          resultText = msg.result
         }
+
+        if (!resultText) {
+          throw new AiExecutionError('no result received')
+        }
+
+        const durationMs = Date.now() - startedAt
+        console.log(`[ai] ${label} done model=${model} durationMs=${durationMs} resultLen=${resultText.length} attempt=${attempt}`)
+
+        return resultText
+      } catch (err) {
+        const durationMs = Date.now() - startedAt
+        const retryable = isRetryable(err) && attempt < MAX_ATTEMPTS
+
+        if (retryable) {
+          const backoffMs = RETRY_BASE_DELAY_MS * attempt
+          console.warn(`[ai] ${label} transient failure model=${model} durationMs=${durationMs} attempt=${attempt}, retrying in ${backoffMs}ms:`, err)
+          await sleep(backoffMs)
+          continue
+        }
+
+        console.error(`[ai] ${label} failed model=${model} durationMs=${durationMs} attempt=${attempt}:`, err)
+        throw err
       }
-
-      if (!resultText) {
-        throw new AiExecutionError('no result received')
-      }
-
-      const durationMs = Date.now() - startedAt
-      console.log(`[ai] ${label} done model=${model} durationMs=${durationMs} resultLen=${resultText.length}`)
-
-      return resultText
-    } catch (err) {
-      const durationMs = Date.now() - startedAt
-      console.error(`[ai] ${label} failed model=${model} durationMs=${durationMs}:`, err)
-      throw err
     }
+
+    throw new AiExecutionError(`exhausted ${MAX_ATTEMPTS} attempts`)
   }
 
   async runStructured<T>(options: RunStructuredOptions<T>): Promise<T> {
