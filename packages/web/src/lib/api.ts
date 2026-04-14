@@ -130,10 +130,10 @@ export const api = {
   },
 
   pipeline: {
-    run: (storyId: number) =>
-      request<{ ok: boolean }>('/api/pipeline/run', {
+    run: (storyId: number, seed: string) =>
+      request<{ started: boolean; storyId: number }>('/api/pipeline/run', {
         method: 'POST',
-        body: JSON.stringify({ storyId }),
+        body: JSON.stringify({ storyId, seed }),
       }),
 
     status: (storyId: number) => request<PipelineStatus>(`/api/pipeline/status/${storyId}`),

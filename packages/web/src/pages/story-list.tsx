@@ -35,6 +35,8 @@ export function StoryListPage() {
   async function handleCreateStory(seed: string) {
     const story = await api.stories.create(seed)
 
+    await api.pipeline.run(story.id, seed)
+
     setShowModal(false)
     navigate(`/stories/${story.id}/pipeline`)
   }
