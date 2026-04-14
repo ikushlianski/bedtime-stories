@@ -98,10 +98,12 @@ router.post('/run', validate(runPipelineSchema), async (req, res) => {
       } catch (dbError) {
         console.error('Failed to persist pipeline result to DB:', dbError)
       }
-    }).catch(() => {
+    }).catch((pipelineError) => {
       pipelineStatusMap.set(storyId, 'error')
+      console.error(`Pipeline run failed for storyId=${storyId}:`, pipelineError)
     })
-  } catch {
+  } catch (err) {
+    console.error('POST /pipeline/run failed:', err)
     res.status(500).json({ error: 'Failed to start pipeline' })
   }
 })
@@ -118,7 +120,8 @@ router.get('/status/:storyId', async (req, res) => {
     const status = pipelineStatusMap.get(storyIdRaw) ?? 'unknown'
 
     res.json({ storyId: storyIdRaw, status })
-  } catch {
+  } catch (err) {
+    console.error('GET /pipeline/status/:storyId failed:', err)
     res.status(500).json({ error: 'Failed to get pipeline status' })
   }
 })

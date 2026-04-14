@@ -45,7 +45,8 @@ router.post('/', validate(createStorySchema), async (req, res) => {
     const [story] = await db.insert(stories).values(newStory).returning()
 
     res.status(201).json(story)
-  } catch {
+  } catch (err) {
+    console.error('POST /stories failed:', err)
     res.status(500).json({ error: 'Failed to create story' })
   }
 })
@@ -90,7 +91,8 @@ router.get('/:id', async (req, res) => {
     }
 
     res.json(story)
-  } catch {
+  } catch (err) {
+    console.error('GET /stories/:id failed:', err)
     res.status(500).json({ error: 'Failed to fetch story' })
   }
 })
