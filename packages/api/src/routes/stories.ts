@@ -5,7 +5,7 @@ import { db } from '@bedtime/core/db/client'
 import { stories, annotations } from '@bedtime/core/db/schema'
 import type { Story, NewStory, NewAnnotation } from '@bedtime/core/db/types'
 import { validate } from '../middleware/validate'
-import { triggerTextPhase } from './pipeline'
+import { triggerTextPhase, getPipelineStatus } from './pipeline'
 
 const router = Router()
 
@@ -185,6 +185,13 @@ router.post('/:id/approve-plan', validate(approvePlanSchema), async (req, res) =
 
     if (existing.seed === null || existing.seed === undefined) {
       res.status(409).json({ error: 'Story seed is missing; cannot start text phase' })
+      return
+    }
+
+    const currentPipelineStatus = getPipelineStatus(storyId)
+
+    if (currentPipelineStatus === 'text_running' || currentPipelineStatus === 'text_ready') {
+      res.json(toSnakeCase(existing as Story))
       return
     }
 

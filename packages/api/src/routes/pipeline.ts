@@ -180,6 +180,16 @@ router.post('/run', validate(runPipelineSchema), async (req, res) => {
   try {
     const { storyId, seed } = req.body as z.infer<typeof runPipelineSchema>
 
+    const current = getPipelineStatus(storyId)
+
+    if (current !== undefined && current !== 'plan_failed' && current !== 'text_failed') {
+      res.status(409).json({
+        error: 'Pipeline already in progress or completed for this story',
+        currentStatus: current,
+      })
+      return
+    }
+
     triggerPlanPhase(storyId, seed)
 
     res.json({ started: true, storyId, phase: 'plan' })
