@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { eq } from 'drizzle-orm'
+import { eq, desc } from 'drizzle-orm'
 import { z } from 'zod'
 import { validate } from '../middleware/validate'
 import { runPipeline } from '@bedtime/core/pipeline/orchestrator'
@@ -153,6 +153,41 @@ router.get('/status/:storyId', async (req, res) => {
   } catch (err) {
     console.error('GET /pipeline/status/:storyId failed:', err)
     res.status(500).json({ error: 'Failed to get pipeline status' })
+  }
+})
+
+router.get('/snapshot/:storyId', async (req, res) => {
+  try {
+    const storyIdRaw = parseInt(req.params['storyId'] ?? '', 10)
+
+    if (isNaN(storyIdRaw)) {
+      res.status(400).json({ error: 'Invalid storyId' })
+      return
+    }
+
+    const [snapshot] = await db
+      .select()
+      .from(runSnapshots)
+      .where(eq(runSnapshots.storyId, storyIdRaw))
+      .orderBy(desc(runSnapshots.createdAt))
+      .limit(1)
+
+    if (!snapshot) {
+      res.status(404).json({ error: 'No snapshot found for this story' })
+      return
+    }
+
+    res.json({
+      story_id: snapshot.storyId,
+      psychologist_plan_output: snapshot.psychologistPlanOutput,
+      psychologist_text_output: snapshot.psychologistTextOutput,
+      plot_critic_output: snapshot.plotCriticOutput,
+      writer_critic_output: snapshot.writerCriticOutput,
+      plan_iterations_count: snapshot.planIterationsCount,
+    })
+  } catch (err) {
+    console.error('GET /pipeline/snapshot/:storyId failed:', err)
+    res.status(500).json({ error: 'Failed to get pipeline snapshot' })
   }
 })
 

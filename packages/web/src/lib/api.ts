@@ -140,6 +140,6 @@ export const api = {
 
     status: (storyId: number) => request<PipelineStatus>(`/api/pipeline/status/${storyId}`),
 
-    snapshot: (storyId: number) => request<RunSnapshot>(`/api/pipeline/status/${storyId}`),
+    snapshot: (storyId: number) => request<RunSnapshot>(`/api/pipeline/snapshot/${storyId}`),
   },
 }
