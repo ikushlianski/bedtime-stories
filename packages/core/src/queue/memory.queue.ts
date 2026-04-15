@@ -12,6 +12,7 @@ export class MemoryQueue<T> implements Queue<T> {
 
   process(handler: (job: T) => Promise<void>): void {
     this.handler = handler
+    void this.drain()
   }
 
   private async drain(): Promise<void> {
@@ -21,14 +22,20 @@ export class MemoryQueue<T> implements Queue<T> {
 
     this.running = true
 
-    while (this.pending.length > 0) {
-      const job = this.pending.shift()
+    try {
+      while (this.pending.length > 0) {
+        const job = this.pending.shift()
 
-      if (job !== undefined) {
-        await this.handler(job)
+        if (job === undefined) continue
+
+        try {
+          await this.handler(job)
+        } catch (err) {
+          console.error('[memory-queue] handler rejected:', err)
+        }
       }
+    } finally {
+      this.running = false
     }
-
-    this.running = false
   }
 }
