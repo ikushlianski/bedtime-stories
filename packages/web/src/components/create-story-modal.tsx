@@ -1,27 +1,48 @@
 import { useState, useEffect } from 'react'
+import type { CreateStoryInput } from '../lib/api'
+import {
+  INITIAL_CREATE_STORY_FORM,
+  validateCreateStoryForm,
+  type CreateStoryFormState,
+  type CreateStoryMode,
+} from './create-story-form'
 
 interface CreateStoryModalProps {
   open: boolean
   onClose: () => void
-  onSubmit: (seed: string) => Promise<void>
+  onSubmit: (input: CreateStoryInput) => Promise<void>
   initialSeed?: string
 }
 
 function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '' }: CreateStoryModalProps) {
-  const [seed, setSeed] = useState(initialSeed)
+  const [form, setForm] = useState<CreateStoryFormState>({
+    ...INITIAL_CREATE_STORY_FORM,
+    seed: initialSeed,
+  })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (open) setSeed(initialSeed)
+    if (open) {
+      setForm({ ...INITIAL_CREATE_STORY_FORM, seed: initialSeed })
+      setError(null)
+    }
   }, [open, initialSeed])
 
   if (!open) {
     return null
   }
 
+  function setMode(mode: CreateStoryMode) {
+    setForm((prev) => ({ ...prev, mode }))
+    setError(null)
+  }
+
   async function handleSubmit() {
-    if (!seed.trim()) {
+    const validation = validateCreateStoryForm(form)
+
+    if (!validation.valid) {
+      setError(validation.reason)
       return
     }
 
@@ -29,8 +50,8 @@ function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '' }: CreateS
     setError(null)
 
     try {
-      await onSubmit(seed.trim())
-      setSeed('')
+      await onSubmit(validation.input)
+      setForm({ ...INITIAL_CREATE_STORY_FORM })
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Failed to create story')
     } finally {
@@ -38,21 +59,65 @@ function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '' }: CreateS
     }
   }
 
+  const canSubmit = !submitting && validateCreateStoryForm(form).valid
+
   return (
     <dialog className="modal modal-open">
       <div className="modal-box max-w-2xl border border-base-300 bg-base-100 shadow-2xl">
         <h2 className="font-serif text-3xl text-base-content">New Story</h2>
-        <p className="mt-2 text-sm text-base-content/60">
-          Seed the next bedtime story with a situation, emotion, or challenge Sasha is working through.
-        </p>
 
-        <textarea
-          className="textarea textarea-bordered mt-6 min-h-40 w-full bg-base-100"
-          placeholder="The hero is nervous about sleeping away from home for the first time..."
-          value={seed}
-          onChange={(event) => setSeed(event.target.value)}
-          autoFocus
-        />
+        <div role="tablist" className="tabs tabs-boxed mt-4">
+          <button
+            role="tab"
+            className={`tab ${form.mode === 'generate' ? 'tab-active' : ''}`}
+            onClick={() => setMode('generate')}
+          >
+            Generate with AI
+          </button>
+          <button
+            role="tab"
+            className={`tab ${form.mode === 'paste' ? 'tab-active' : ''}`}
+            onClick={() => setMode('paste')}
+          >
+            Paste existing story
+          </button>
+        </div>
+
+        {form.mode === 'generate' && (
+          <div className="mt-4">
+            <p className="text-sm text-base-content/60">
+              Seed the next bedtime story with a situation, emotion, or challenge Sasha is working through.
+            </p>
+            <textarea
+              className="textarea textarea-bordered mt-4 min-h-40 w-full bg-base-100"
+              placeholder="The hero is nervous about sleeping away from home for the first time..."
+              value={form.seed}
+              onChange={(event) => setForm((prev) => ({ ...prev, seed: event.target.value }))}
+              autoFocus
+            />
+          </div>
+        )}
+
+        {form.mode === 'paste' && (
+          <div className="mt-4">
+            <p className="text-sm text-base-content/60">
+              Paste a story you already wrote (or produced elsewhere). It will be saved as-is and skip the generation pipeline.
+            </p>
+            <input
+              type="text"
+              className="input input-bordered mt-4 w-full bg-base-100"
+              placeholder="Title (optional)"
+              value={form.title}
+              onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
+            />
+            <textarea
+              className="textarea textarea-bordered mt-3 min-h-60 w-full bg-base-100"
+              placeholder="Once upon a time..."
+              value={form.textFinal}
+              onChange={(event) => setForm((prev) => ({ ...prev, textFinal: event.target.value }))}
+            />
+          </div>
+        )}
 
         {error && <p className="mt-3 text-sm text-error">{error}</p>}
 
@@ -61,7 +126,7 @@ function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '' }: CreateS
             Cancel
           </button>
           <button
-            className={`btn btn-primary ${submitting || !seed.trim() ? 'btn-disabled' : ''}`}
+            className={`btn btn-primary ${canSubmit ? '' : 'btn-disabled'}`}
             onClick={() => void handleSubmit()}
           >
             {submitting ? 'Creating...' : 'Create Story'}

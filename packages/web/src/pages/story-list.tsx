@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { api, type Story } from '../lib/api'
+import { api, type Story, type CreateStoryInput } from '../lib/api'
 import { CreateStoryModal, PageHeader, StatusCallout, StoryCard, StoryFilterTabs } from '../components'
 
 type StatusFilter = 'all' | 'draft' | 'ready' | 'read' | 'archived'
@@ -34,13 +34,21 @@ export function StoryListPage() {
     void fetchStories()
   }, [fetchStories])
 
-  async function handleCreateStory(seed: string) {
-    const story = await api.stories.create(seed)
-
-    await api.pipeline.run(story.id, seed)
+  async function handleCreateStory(input: CreateStoryInput) {
+    const created = await api.stories.create(input)
 
     setShowModal(false)
-    navigate(`/stories/${story.id}/pipeline`)
+
+    if (created.source === 'user') {
+      navigate(`/stories/${created.id}`)
+      return
+    }
+
+    if ('seed' in input) {
+      await api.pipeline.run(created.id, input.seed)
+    }
+
+    navigate(`/stories/${created.id}/pipeline`)
   }
 
   return (

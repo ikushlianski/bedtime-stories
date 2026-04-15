@@ -20,7 +20,7 @@ export const stories = pgTable('stories', {
   createdAt: timestamp('created_at').defaultNow(),
   status: text('status').$type<'draft' | 'ready' | 'read' | 'archived'>().default('draft'),
   tags: jsonb('tags').default([]),
-  source: text('source').$type<'agent' | 'legacy'>().default('agent'),
+  source: text('source').$type<'agent' | 'legacy' | 'user'>().default('agent'),
   isLegacy: boolean('is_legacy').default(false),
   discussionQuestions: jsonb('discussion_questions').default([]),
   seed: text('seed'),
@@ -48,7 +48,9 @@ export const prompts = pgTable('prompts', {
 export const annotations = pgTable('annotations', {
   id: serial('id').primaryKey(),
   storyId: integer('story_id').references(() => stories.id),
-  type: text('type').$type<'sasha_reaction' | 'my_note'>().notNull(),
+  type: text('type')
+    .$type<'sasha_reaction' | 'my_note' | 'sasha_laughed' | 'sasha_loved' | 'sasha_disliked'>()
+    .notNull(),
   selectedText: text('selected_text').notNull(),
   positionStart: integer('position_start'),
   positionEnd: integer('position_end'),

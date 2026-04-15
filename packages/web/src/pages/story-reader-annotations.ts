@@ -4,6 +4,12 @@ export function annotationTypeLabel(type: AnnotationType): string {
   switch (type) {
     case 'sasha_reaction':
       return "Sasha's reaction"
+    case 'sasha_laughed':
+      return 'Sasha laughed'
+    case 'sasha_loved':
+      return 'Sasha loved this'
+    case 'sasha_disliked':
+      return 'Sasha disliked this'
     case 'my_note':
       return 'My note'
   }
@@ -27,11 +33,23 @@ export function appendAnnotation(list: Annotation[], annotation: Annotation): An
 }
 
 export function countByType(list: Annotation[]): Record<AnnotationType, number> {
-  const counts: Record<AnnotationType, number> = { sasha_reaction: 0, my_note: 0 }
+  const counts: Record<AnnotationType, number> = {
+    sasha_reaction: 0,
+    sasha_laughed: 0,
+    sasha_loved: 0,
+    sasha_disliked: 0,
+    my_note: 0,
+  }
 
   for (const annotation of list) {
     counts[annotation.type] += 1
   }
 
   return counts
+}
+
+export function totalReactions(counts: Record<AnnotationType, number>): number {
+  return (
+    counts.sasha_reaction + counts.sasha_laughed + counts.sasha_loved + counts.sasha_disliked
+  )
 }

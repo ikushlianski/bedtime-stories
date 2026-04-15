@@ -137,6 +137,20 @@ router.post('/run', validate(runPipelineSchema), async (req, res) => {
   try {
     const { storyId, seed } = req.body as z.infer<typeof runPipelineSchema>
 
+    const [storyRow] = await db.select().from(stories).where(eq(stories.id, storyId))
+
+    if (!storyRow) {
+      res.status(404).json({ error: 'Story not found' })
+      return
+    }
+
+    if (storyRow.source === 'user') {
+      res.status(422).json({
+        error: 'Pipeline cannot run on user-authored stories',
+      })
+      return
+    }
+
     const current = getPipelineStatus(storyId)
 
     if (current !== undefined && current !== 'plan_failed' && current !== 'text_failed') {

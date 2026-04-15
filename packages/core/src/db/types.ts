@@ -36,7 +36,7 @@ export const storySchema = z.object({
   createdAt: z.date().nullable(),
   status: z.enum(['draft', 'ready', 'read', 'archived']).nullable(),
   tags: z.unknown().nullable(),
-  source: z.enum(['agent', 'legacy']).nullable(),
+  source: z.enum(['agent', 'legacy', 'user']).nullable(),
   isLegacy: z.boolean().nullable(),
   discussionQuestions: z.unknown().nullable(),
   seed: z.string().nullable(),
@@ -60,7 +60,7 @@ export const newStorySchema = z.object({
   writerCriticPromptVersion: z.number().int().optional(),
   status: z.enum(['draft', 'ready', 'read', 'archived']).optional(),
   tags: z.unknown().optional(),
-  source: z.enum(['agent', 'legacy']).optional(),
+  source: z.enum(['agent', 'legacy', 'user']).optional(),
   isLegacy: z.boolean().optional(),
   discussionQuestions: z.unknown().optional(),
   seed: z.string().optional(),
@@ -155,7 +155,7 @@ export const newRunSnapshotSchema = z.object({
 export const annotationSchema = z.object({
   id: z.number().int(),
   storyId: z.number().int().nullable(),
-  type: z.enum(['sasha_reaction', 'my_note']),
+  type: z.enum(['sasha_reaction', 'my_note', 'sasha_laughed', 'sasha_loved', 'sasha_disliked']),
   selectedText: z.string(),
   positionStart: z.number().int().nullable(),
   positionEnd: z.number().int().nullable(),
@@ -164,7 +164,7 @@ export const annotationSchema = z.object({
 
 export const newAnnotationSchema = z.object({
   storyId: z.number().int().optional(),
-  type: z.enum(['sasha_reaction', 'my_note']),
+  type: z.enum(['sasha_reaction', 'my_note', 'sasha_laughed', 'sasha_loved', 'sasha_disliked']),
   selectedText: z.string(),
   positionStart: z.number().int().optional(),
   positionEnd: z.number().int().optional(),

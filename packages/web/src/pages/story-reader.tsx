@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { api, type Story, type Annotation, type AnnotationType } from '../lib/api'
+import { api, isReactionAnnotation, type Story, type Annotation, type AnnotationType } from '../lib/api'
 import { AnnotationToolbar, FeedbackForm, PageHeader, StatusCallout } from '../components'
 import type { FeedbackValues } from '../components/types'
 import {
@@ -8,6 +8,7 @@ import {
   sortAnnotationsByPosition,
   appendAnnotation,
   countByType,
+  totalReactions,
 } from './story-reader-annotations'
 import { findTextOffset } from './find-text-offset'
 
@@ -134,6 +135,7 @@ export function StoryReaderPage() {
   )
 
   const counts = countByType(annotations)
+  const reactionCount = totalReactions(counts)
 
   if (loading) {
     return <StatusCallout title="Loading" message="Fetching the story text." />
@@ -163,7 +165,7 @@ export function StoryReaderPage() {
             <span className="badge badge-outline capitalize">{story.status}</span>
             {annotations.length > 0 && (
               <span className="badge badge-primary badge-outline">
-                {counts.sasha_reaction} reactions · {counts.my_note} notes
+                {reactionCount} reactions · {counts.my_note} notes
               </span>
             )}
           </div>
@@ -225,7 +227,7 @@ export function StoryReaderPage() {
               >
                 <div className="mb-2 flex items-center gap-2">
                   <span
-                    className={`badge badge-sm ${annotation.type === 'sasha_reaction' ? 'badge-primary' : 'badge-secondary'}`}
+                    className={`badge badge-sm ${isReactionAnnotation(annotation.type) ? 'badge-primary' : 'badge-secondary'}`}
                   >
                     {annotationTypeLabel(annotation.type)}
                   </span>

@@ -12,7 +12,12 @@ export type AgentStatus = "idle" | "running" | "done" | "error";
 
 export type SafetyVerdict = "safe" | "concern" | "block";
 
-export type AnnotationType = "sasha_reaction" | "my_note";
+export type AnnotationType =
+  | "sasha_reaction"
+  | "my_note"
+  | "sasha_laughed"
+  | "sasha_loved"
+  | "sasha_disliked";
 
 export interface PsychologistOutput {
   safety: {

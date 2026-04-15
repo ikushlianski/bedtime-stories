@@ -43,7 +43,7 @@ export interface Story {
   created_at: string
   status: 'draft' | 'ready' | 'read' | 'archived'
   tags: string[] | null
-  source: 'agent' | 'legacy'
+  source: 'agent' | 'legacy' | 'user'
   is_legacy: boolean
   discussion_questions: string[] | null
 }
@@ -85,7 +85,23 @@ export interface FeedbackData {
   feedback_type: 'agent_run' | 'retrospective'
 }
 
-export type AnnotationType = 'sasha_reaction' | 'my_note'
+export type AnnotationType =
+  | 'sasha_reaction'
+  | 'my_note'
+  | 'sasha_laughed'
+  | 'sasha_loved'
+  | 'sasha_disliked'
+
+export const REACTION_ANNOTATION_TYPES: readonly AnnotationType[] = [
+  'sasha_reaction',
+  'sasha_laughed',
+  'sasha_loved',
+  'sasha_disliked',
+] as const
+
+export function isReactionAnnotation(type: AnnotationType): boolean {
+  return type !== 'my_note'
+}
 
 export interface Annotation {
   id: number
@@ -96,6 +112,10 @@ export interface Annotation {
   positionEnd: number | null
   createdAt: string
 }
+
+export type CreateStoryInput =
+  | { seed: string }
+  | { title?: string; textFinal: string }
 
 export interface CreateAnnotationInput {
   type: AnnotationType
@@ -134,10 +154,10 @@ export const api = {
 
     get: (id: number) => request<Story>(`/api/stories/${id}`),
 
-    create: (seed: string) =>
+    create: (input: CreateStoryInput) =>
       request<Story>('/api/stories', {
         method: 'POST',
-        body: JSON.stringify({ seed }),
+        body: JSON.stringify(input),
       }),
 
     approvePlan: (id: number, approved = true) =>

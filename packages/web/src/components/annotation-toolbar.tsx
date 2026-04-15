@@ -5,6 +5,12 @@ interface AnnotationToolbarProps {
   selectedText: string
 }
 
+const REACTION_BUTTONS: Array<{ type: AnnotationType; label: string }> = [
+  { type: 'sasha_laughed', label: 'Laughed' },
+  { type: 'sasha_loved', label: 'Loved' },
+  { type: 'sasha_disliked', label: 'Disliked' },
+]
+
 function AnnotationToolbar({ onAnnotate, selectedText }: AnnotationToolbarProps) {
   if (!selectedText) {
     return null
@@ -16,12 +22,15 @@ function AnnotationToolbar({ onAnnotate, selectedText }: AnnotationToolbarProps)
         &ldquo;{selectedText}&rdquo;
       </span>
 
-      <button
-        className="btn btn-secondary btn-xs"
-        onClick={() => onAnnotate('sasha_reaction', selectedText)}
-      >
-        Sasha&apos;s reaction
-      </button>
+      {REACTION_BUTTONS.map(({ type, label }) => (
+        <button
+          key={type}
+          className="btn btn-secondary btn-xs"
+          onClick={() => onAnnotate(type, selectedText)}
+        >
+          {label}
+        </button>
+      ))}
 
       <button className="btn btn-primary btn-xs" onClick={() => onAnnotate('my_note', selectedText)}>
         My note

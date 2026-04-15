@@ -7,6 +7,7 @@ import type { Story, NewStory, NewAnnotation } from '@bedtime/core/db/types'
 import { validate } from '../middleware/validate'
 import { triggerTextPhase, getPipelineStatus } from './pipeline'
 import { decideApprovePlan } from './approve-plan-decision'
+import { createStorySchema, resolveCreateStoryMode } from './create-story-schema'
 
 const router = Router()
 
@@ -43,10 +44,6 @@ function toSnakeCase(row: Story) {
   }
 }
 
-const createStorySchema = z.object({
-  seed: z.string().min(1).max(5000),
-})
-
 const updateStatusSchema = z.object({
   status: z.enum(['draft', 'ready', 'read', 'archived']),
 })
@@ -60,7 +57,7 @@ const approveTextSchema = z.object({
 })
 
 const createAnnotationSchema = z.object({
-  type: z.enum(['sasha_reaction', 'my_note']),
+  type: z.enum(['sasha_reaction', 'my_note', 'sasha_laughed', 'sasha_loved', 'sasha_disliked']),
   selected_text: z.string().min(1),
   position_start: z.number().int().nonnegative(),
   position_end: z.number().int().nonnegative(),
@@ -68,10 +65,28 @@ const createAnnotationSchema = z.object({
 
 router.post('/', validate(createStorySchema), async (req, res) => {
   try {
-    const { seed } = req.body as z.infer<typeof createStorySchema>
-    const title = seed.trim().slice(0, 60)
+    const body = req.body as z.infer<typeof createStorySchema>
+    const resolved = resolveCreateStoryMode(body)
 
-    const newStory: NewStory = { seed, title, status: 'draft', source: 'agent' }
+    if (resolved.mode === 'user') {
+      const userStory: NewStory = {
+        title: resolved.title,
+        textFinal: resolved.textFinal,
+        status: 'ready',
+        source: 'user',
+      }
+      const [created] = await db.insert(stories).values(userStory).returning()
+
+      res.status(201).json(toSnakeCase(created as Story))
+      return
+    }
+
+    const newStory: NewStory = {
+      seed: resolved.seed,
+      title: resolved.title,
+      status: 'draft',
+      source: 'agent',
+    }
     const [story] = await db.insert(stories).values(newStory).returning()
 
     res.status(201).json(toSnakeCase(story as Story))

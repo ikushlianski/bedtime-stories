@@ -4,6 +4,7 @@ import {
   sortAnnotationsByPosition,
   appendAnnotation,
   countByType,
+  totalReactions,
 } from './story-reader-annotations'
 import type { Annotation } from '../lib/api'
 
@@ -26,6 +27,18 @@ describe('annotationTypeLabel', () => {
 
   it('returns a human label for my_note', () => {
     expect(annotationTypeLabel('my_note')).toBe('My note')
+  })
+
+  it('returns a human label for sasha_laughed', () => {
+    expect(annotationTypeLabel('sasha_laughed')).toBe('Sasha laughed')
+  })
+
+  it('returns a human label for sasha_loved', () => {
+    expect(annotationTypeLabel('sasha_loved')).toBe('Sasha loved this')
+  })
+
+  it('returns a human label for sasha_disliked', () => {
+    expect(annotationTypeLabel('sasha_disliked')).toBe('Sasha disliked this')
   })
 })
 
@@ -90,14 +103,54 @@ describe('countByType', () => {
   it('counts annotations per type for the reader header chip', () => {
     const list = [
       mkAnnotation({ id: 1, type: 'sasha_reaction', positionStart: 0 }),
-      mkAnnotation({ id: 2, type: 'sasha_reaction', positionStart: 10 }),
+      mkAnnotation({ id: 2, type: 'sasha_laughed', positionStart: 10 }),
       mkAnnotation({ id: 3, type: 'my_note', positionStart: 20 }),
+      mkAnnotation({ id: 4, type: 'sasha_loved', positionStart: 30 }),
+      mkAnnotation({ id: 5, type: 'sasha_disliked', positionStart: 40 }),
     ]
 
-    expect(countByType(list)).toEqual({ sasha_reaction: 2, my_note: 1 })
+    expect(countByType(list)).toEqual({
+      sasha_reaction: 1,
+      sasha_laughed: 1,
+      sasha_loved: 1,
+      sasha_disliked: 1,
+      my_note: 1,
+    })
   })
 
-  it('returns zeros for both types on an empty list', () => {
-    expect(countByType([])).toEqual({ sasha_reaction: 0, my_note: 0 })
+  it('returns zeros for every reaction type on an empty list', () => {
+    expect(countByType([])).toEqual({
+      sasha_reaction: 0,
+      sasha_laughed: 0,
+      sasha_loved: 0,
+      sasha_disliked: 0,
+      my_note: 0,
+    })
+  })
+})
+
+describe('totalReactions', () => {
+  it('sums all reaction types but ignores my_note', () => {
+    const counts = {
+      sasha_reaction: 1,
+      sasha_laughed: 2,
+      sasha_loved: 3,
+      sasha_disliked: 4,
+      my_note: 99,
+    }
+
+    expect(totalReactions(counts)).toBe(10)
+  })
+
+  it('returns zero when there are no reactions', () => {
+    const counts = {
+      sasha_reaction: 0,
+      sasha_laughed: 0,
+      sasha_loved: 0,
+      sasha_disliked: 0,
+      my_note: 5,
+    }
+
+    expect(totalReactions(counts)).toBe(0)
   })
 })
