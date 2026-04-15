@@ -23,7 +23,8 @@ router.get('/quality-trend', async (_req, res) => {
       .orderBy(asc(stories.createdAt))
 
     res.json(rows)
-  } catch {
+  } catch (err) {
+    console.error('GET /dashboard/quality-trend failed:', err)
     res.status(500).json({ error: 'Failed to fetch quality trend data' })
   }
 })
@@ -59,7 +60,8 @@ router.get('/agent-effectiveness', async (_req, res) => {
     }))
 
     res.json(result)
-  } catch {
+  } catch (err) {
+    console.error('GET /dashboard/agent-effectiveness failed:', err)
     res.status(500).json({ error: 'Failed to fetch agent effectiveness data' })
   }
 })
@@ -82,7 +84,8 @@ router.get('/feedback-patterns', async (_req, res) => {
       .limit(50)
 
     res.json(rows)
-  } catch {
+  } catch (err) {
+    console.error('GET /dashboard/feedback-patterns failed:', err)
     res.status(500).json({ error: 'Failed to fetch feedback patterns' })
   }
 })
@@ -105,7 +108,8 @@ router.get('/sasha-reactions', async (_req, res) => {
       .orderBy(desc(annotations.createdAt))
 
     res.json(rows)
-  } catch {
+  } catch (err) {
+    console.error('GET /dashboard/sasha-reactions failed:', err)
     res.status(500).json({ error: 'Failed to fetch sasha reactions data' })
   }
 })
@@ -129,7 +133,8 @@ router.get('/cost', async (_req, res) => {
       .orderBy(desc(stories.createdAt))
 
     res.json(rows)
-  } catch {
+  } catch (err) {
+    console.error('GET /dashboard/cost failed:', err)
     res.status(500).json({ error: 'Failed to fetch cost data' })
   }
 })

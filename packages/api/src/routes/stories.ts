@@ -282,7 +282,8 @@ router.post('/:id/annotations', validate(createAnnotationSchema), async (req, re
     const [annotation] = await db.insert(annotations).values(newAnnotation).returning()
 
     res.status(201).json(annotation)
-  } catch {
+  } catch (err) {
+    console.error('POST /stories/:id/annotations failed:', err)
     res.status(500).json({ error: 'Failed to create annotation' })
   }
 })
@@ -302,7 +303,8 @@ router.get('/:id/annotations', async (req, res) => {
       .where(eq(annotations.storyId, storyId))
 
     res.json(result)
-  } catch {
+  } catch (err) {
+    console.error('GET /stories/:id/annotations failed:', err)
     res.status(500).json({ error: 'Failed to fetch annotations' })
   }
 })

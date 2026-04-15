@@ -39,7 +39,8 @@ router.get('/:agent', async (req, res) => {
       .orderBy(desc(prompts.version))
 
     res.json(result)
-  } catch {
+  } catch (err) {
+    console.error('GET /prompts/:agent failed:', err)
     res.status(500).json({ error: 'Failed to fetch prompts' })
   }
 })
@@ -68,7 +69,8 @@ router.get('/:agent/current', async (req, res) => {
     }
 
     res.json(prompt)
-  } catch {
+  } catch (err) {
+    console.error('GET /prompts/:agent/current failed:', err)
     res.status(500).json({ error: 'Failed to fetch current prompt' })
   }
 })
@@ -104,7 +106,8 @@ router.post('/:agent', validate(createPromptSchema), async (req, res) => {
     const [prompt] = await db.insert(prompts).values(newPrompt).returning()
 
     res.status(201).json(prompt)
-  } catch {
+  } catch (err) {
+    console.error('POST /prompts/:agent failed:', err)
     res.status(500).json({ error: 'Failed to create prompt' })
   }
 })

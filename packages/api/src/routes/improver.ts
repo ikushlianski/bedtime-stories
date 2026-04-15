@@ -37,7 +37,8 @@ router.post('/run', async (_req, res) => {
     const result = await runImprover()
 
     res.json(result)
-  } catch {
+  } catch (err) {
+    console.error('POST /improver/run failed:', err)
     res.status(500).json({ error: 'Failed to run improver' })
   }
 })
@@ -65,7 +66,8 @@ router.post('/apply', validate(applyChangeSchema), async (req, res) => {
     const [prompt] = await db.insert(prompts).values(newPrompt).returning()
 
     res.status(201).json(prompt)
-  } catch {
+  } catch (err) {
+    console.error('POST /improver/apply failed:', err)
     res.status(500).json({ error: 'Failed to apply prompt change' })
   }
 })

@@ -42,7 +42,8 @@ router.post('/', validate(createFeedbackSchema), async (req: Request<StoryParams
     const [created] = await db.insert(feedback).values(newFeedback).returning()
 
     res.status(201).json(created)
-  } catch {
+  } catch (err) {
+    console.error('POST /stories/:id/feedback failed:', err)
     res.status(500).json({ error: 'Failed to create feedback' })
   }
 })
@@ -63,7 +64,8 @@ router.get('/', async (req: Request<StoryParams>, res) => {
       .orderBy(desc(feedback.createdAt))
 
     res.json(result)
-  } catch {
+  } catch (err) {
+    console.error('GET /stories/:id/feedback failed:', err)
     res.status(500).json({ error: 'Failed to fetch feedback' })
   }
 })
