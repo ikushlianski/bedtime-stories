@@ -1,3 +1,5 @@
+import { formatApiError } from './format-api-error'
+
 const API_BASE = (import.meta as ImportMeta & { env: Record<string, string | undefined> }).env['VITE_API_URL'] ?? 'http://localhost:3001'
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -7,7 +9,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   })
 
   if (!res.ok) {
-    throw new Error(`API error ${res.status}: ${res.statusText}`)
+    let body: unknown = null
+
+    try {
+      body = await res.json()
+    } catch {
+      body = null
+    }
+
+    throw new Error(formatApiError(res.status, res.statusText, body))
   }
 
   return res.json() as Promise<T>
