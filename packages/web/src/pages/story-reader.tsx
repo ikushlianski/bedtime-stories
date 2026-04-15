@@ -127,13 +127,14 @@ export function StoryReaderPage() {
   const handleAnnotationDismiss = useCallback(() => setSelection(null), [])
 
   const handleAnnotate = useCallback(
-    async (type: AnnotationType, text: string, start: number, end: number) => {
+    async (type: AnnotationType, text: string, start: number, end: number, noteText?: string) => {
       setAnnotationError(null)
 
       try {
         const created = await api.annotations.create(storyId, {
           type,
           selectedText: text,
+          noteText,
           positionStart: start,
           positionEnd: end,
         })
@@ -222,13 +223,13 @@ export function StoryReaderPage() {
           >
             <AnnotationToolbar
               selectedText={selection.text}
-              onAnnotate={(type, text) => {
+              onAnnotate={(type, text, noteText) => {
                 const storyText = story?.text_final ?? ''
                 const globalOffset = findTextOffset(storyText, text)
                 const start = globalOffset?.start ?? selection.start
                 const end = globalOffset?.end ?? selection.end
 
-                void handleAnnotate(type, text, start, end)
+                void handleAnnotate(type, text, start, end, noteText)
                 handleAnnotationDismiss()
               }}
             />
@@ -263,9 +264,14 @@ export function StoryReaderPage() {
                     {new Date(annotation.createdAt).toLocaleString()}
                   </span>
                 </div>
-                <p className="whitespace-pre-wrap text-base text-base-content">
-                  “{annotation.selectedText}”
+                <p className="whitespace-pre-wrap font-serif text-sm italic text-base-content/70">
+                  &ldquo;{annotation.selectedText}&rdquo;
                 </p>
+                {annotation.noteText && (
+                  <p className="mt-2 whitespace-pre-wrap text-base text-base-content">
+                    {annotation.noteText}
+                  </p>
+                )}
               </li>
             ))}
           </ul>

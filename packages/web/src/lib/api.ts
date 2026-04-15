@@ -156,6 +156,7 @@ export interface Annotation {
   storyId: number
   type: AnnotationType
   selectedText: string
+  noteText: string | null
   positionStart: number | null
   positionEnd: number | null
   createdAt: string
@@ -184,6 +185,7 @@ export type CreateStoryInput =
 export interface CreateAnnotationInput {
   type: AnnotationType
   selectedText: string
+  noteText?: string
   positionStart: number
   positionEnd: number
 }
@@ -264,6 +266,7 @@ export const api = {
         body: JSON.stringify({
           type: data.type,
           selected_text: data.selectedText,
+          note_text: data.noteText,
           position_start: data.positionStart,
           position_end: data.positionEnd,
         }),

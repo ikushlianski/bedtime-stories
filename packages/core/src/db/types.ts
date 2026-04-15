@@ -233,6 +233,7 @@ export const annotationSchema = z.object({
   storyId: z.number().int().nullable(),
   type: z.enum(['sasha_reaction', 'my_note', 'sasha_laughed', 'sasha_loved', 'sasha_disliked']),
   selectedText: z.string(),
+  noteText: z.string().nullable(),
   positionStart: z.number().int().nullable(),
   positionEnd: z.number().int().nullable(),
   createdAt: z.date().nullable(),
@@ -242,6 +243,7 @@ export const newAnnotationSchema = z.object({
   storyId: z.number().int().optional(),
   type: z.enum(['sasha_reaction', 'my_note', 'sasha_laughed', 'sasha_loved', 'sasha_disliked']),
   selectedText: z.string(),
+  noteText: z.string().optional(),
   positionStart: z.number().int().optional(),
   positionEnd: z.number().int().optional(),
 })

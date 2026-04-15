@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { AnnotationType } from './types'
 
 interface AnnotationToolbarProps {
-  onAnnotate: (type: AnnotationType, text: string) => void
+  onAnnotate: (type: AnnotationType, selectedText: string, noteText?: string) => void
   selectedText: string
 }
 
@@ -30,7 +30,7 @@ function AnnotationToolbar({ onAnnotate, selectedText }: AnnotationToolbarProps)
           onChange={(e) => setNoteText(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && noteText.trim()) {
-              onAnnotate('my_note', noteText.trim())
+              onAnnotate('my_note', selectedText, noteText.trim())
             }
 
             if (e.key === 'Escape') {
@@ -45,7 +45,7 @@ function AnnotationToolbar({ onAnnotate, selectedText }: AnnotationToolbarProps)
           disabled={!noteText.trim()}
           onClick={() => {
             if (noteText.trim()) {
-              onAnnotate('my_note', noteText.trim())
+              onAnnotate('my_note', selectedText, noteText.trim())
             }
           }}
         >

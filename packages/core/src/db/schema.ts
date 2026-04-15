@@ -73,6 +73,7 @@ export const annotations = pgTable('annotations', {
     .$type<'sasha_reaction' | 'my_note' | 'sasha_laughed' | 'sasha_loved' | 'sasha_disliked'>()
     .notNull(),
   selectedText: text('selected_text').notNull(),
+  noteText: text('note_text'),
   positionStart: integer('position_start'),
   positionEnd: integer('position_end'),
   createdAt: timestamp('created_at').defaultNow(),

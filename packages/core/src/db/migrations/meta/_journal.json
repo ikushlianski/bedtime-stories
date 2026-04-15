@@ -29,6 +29,13 @@
       "when": 1776288542632,
       "tag": "0003_broad_patch",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1776291092113,
+      "tag": "0004_annotations_note_text",
+      "breakpoints": true
     }
   ]
 }

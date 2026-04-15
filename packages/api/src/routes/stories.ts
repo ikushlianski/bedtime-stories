@@ -60,6 +60,7 @@ const approveTextSchema = z.object({
 const createAnnotationSchema = z.object({
   type: z.enum(['sasha_reaction', 'my_note', 'sasha_laughed', 'sasha_loved', 'sasha_disliked']),
   selected_text: z.string().min(1),
+  note_text: z.string().optional(),
   position_start: z.number().int().nonnegative(),
   position_end: z.number().int().nonnegative(),
 })
@@ -307,7 +308,7 @@ router.post('/:id/annotations', validate(createAnnotationSchema), async (req, re
       return
     }
 
-    const { type, selected_text, position_start, position_end } = req.body as z.infer<
+    const { type, selected_text, note_text, position_start, position_end } = req.body as z.infer<
       typeof createAnnotationSchema
     >
 
@@ -315,6 +316,7 @@ router.post('/:id/annotations', validate(createAnnotationSchema), async (req, re
       storyId,
       type,
       selectedText: selected_text,
+      noteText: note_text,
       positionStart: position_start,
       positionEnd: position_end,
     }
