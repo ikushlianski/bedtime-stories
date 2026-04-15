@@ -33,13 +33,13 @@ export interface Story {
   text_v1: string | null
   text_v2: string | null
   plotter_model: string | null
-  plotter_prompt_version: string | null
+  plotter_prompt_version: number | null
   plot_critic_model: string | null
-  plot_critic_prompt_version: string | null
+  plot_critic_prompt_version: number | null
   writer_model: string | null
-  writer_prompt_version: string | null
+  writer_prompt_version: number | null
   writer_critic_model: string | null
-  writer_critic_prompt_version: string | null
+  writer_critic_prompt_version: number | null
   created_at: string
   status: 'draft' | 'ready' | 'read' | 'archived'
   tags: string[] | null
