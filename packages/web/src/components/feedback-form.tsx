@@ -60,6 +60,8 @@ function FeedbackForm({ storyId: _storyId, onSubmit }: FeedbackFormProps) {
       await onSubmit(result.data)
       setComment('')
       setRating(0)
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : 'Failed to submit feedback')
     } finally {
       setLoading(false)
     }
