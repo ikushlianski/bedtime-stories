@@ -1,39 +1,9 @@
+import { computeLineDiff, type DiffLine } from './line-diff'
+
 interface DiffViewerProps {
   originalText: string
   revisedText: string
   label: string
-}
-
-interface DiffLine {
-  type: 'added' | 'removed' | 'unchanged'
-  text: string
-}
-
-function computeDiff(original: string, revised: string): DiffLine[] {
-  const originalLines = original.split('\n')
-  const revisedLines = revised.split('\n')
-  const result: DiffLine[] = []
-
-  const maxLen = Math.max(originalLines.length, revisedLines.length)
-
-  for (let i = 0; i < maxLen; i++) {
-    const orig = originalLines[i]
-    const rev = revisedLines[i]
-
-    if (orig === rev) {
-      result.push({ type: 'unchanged', text: orig ?? '' })
-    } else {
-      if (orig !== undefined) {
-        result.push({ type: 'removed', text: orig })
-      }
-
-      if (rev !== undefined) {
-        result.push({ type: 'added', text: rev })
-      }
-    }
-  }
-
-  return result
 }
 
 const lineStyle: Record<DiffLine['type'], string> = {
@@ -49,7 +19,7 @@ const linePrefix: Record<DiffLine['type'], string> = {
 }
 
 function DiffViewer({ originalText, revisedText, label }: DiffViewerProps) {
-  const diffLines = computeDiff(originalText, revisedText)
+  const diffLines = computeLineDiff(originalText, revisedText)
 
   return (
     <section className="rounded-box border border-base-300 bg-base-100 shadow-sm">
