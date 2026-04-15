@@ -18,7 +18,7 @@ export function UniversesPage() {
         setLoadError(null)
       })
       .catch((err) => {
-        setLoadError(err instanceof Error ? err.message : 'Failed to load universes')
+        setLoadError(err instanceof Error ? err.message : 'Не удалось загрузить вселенные')
       })
       .finally(() => setLoading(false))
   }, [])
@@ -45,32 +45,32 @@ export function UniversesPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="font-serif text-3xl text-base-content">Universes</h1>
+        <h1 className="font-serif text-3xl text-base-content">Вселенные</h1>
         <button
           className="btn btn-primary btn-sm"
           onClick={() => setCreating((v) => !v)}
         >
-          {creating ? 'Cancel' : 'New Universe'}
+          {creating ? 'Отмена' : 'Новая вселенная'}
         </button>
       </div>
 
       {creating && (
         <div className="card border border-base-300 bg-base-100 p-4">
-          <h2 className="mb-4 text-lg font-semibold">New Universe</h2>
+          <h2 className="mb-4 text-lg font-semibold">Новая вселенная</h2>
           <UniverseForm
             onSave={handleCreate}
             onCancel={() => setCreating(false)}
-            saveLabel="Create"
+            saveLabel="Создать"
           />
         </div>
       )}
 
-      {loading && <p className="text-base-content/60">Loading...</p>}
+      {loading && <p className="text-base-content/60">Загрузка...</p>}
 
       {loadError && <p className="text-error">{loadError}</p>}
 
       {!loading && !loadError && universes.length === 0 && (
-        <p className="text-base-content/60">No universes yet. Create one to get started.</p>
+        <p className="text-base-content/60">Вселенных пока нет. Создай первую, чтобы начать.</p>
       )}
 
       <div className="flex flex-col gap-4">

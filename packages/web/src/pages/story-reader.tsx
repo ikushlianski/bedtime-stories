@@ -15,6 +15,7 @@ import { findTextOffset } from './find-text-offset'
 interface SelectionState {
   text: string
   position: { x: number; y: number }
+  placement: 'above' | 'below'
   start: number
   end: number
 }
@@ -31,7 +32,7 @@ function useStoryFetch(id: number) {
     api.stories
       .get(id)
       .then(setStory)
-      .catch((fetchError) => setError(fetchError instanceof Error ? fetchError.message : 'Failed to load story'))
+      .catch((fetchError) => setError(fetchError instanceof Error ? fetchError.message : 'Не удалось загрузить историю'))
       .finally(() => setLoading(false))
   }, [id])
 
@@ -65,13 +66,16 @@ function StoryText({
     const range = selection.getRangeAt(0)
     const rect = range.getBoundingClientRect()
     const containerRect = containerRef.current.getBoundingClientRect()
+    const spaceAbove = rect.top - containerRect.top
+    const placement: 'above' | 'below' = spaceAbove < 60 ? 'below' : 'above'
 
     onSelection({
       text: selectedText,
       position: {
         x: rect.left - containerRect.left + rect.width / 2,
-        y: rect.top - containerRect.top - 8,
+        y: placement === 'above' ? rect.top - containerRect.top - 8 : rect.bottom - containerRect.top + 8,
       },
+      placement,
       start: range.startOffset,
       end: range.endOffset,
     })
@@ -100,6 +104,14 @@ export function StoryReaderPage() {
   const [selection, setSelection] = useState<SelectionState | null>(null)
   const [annotations, setAnnotations] = useState<Annotation[]>([])
   const [annotationError, setAnnotationError] = useState<string | null>(null)
+  const [markingRead, setMarkingRead] = useState(false)
+  const [currentStatus, setCurrentStatus] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (story) {
+      setCurrentStatus(story.status)
+    }
+  }, [story])
 
   useEffect(() => {
     if (isNaN(storyId)) return
@@ -128,7 +140,7 @@ export function StoryReaderPage() {
 
         setAnnotations((current) => appendAnnotation(current, created))
       } catch (err) {
-        setAnnotationError(err instanceof Error ? err.message : 'Failed to save annotation')
+        setAnnotationError(err instanceof Error ? err.message : 'Не удалось сохранить заметку')
       }
     },
     [storyId],
@@ -138,35 +150,50 @@ export function StoryReaderPage() {
   const reactionCount = totalReactions(counts)
 
   if (loading) {
-    return <StatusCallout title="Loading" message="Fetching the story text." />
+    return <StatusCallout title="Загрузка" message="Получаем текст истории." />
   }
 
   if (error) {
-    return <StatusCallout tone="error" title="Story load failed" message={error} />
+    return <StatusCallout tone="error" title="Ошибка загрузки истории" message={error} />
   }
 
   if (!story) {
-    return <StatusCallout tone="warning" title="Story not found" message="The requested story does not exist." />
+    return <StatusCallout tone="warning" title="История не найдена" message="Запрошенная история не существует." />
   }
 
   return (
     <div>
       <PageHeader
-        eyebrow="Reading"
+        eyebrow="Чтение"
         title={story.title}
-        description="Read the final story, annotate specific passages, and capture post-read feedback."
+        description="Читай финальную историю, отмечай понравившиеся отрывки и оставь отзыв после прочтения."
         backAction={
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>
-            ← Back to stories
+            ← К историям
           </button>
         }
         action={
           <div className="flex items-center gap-2">
-            <span className="badge badge-outline capitalize">{story.status}</span>
+            <span className="badge badge-outline capitalize">{currentStatus ?? story.status}</span>
             {annotations.length > 0 && (
               <span className="badge badge-primary badge-outline">
-                {reactionCount} reactions · {counts.my_note} notes
+                {reactionCount} реакций · {counts.my_note} заметок
               </span>
+            )}
+            {(currentStatus ?? story.status) === 'ready' && (
+              <button
+                className="btn btn-success btn-sm"
+                disabled={markingRead}
+                onClick={() => {
+                  setMarkingRead(true)
+                  api.stories
+                    .updateStatus(storyId, 'read')
+                    .then(() => setCurrentStatus('read'))
+                    .finally(() => setMarkingRead(false))
+                }}
+              >
+                {markingRead ? '...' : '✓ Прочитано'}
+              </button>
             )}
           </div>
         }
@@ -178,8 +205,8 @@ export function StoryReaderPage() {
         ) : (
           <StatusCallout
             tone="warning"
-            title="Text unavailable"
-            message="The final story text has not been generated yet."
+            title="Текст недоступен"
+            message="Финальный текст истории ещё не был сгенерирован."
           />
         )}
 
@@ -189,7 +216,8 @@ export function StoryReaderPage() {
               position: 'absolute',
               left: selection.position.x,
               top: selection.position.y,
-              transform: 'translateX(-50%)',
+              transform: selection.placement === 'above' ? 'translate(-50%, -100%)' : 'translateX(-50%)',
+              zIndex: 10,
             }}
           >
             <AnnotationToolbar
@@ -210,14 +238,14 @@ export function StoryReaderPage() {
 
       {annotationError && (
         <div className="mt-4">
-          <StatusCallout tone="error" title="Annotation save failed" message={annotationError} />
+          <StatusCallout tone="error" title="Ошибка сохранения заметки" message={annotationError} />
         </div>
       )}
 
       {annotations.length > 0 && (
         <section className="mt-8">
           <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
-            Annotations
+            Заметки
           </h3>
           <ul className="space-y-3">
             {annotations.map((annotation) => (
@@ -247,10 +275,10 @@ export function StoryReaderPage() {
       {story.discussion_questions !== null && story.discussion_questions.length > 0 && (
         <section className="mt-10">
           <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
-            Discussion questions
+            Вопросы для обсуждения
           </h3>
           <p className="mb-3 text-sm text-base-content/60">
-            Ask Sasha these after the story — capture any memorable answers as annotations above.
+            Задай Саше эти вопросы после истории — запомнившиеся ответы можно отметить как заметки выше.
           </p>
           <ol className="list-decimal space-y-2 pl-6 text-base text-base-content">
             {story.discussion_questions.map((question, i) => (
@@ -262,15 +290,19 @@ export function StoryReaderPage() {
 
       <section className="mt-12">
         <PageHeader
-          eyebrow="Feedback"
-          title="Reader Response"
-          description="Capture the overall reaction after reading to improve later story generations."
+          eyebrow="Отзыв"
+          title="Впечатления от чтения"
+          description="Запиши общее впечатление после прочтения — это поможет улучшить следующие истории."
         />
 
         <FeedbackForm
           storyId={String(storyId)}
           onSubmit={(values: FeedbackValues) =>
-            api.feedback.submit(storyId, { ...values, feedback_type: 'agent_run' }).then(() => undefined)
+            api.feedback.submit(storyId, {
+              rating: values.rating,
+              structured_feedback: values.structured_feedback,
+              feedback_type: 'agent_run',
+            }).then(() => undefined)
           }
         />
       </section>

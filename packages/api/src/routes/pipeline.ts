@@ -9,6 +9,7 @@ import {
   type PipelinePromptVersions,
   type TextPhaseResult,
 } from '@bedtime/core/pipeline/orchestrator'
+import { synthesizeSashaContext } from '@bedtime/core/pipeline/feedback-synthesizer'
 import { db } from '@bedtime/core/db/client'
 import { runSnapshots, stories, storyGroups, planQuestions } from '@bedtime/core/db/schema'
 import {
@@ -51,7 +52,13 @@ async function persistTextPhase(storyId: number, text: TextPhaseResult): Promise
   await db.update(stories).set(buildTextStoriesUpdate(text)).where(eq(stories.id, storyId))
 }
 
-export function triggerTextPhase(storyId: number, seed: string, planFinal: string, universeSystemPrompt?: string): void {
+export function triggerTextPhase(
+  storyId: number,
+  seed: string,
+  planFinal: string,
+  universeSystemPrompt?: string,
+  sashaContext?: string | null,
+): void {
   setPipelineStatus(storyId, 'text_running')
 
   runTextPhase({
@@ -61,6 +68,7 @@ export function triggerTextPhase(storyId: number, seed: string, planFinal: strin
     models: defaultModels,
     promptVersions: defaultPromptVersions,
     ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
+    ...(sashaContext !== undefined && sashaContext !== null ? { sashaContext } : {}),
   })
     .then(async (text) => {
       try {
@@ -125,11 +133,14 @@ router.post('/run', validate(runPipelineSchema), async (req, res) => {
       }
     }
 
+    const sashaContext = await synthesizeSashaContext()
+
     const questions = await runQuestionsPhase({
       seed,
       storyId,
       models: defaultModels,
       ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
+      ...(sashaContext !== null ? { sashaContext } : {}),
     })
 
     await db.delete(planQuestions).where(eq(planQuestions.storyId, storyId))

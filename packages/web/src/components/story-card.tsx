@@ -8,10 +8,10 @@ interface StoryCardProps {
 }
 
 const statusConfig: Record<StoryStatus, { label: string; tone: string }> = {
-  draft: { label: 'Draft', tone: 'badge-ghost' },
-  ready: { label: 'Ready', tone: 'badge-primary' },
-  read: { label: 'Read', tone: 'badge-success' },
-  archived: { label: 'Archived', tone: 'badge-warning' },
+  draft: { label: 'Черновик', tone: 'badge-ghost' },
+  ready: { label: 'Готово', tone: 'badge-primary' },
+  read: { label: 'Прочитано', tone: 'badge-success' },
+  archived: { label: 'Архив', tone: 'badge-warning' },
 }
 
 function renderStars(rating: number): string {
@@ -19,7 +19,7 @@ function renderStars(rating: number): string {
 }
 
 function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-US', {
+  return new Date(dateStr).toLocaleDateString('ru-RU', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -46,7 +46,7 @@ function StoryCard({ title, status, createdAt, rating }: StoryCardProps) {
           <span>{formatDate(createdAt)}</span>
 
           {rating !== undefined && (
-            <span className="font-medium text-warning" aria-label={`Rating: ${rating} out of 5`}>
+            <span className="font-medium text-warning" aria-label={`Оценка: ${rating} из 5`}>
               {renderStars(rating)}
             </span>
           )}

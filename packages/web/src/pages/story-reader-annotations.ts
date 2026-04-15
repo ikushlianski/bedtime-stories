@@ -3,15 +3,15 @@ import type { Annotation, AnnotationType } from '../lib/api'
 export function annotationTypeLabel(type: AnnotationType): string {
   switch (type) {
     case 'sasha_reaction':
-      return "Sasha's reaction"
+      return 'Реакция Саши'
     case 'sasha_laughed':
-      return 'Sasha laughed'
+      return 'Саша смеялся'
     case 'sasha_loved':
-      return 'Sasha loved this'
+      return 'Саше понравилось'
     case 'sasha_disliked':
-      return 'Sasha disliked this'
+      return 'Саше не понравилось'
     case 'my_note':
-      return 'My note'
+      return 'Моя заметка'
   }
 }
 

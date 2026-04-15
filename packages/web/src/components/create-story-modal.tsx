@@ -12,12 +12,14 @@ interface CreateStoryModalProps {
   onClose: () => void
   onSubmit: (input: CreateStoryInput) => Promise<void>
   initialSeed?: string
+  initialGroupId?: number | null
 }
 
-function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '' }: CreateStoryModalProps) {
+function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '', initialGroupId = null }: CreateStoryModalProps) {
   const [form, setForm] = useState<CreateStoryFormState>({
     ...INITIAL_CREATE_STORY_FORM,
     seed: initialSeed,
+    groupId: initialGroupId,
   })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -25,12 +27,12 @@ function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '' }: CreateS
 
   useEffect(() => {
     if (open) {
-      setForm({ ...INITIAL_CREATE_STORY_FORM, seed: initialSeed })
+      setForm({ ...INITIAL_CREATE_STORY_FORM, seed: initialSeed, groupId: initialGroupId })
       setError(null)
 
       api.universes.list().then(setUniverses).catch(() => setUniverses([]))
     }
-  }, [open, initialSeed])
+  }, [open, initialSeed, initialGroupId])
 
   if (!open) {
     return null
@@ -56,7 +58,7 @@ function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '' }: CreateS
       await onSubmit(validation.input)
       setForm({ ...INITIAL_CREATE_STORY_FORM })
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'Failed to create story')
+      setError(submitError instanceof Error ? submitError.message : 'Не удалось создать историю')
     } finally {
       setSubmitting(false)
     }
@@ -67,7 +69,7 @@ function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '' }: CreateS
   return (
     <dialog className="modal modal-open">
       <div className="modal-box max-w-2xl border border-base-300 bg-base-100 shadow-2xl">
-        <h2 className="font-serif text-3xl text-base-content">New Story</h2>
+        <h2 className="font-serif text-3xl text-base-content">Новая история</h2>
 
         <div role="tablist" className="tabs tabs-boxed mt-4">
           <button
@@ -75,20 +77,20 @@ function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '' }: CreateS
             className={`tab ${form.mode === 'generate' ? 'tab-active' : ''}`}
             onClick={() => setMode('generate')}
           >
-            Generate with AI
+            Сгенерировать с ИИ
           </button>
           <button
             role="tab"
             className={`tab ${form.mode === 'paste' ? 'tab-active' : ''}`}
             onClick={() => setMode('paste')}
           >
-            Paste existing story
+            Вставить готовую историю
           </button>
         </div>
 
         <div className="mt-4">
           <label className="label">
-            <span className="label-text text-sm text-base-content/60">Universe (optional)</span>
+            <span className="label-text text-sm text-base-content/60">Вселенная (необязательно)</span>
           </label>
           <select
             className="select select-bordered w-full bg-base-100"
@@ -99,7 +101,7 @@ function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '' }: CreateS
               setForm((prev) => ({ ...prev, groupId: value === '' ? null : parseInt(value, 10) }))
             }}
           >
-            <option value="">No universe</option>
+            <option value="">Без вселенной</option>
             {universes.map((u) => (
               <option key={u.id} value={u.id}>
                 {u.name}
@@ -111,11 +113,11 @@ function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '' }: CreateS
         {form.mode === 'generate' && (
           <div className="mt-4">
             <p className="text-sm text-base-content/60">
-              Seed the next bedtime story with a situation, emotion, or challenge Sasha is working through.
+              Задай затравку для следующей сказки — ситуацию, эмоцию или испытание, которое сейчас актуально для Саши.
             </p>
             <textarea
               className="textarea textarea-bordered mt-4 min-h-40 w-full bg-base-100"
-              placeholder="The hero is nervous about sleeping away from home for the first time..."
+              placeholder="Герой нервничает: первый раз ночевать не дома..."
               value={form.seed}
               onChange={(event) => setForm((prev) => ({ ...prev, seed: event.target.value }))}
               autoFocus
@@ -126,18 +128,18 @@ function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '' }: CreateS
         {form.mode === 'paste' && (
           <div className="mt-4">
             <p className="text-sm text-base-content/60">
-              Paste a story you already wrote (or produced elsewhere). It will be saved as-is and skip the generation pipeline.
+              Вставь историю, которую ты уже написал (или создал в другом месте). Она сохранится как есть, без запуска конвейера генерации.
             </p>
             <input
               type="text"
               className="input input-bordered mt-4 w-full bg-base-100"
-              placeholder="Title (optional)"
+              placeholder="Название (необязательно)"
               value={form.title}
               onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
             />
             <textarea
               className="textarea textarea-bordered mt-3 min-h-60 w-full bg-base-100"
-              placeholder="Once upon a time..."
+              placeholder="Жили-были..."
               value={form.textFinal}
               onChange={(event) => setForm((prev) => ({ ...prev, textFinal: event.target.value }))}
             />
@@ -148,18 +150,18 @@ function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '' }: CreateS
 
         <div className="modal-action">
           <button className="btn btn-ghost" onClick={onClose}>
-            Cancel
+            Отмена
           </button>
           <button
             className={`btn btn-primary ${canSubmit ? '' : 'btn-disabled'}`}
             onClick={() => void handleSubmit()}
           >
-            {submitting ? 'Creating...' : 'Create Story'}
+            {submitting ? 'Создаём...' : 'Создать историю'}
           </button>
         </div>
       </div>
       <button className="modal-backdrop" onClick={onClose}>
-        close
+        закрыть
       </button>
     </dialog>
   )

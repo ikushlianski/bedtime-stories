@@ -14,7 +14,7 @@ interface UniverseFormProps {
   saveLabel?: string
 }
 
-function UniverseForm({ initial, onSave, onCancel, saveLabel = 'Save' }: UniverseFormProps) {
+function UniverseForm({ initial, onSave, onCancel, saveLabel = 'Сохранить' }: UniverseFormProps) {
   const [name, setName] = useState(initial?.name ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
   const [systemPrompt, setSystemPrompt] = useState(initial?.systemPrompt ?? '')
@@ -23,7 +23,7 @@ function UniverseForm({ initial, onSave, onCancel, saveLabel = 'Save' }: Univers
 
   async function handleSave() {
     if (!name.trim() || !systemPrompt.trim()) {
-      setError('Name and system prompt are required')
+      setError('Название и системный промпт обязательны')
       return
     }
 
@@ -33,7 +33,7 @@ function UniverseForm({ initial, onSave, onCancel, saveLabel = 'Save' }: Univers
     try {
       await onSave({ name: name.trim(), description: description.trim(), systemPrompt: systemPrompt.trim() })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save')
+      setError(err instanceof Error ? err.message : 'Не удалось сохранить')
     } finally {
       setSaving(false)
     }
@@ -44,20 +44,20 @@ function UniverseForm({ initial, onSave, onCancel, saveLabel = 'Save' }: Univers
       <input
         type="text"
         className="input input-bordered bg-base-100"
-        placeholder="Universe name"
+        placeholder="Название вселенной"
         value={name}
         onChange={(e) => setName(e.target.value)}
       />
       <input
         type="text"
         className="input input-bordered bg-base-100"
-        placeholder="Description (optional)"
+        placeholder="Описание (необязательно)"
         value={description}
         onChange={(e) => setDescription(e.target.value)}
       />
       <textarea
         className="textarea textarea-bordered min-h-40 bg-base-100"
-        placeholder="System prompt — characters, voice, tone, recurring places..."
+        placeholder="Системный промпт — персонажи, голос, тон, повторяющиеся места..."
         value={systemPrompt}
         onChange={(e) => setSystemPrompt(e.target.value)}
       />
@@ -68,10 +68,10 @@ function UniverseForm({ initial, onSave, onCancel, saveLabel = 'Save' }: Univers
           onClick={() => void handleSave()}
           disabled={saving}
         >
-          {saving ? 'Saving...' : saveLabel}
+          {saving ? 'Сохраняем...' : saveLabel}
         </button>
         <button className="btn btn-ghost btn-sm" onClick={onCancel}>
-          Cancel
+          Отмена
         </button>
       </div>
     </div>
@@ -90,7 +90,7 @@ export function UniverseCard({ universe, onDelete, onUpdate }: UniverseCardProps
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   async function handleDelete() {
-    if (!window.confirm(`Delete universe "${universe.name}"?`)) {
+    if (!window.confirm(`Удалить вселенную «${universe.name}»?`)) {
       return
     }
 
@@ -100,7 +100,7 @@ export function UniverseCard({ universe, onDelete, onUpdate }: UniverseCardProps
     try {
       await onDelete(universe.id)
     } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : 'Failed to delete')
+      setDeleteError(err instanceof Error ? err.message : 'Не удалось удалить')
     } finally {
       setDeleting(false)
     }
@@ -116,7 +116,7 @@ export function UniverseCard({ universe, onDelete, onUpdate }: UniverseCardProps
             setEditing(false)
           }}
           onCancel={() => setEditing(false)}
-          saveLabel="Update"
+          saveLabel="Обновить"
         />
       </div>
     )
@@ -137,14 +137,14 @@ export function UniverseCard({ universe, onDelete, onUpdate }: UniverseCardProps
         </div>
         <div className="flex shrink-0 gap-2">
           <button className="btn btn-ghost btn-sm" onClick={() => setEditing(true)}>
-            Edit
+            Изменить
           </button>
           <button
             className={`btn btn-error btn-sm btn-outline ${deleting ? 'loading' : ''}`}
             onClick={() => void handleDelete()}
             disabled={deleting}
           >
-            Delete
+            Удалить
           </button>
         </div>
       </div>

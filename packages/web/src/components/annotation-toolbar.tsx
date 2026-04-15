@@ -6,9 +6,9 @@ interface AnnotationToolbarProps {
 }
 
 const REACTION_BUTTONS: Array<{ type: AnnotationType; label: string }> = [
-  { type: 'sasha_laughed', label: 'Laughed' },
-  { type: 'sasha_loved', label: 'Loved' },
-  { type: 'sasha_disliked', label: 'Disliked' },
+  { type: 'sasha_laughed', label: 'Смеялся' },
+  { type: 'sasha_loved', label: 'Понравилось' },
+  { type: 'sasha_disliked', label: 'Не понравилось' },
 ]
 
 function AnnotationToolbar({ onAnnotate, selectedText }: AnnotationToolbarProps) {
@@ -33,7 +33,7 @@ function AnnotationToolbar({ onAnnotate, selectedText }: AnnotationToolbarProps)
       ))}
 
       <button className="btn btn-primary btn-xs" onClick={() => onAnnotate('my_note', selectedText)}>
-        My note
+        Заметка
       </button>
     </div>
   )

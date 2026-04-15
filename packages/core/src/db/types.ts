@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { annotations, feedback, planConversations, planQuestions, prompts, runSnapshots, stories, storyGroups } from './schema.js'
+import { annotations, childDiary, feedback, planConversations, planQuestions, prompts, runSnapshots, stories, storyGroups } from './schema.js'
 
 export type StoryGroup = typeof storyGroups.$inferSelect
 export type NewStoryGroup = typeof storyGroups.$inferInsert
@@ -18,6 +18,9 @@ export type NewRunSnapshot = typeof runSnapshots.$inferInsert
 
 export type Annotation = typeof annotations.$inferSelect
 export type NewAnnotation = typeof annotations.$inferInsert
+
+export type ChildDiary = typeof childDiary.$inferSelect
+export type NewChildDiary = typeof childDiary.$inferInsert
 
 export const storyGroupSchema = z.object({
   id: z.number().int(),
@@ -87,6 +90,18 @@ export const newStorySchema = z.object({
   groupId: z.number().int().optional(),
 })
 
+const structuredFeedbackSchema = z.object({
+  enjoyed: z.number().int().min(1).max(5),
+  was_funny: z.boolean(),
+  was_scary: z.boolean(),
+  too_long: z.boolean(),
+  favorite_moment: z.string(),
+  favorite_character: z.string(),
+  understood_moral: z.boolean(),
+  want_again: z.boolean(),
+  notes: z.string(),
+}).nullable()
+
 export const feedbackSchema = z.object({
   id: z.number().int(),
   storyId: z.number().int().nullable(),
@@ -94,6 +109,7 @@ export const feedbackSchema = z.object({
   comment: z.string().nullable(),
   feedbackType: z.enum(['agent_run', 'retrospective']).nullable(),
   createdAt: z.date().nullable(),
+  structuredFeedback: structuredFeedbackSchema.optional(),
 })
 
 export const newFeedbackSchema = z.object({
@@ -101,6 +117,7 @@ export const newFeedbackSchema = z.object({
   rating: z.number().int().min(1).max(5).optional(),
   comment: z.string().optional(),
   feedbackType: z.enum(['agent_run', 'retrospective']).optional(),
+  structuredFeedback: structuredFeedbackSchema.optional(),
 })
 
 export const promptSchema = z.object({
@@ -146,6 +163,7 @@ export const runSnapshotSchema = z.object({
   psychologistTextOutput: z.unknown().nullable(),
   writerCriticOutput: z.unknown().nullable(),
   createdAt: z.date().nullable(),
+  sashaContext: z.string().nullable(),
 })
 
 export const newRunSnapshotSchema = z.object({
@@ -171,6 +189,7 @@ export const newRunSnapshotSchema = z.object({
   textV2: z.string().optional(),
   psychologistTextOutput: z.unknown().optional(),
   writerCriticOutput: z.unknown().optional(),
+  sashaContext: z.string().optional(),
 })
 
 export type PlanQuestion = typeof planQuestions.$inferSelect
@@ -225,4 +244,14 @@ export const newAnnotationSchema = z.object({
   selectedText: z.string(),
   positionStart: z.number().int().optional(),
   positionEnd: z.number().int().optional(),
+})
+
+export const childDiarySchema = z.object({
+  id: z.number().int(),
+  content: z.string(),
+  createdAt: z.date().nullable(),
+})
+
+export const newChildDiarySchema = z.object({
+  content: z.string().min(1),
 })

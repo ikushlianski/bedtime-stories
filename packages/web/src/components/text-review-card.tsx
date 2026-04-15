@@ -17,22 +17,22 @@ function TextReviewCard({ textV1, textV2, psychologistOutput, onApprove }: TextR
     <section className="card border border-base-300 bg-base-100 shadow-sm">
       <div className="card-body gap-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-serif text-3xl text-base-content">Text Review</h2>
+          <h2 className="font-serif text-3xl text-base-content">Проверка текста</h2>
 
           <button className="btn btn-success btn-wide" onClick={onApprove}>
-            Approve Text
+            Одобрить текст
           </button>
         </div>
 
-        <DiffViewer originalText={textV1} revisedText={textV2} label="Text v1 → v2" />
+        <DiffViewer originalText={textV1} revisedText={textV2} label="Текст v1 → v2" />
 
         <section className="rounded-box border border-base-300 bg-base-200/70 p-5">
           <h3 className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
-            Psychologist Assessment
+            Оценка психолога
           </h3>
 
           <div className="mb-4 flex flex-wrap items-center gap-2">
-            <span className="text-xs text-base-content/60">Safety verdict:</span>
+            <span className="text-xs text-base-content/60">Вердикт безопасности:</span>
             <SafetyVerdictBadge verdict={safety.verdict} />
           </div>
 
@@ -53,7 +53,7 @@ function TextReviewCard({ textV1, textV2, psychologistOutput, onApprove }: TextR
           {recommended_changes.length > 0 && (
             <div className="alert mt-4 border-warning/30 bg-warning/10 text-base-content">
               <div>
-                <h4 className="font-semibold">Recommended changes</h4>
+                <h4 className="font-semibold">Рекомендуемые изменения</h4>
                 <ul className="mt-2 list-disc space-y-1 pl-4 text-sm">
                   {recommended_changes.map((change, i) => (
                     <li key={i}>{change}</li>

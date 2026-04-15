@@ -16,7 +16,7 @@ function usePlanQuestions(storyId: number) {
       .questions(storyId)
       .then(setQuestions)
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : 'Failed to load questions')
+        setError(err instanceof Error ? err.message : 'Не удалось загрузить вопросы')
       })
       .finally(() => setLoading(false))
   }, [storyId])
@@ -73,25 +73,25 @@ export function PlanQuestionsPage() {
 
       navigate(`/stories/${storyId}/pipeline`)
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Failed to submit answers')
+      setSubmitError(err instanceof Error ? err.message : 'Не удалось отправить ответы')
       setSubmitting(false)
     }
   }
 
   if (loading) {
-    return <StatusCallout title="Loading" message="Fetching clarifying questions." />
+    return <StatusCallout title="Загрузка" message="Получаем уточняющие вопросы." />
   }
 
   if (error) {
-    return <StatusCallout tone="error" title="Failed to load questions" message={error} />
+    return <StatusCallout tone="error" title="Не удалось загрузить вопросы" message={error} />
   }
 
   if (questions.length === 0) {
     return (
       <StatusCallout
         tone="warning"
-        title="No questions found"
-        message="No clarifying questions were generated for this story."
+        title="Вопросов нет"
+        message="Для этой истории уточняющие вопросы не были сгенерированы."
       />
     )
   }
@@ -99,19 +99,19 @@ export function PlanQuestionsPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Planning"
-        title="Clarifying Questions"
-        description="Answer these questions to help personalize the story before the plan is generated."
+        eyebrow="Планирование"
+        title="Уточняющие вопросы"
+        description="Ответь на эти вопросы, чтобы история стала более личной, прежде чем будет создан план."
         backAction={
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>
-            ← Back to stories
+            ← К историям
           </button>
         }
       />
 
       {submitError && (
         <div className="mb-4">
-          <StatusCallout tone="error" title="Submission failed" message={submitError} />
+          <StatusCallout tone="error" title="Ошибка отправки" message={submitError} />
         </div>
       )}
 
@@ -131,7 +131,7 @@ export function PlanQuestionsPage() {
                   rows={3}
                   value={answers[question.id] ?? ''}
                   onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-                  placeholder="Your answer..."
+                  placeholder="Твой ответ..."
                 />
               </div>
             ))}
@@ -142,7 +142,7 @@ export function PlanQuestionsPage() {
                 onClick={() => void handleSubmit()}
                 disabled={!allAnswered || submitting}
               >
-                {submitting ? 'Submitting...' : 'Submit answers'}
+                {submitting ? 'Отправляем...' : 'Отправить ответы'}
               </button>
             </div>
           </div>

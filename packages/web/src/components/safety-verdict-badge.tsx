@@ -5,9 +5,9 @@ interface SafetyVerdictBadgeProps {
 }
 
 const verdictConfig: Record<SafetyVerdict, { label: string; tone: string }> = {
-  safe: { label: 'Safe', tone: 'badge-success' },
-  concern: { label: 'Concern', tone: 'badge-warning' },
-  block: { label: 'Block', tone: 'badge-error' },
+  safe: { label: 'Безопасно', tone: 'badge-success' },
+  concern: { label: 'Есть сомнения', tone: 'badge-warning' },
+  block: { label: 'Заблокировано', tone: 'badge-error' },
 }
 
 function SafetyVerdictBadge({ verdict }: SafetyVerdictBadgeProps) {

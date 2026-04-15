@@ -6,10 +6,10 @@ interface AgentStatusBadgeProps {
 }
 
 const statusConfig: Record<AgentStatus, { tone: string; label: string; dot: string }> = {
-  idle: { tone: 'badge-ghost', label: 'Idle', dot: 'bg-base-content/30' },
-  running: { tone: 'badge-primary', label: 'Running', dot: 'bg-primary animate-pulse' },
-  done: { tone: 'badge-success', label: 'Done', dot: 'bg-success' },
-  error: { tone: 'badge-error', label: 'Error', dot: 'bg-error' },
+  idle: { tone: 'badge-ghost', label: 'Ожидание', dot: 'bg-base-content/30' },
+  running: { tone: 'badge-primary', label: 'Выполняется', dot: 'bg-primary animate-pulse' },
+  done: { tone: 'badge-success', label: 'Готово', dot: 'bg-success' },
+  error: { tone: 'badge-error', label: 'Ошибка', dot: 'bg-error' },
 }
 
 function AgentStatusBadge({ agentName, status }: AgentStatusBadgeProps) {

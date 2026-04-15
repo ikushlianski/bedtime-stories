@@ -6,20 +6,20 @@ interface StoryFilterTabsProps {
 }
 
 const filterTabs: Array<{ label: string; value: StoryFilterValue }> = [
-  { label: 'All', value: 'all' },
-  { label: 'Draft', value: 'draft' },
-  { label: 'Ready', value: 'ready' },
-  { label: 'Read', value: 'read' },
-  { label: 'Archived', value: 'archived' },
+  { label: 'Все', value: 'all' },
+  { label: 'Черновик', value: 'draft' },
+  { label: 'Готово', value: 'ready' },
+  { label: 'Прочитано', value: 'read' },
+  { label: 'Архив', value: 'archived' },
 ]
 
 function StoryFilterTabs({ value, onChange }: StoryFilterTabsProps) {
   return (
-    <div className="join flex flex-wrap">
+    <div className="flex flex-wrap gap-2">
       {filterTabs.map((tab) => (
         <button
           key={tab.value}
-          className={`btn join-item btn-sm sm:btn-md ${value === tab.value ? 'btn-primary' : 'btn-outline'}`}
+          className={`btn btn-sm sm:btn-md ${value === tab.value ? 'btn-primary' : 'btn-outline'}`}
           onClick={() => onChange(tab.value)}
         >
           {tab.label}

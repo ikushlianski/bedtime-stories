@@ -26,10 +26,10 @@ function TherapeuticScoreBar({ score, strengths, gaps }: TherapeuticScoreBarProp
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <span className="text-sm font-medium text-base-content/75">Therapeutic score: {score}/5</span>
+        <span className="text-sm font-medium text-base-content/75">Терапевтическая оценка: {score}/5</span>
 
         <button className="btn btn-ghost btn-xs" onClick={() => setExpanded((prev) => !prev)}>
-          {expanded ? 'Hide details' : 'Show details'}
+          {expanded ? 'Скрыть детали' : 'Показать детали'}
         </button>
       </div>
 
@@ -37,7 +37,7 @@ function TherapeuticScoreBar({ score, strengths, gaps }: TherapeuticScoreBarProp
         className={`progress h-3 w-full ${color}`}
         value={percentage}
         max={100}
-        aria-label="Therapeutic score"
+        aria-label="Терапевтическая оценка"
       />
 
       {expanded && (
@@ -45,7 +45,7 @@ function TherapeuticScoreBar({ score, strengths, gaps }: TherapeuticScoreBarProp
           {strengths.length > 0 && (
             <div className="rounded-box border border-success/20 bg-success/10 p-3">
               <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-success">
-                Strengths
+                Сильные стороны
               </p>
               <ul className="list-disc space-y-1 pl-4 text-sm text-base-content/75">
                 {strengths.map((s, i) => (
@@ -58,7 +58,7 @@ function TherapeuticScoreBar({ score, strengths, gaps }: TherapeuticScoreBarProp
           {gaps.length > 0 && (
             <div className="rounded-box border border-warning/20 bg-warning/10 p-3">
               <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-warning">
-                Gaps
+                Пробелы
               </p>
               <ul className="list-disc space-y-1 pl-4 text-sm text-base-content/75">
                 {gaps.map((g, i) => (

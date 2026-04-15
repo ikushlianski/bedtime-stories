@@ -25,7 +25,7 @@ function usePlanConversation(storyId: number) {
 
       setMessages((prev) => [...prev, userMessage, assistantMessage])
     } catch (err) {
-      setSendError(err instanceof Error ? err.message : 'Failed to send message')
+      setSendError(err instanceof Error ? err.message : 'Не удалось отправить сообщение')
     } finally {
       setThinking(false)
     }
@@ -52,11 +52,11 @@ export function PlanConversationPanel({ storyId }: { storyId: number }) {
   return (
     <section className="card border border-base-300 bg-base-100 shadow-sm">
       <div className="card-body gap-4">
-        <h2 className="font-serif text-2xl text-base-content">Discuss the plan</h2>
+        <h2 className="font-serif text-2xl text-base-content">Обсудить план</h2>
 
         <div className="flex max-h-96 flex-col gap-3 overflow-y-auto rounded-lg bg-base-200 p-4">
           {messages.length === 0 && (
-            <p className="text-sm text-base-content/50">No messages yet. Ask something about the plan.</p>
+            <p className="text-sm text-base-content/50">Сообщений пока нет. Спроси что-нибудь о плане.</p>
           )}
 
           {messages.map((msg) => (
@@ -74,20 +74,20 @@ export function PlanConversationPanel({ storyId }: { storyId: number }) {
 
           {thinking && (
             <div className="self-start rounded-lg bg-base-100 px-4 py-2 text-sm text-base-content/60">
-              Thinking...
+              Думаю...
             </div>
           )}
         </div>
 
         {sendError && (
-          <StatusCallout tone="error" title="Send failed" message={sendError} />
+          <StatusCallout tone="error" title="Ошибка отправки" message={sendError} />
         )}
 
         <div className="flex gap-2">
           <textarea
             className="textarea textarea-bordered flex-1 resize-none"
             rows={2}
-            placeholder="Ask about the plan..."
+            placeholder="Спроси о плане..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -103,7 +103,7 @@ export function PlanConversationPanel({ storyId }: { storyId: number }) {
             onClick={handleSend}
             disabled={!input.trim() || thinking}
           >
-            Send
+            Отправить
           </button>
         </div>
       </div>

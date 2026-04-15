@@ -15,6 +15,7 @@ export function buildPlanSnapshotInsert(storyId: number, plan: PlanPhaseResult):
     planFinal: plan.planFinal,
     psychologistPlanOutput: plan.psychologistPlanOutput,
     plotCriticOutput: plan.plotCriticOutput,
+    sashaContext: plan.sashaContext ?? undefined,
   }
 }
 

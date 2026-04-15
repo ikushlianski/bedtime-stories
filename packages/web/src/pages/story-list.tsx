@@ -9,6 +9,7 @@ export function StoryListPage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const seedFromUrl = searchParams.get('seed')
+  const groupIdFromUrl = searchParams.get('groupId')
   const [stories, setStories] = useState<Story[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -24,7 +25,7 @@ export function StoryListPage() {
 
       setStories(data)
     } catch (fetchError) {
-      setError(fetchError instanceof Error ? fetchError.message : 'Failed to load stories')
+      setError(fetchError instanceof Error ? fetchError.message : 'Не удалось загрузить истории')
     } finally {
       setLoading(false)
     }
@@ -56,12 +57,12 @@ export function StoryListPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Library"
-        title="Stories"
-        description="Track generated stories from draft through reading, and launch new bedtime story ideas."
+        eyebrow="Библиотека"
+        title="Истории"
+        description="Следи за историями от черновика до прочтения и запускай новые идеи для сказок на ночь."
         action={
           <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-            + New Story
+            + Новая история
           </button>
         }
       />
@@ -70,17 +71,17 @@ export function StoryListPage() {
         <StoryFilterTabs value={filter} onChange={setFilter} />
       </div>
 
-      {loading && <StatusCallout title="Loading" message="Fetching stories from the library." />}
+      {loading && <StatusCallout title="Загрузка" message="Получаем истории из библиотеки." />}
 
       {!loading && error && (
-        <StatusCallout tone="error" title="Could not load stories" message={error} />
+        <StatusCallout tone="error" title="Не удалось загрузить истории" message={error} />
       )}
 
       {!loading && !error && stories.length === 0 && (
         <StatusCallout
           tone="warning"
-          title="No stories yet"
-          message="Create a story to start the planning and review pipeline."
+          title="Историй пока нет"
+          message="Создай историю, чтобы запустить конвейер планирования и проверки."
         />
       )}
 
@@ -100,17 +101,17 @@ export function StoryListPage() {
                 onClick={(e) => {
                   e.stopPropagation()
 
-                  if (confirm('Delete this story permanently? This cannot be undone.')) {
+                  if (confirm('Удалить эту историю навсегда? Это действие нельзя отменить.')) {
                     api.stories
                       .delete(story.id)
                       .then(() => setStories((prev) => prev.filter((s) => s.id !== story.id)))
                       .catch((err) =>
-                        setError(err instanceof Error ? err.message : 'Failed to delete story'),
+                        setError(err instanceof Error ? err.message : 'Не удалось удалить историю'),
                       )
                   }
                 }}
               >
-                Dismiss
+                Удалить
               </button>
             </div>
           ))}
@@ -120,12 +121,14 @@ export function StoryListPage() {
       <CreateStoryModal
         open={showModal}
         initialSeed={seedFromUrl ?? ''}
+        initialGroupId={groupIdFromUrl ? parseInt(groupIdFromUrl, 10) : null}
         onClose={() => {
           setShowModal(false)
 
           if (seedFromUrl !== null) {
             const next = new URLSearchParams(searchParams)
             next.delete('seed')
+            next.delete('groupId')
             setSearchParams(next, { replace: true })
           }
         }}

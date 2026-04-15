@@ -8,12 +8,17 @@ export async function runPsychologist(options: {
   iterationNumber: number
   model: string
   universeSystemPrompt?: string
+  sashaContext?: string | null
   cwd?: string
 }): Promise<PsychologistOutput> {
   const { content, contentType, seed, iterationNumber, model } = options
   const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
 
   const label = contentType === 'plan' ? 'Story plan (from plotter)' : 'Written story text (from writer)'
+
+  const sashaContextBlock = options.sashaContext
+    ? `\n\n---\nКОНТЕКСТ САШИ (используй для вдохновения, не копируй буквально):\n${options.sashaContext}\n---`
+    : ''
 
   const parts = [
     `Content type: ${contentType}`,
@@ -22,7 +27,7 @@ export async function runPsychologist(options: {
     `Iteration number: ${iterationNumber}`,
   ]
 
-  const basePrompt = parts.join('\n\n')
+  const basePrompt = parts.join('\n\n') + sashaContextBlock
 
   const prompt = options.universeSystemPrompt
     ? `${options.universeSystemPrompt}\n\n---\n\n${basePrompt}`

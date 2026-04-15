@@ -12,46 +12,46 @@ export function DashboardPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Analytics"
-        title="Dashboard"
-        description="Track quality, feedback, agent impact, reactions, and cost as the bedtime story system evolves."
+        eyebrow="Аналитика"
+        title="Панель"
+        description="Отслеживай качество, отзывы, влияние агентов, реакции Саши и стоимость по мере развития системы сказок."
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <DashboardPanel
-          title="Quality Trend"
-          description="Rating over time, with markers for prompt and model changes. Shows whether quality improves after agent updates."
+          title="Динамика качества"
+          description="Оценки по времени с отметками об изменениях промптов и моделей. Показывает, улучшается ли качество после обновлений агентов."
         >
-          <ComingSoon label="Coming soon — quality chart" />
+          <ComingSoon label="Скоро — график качества" />
         </DashboardPanel>
 
         <DashboardPanel
-          title="Agent Effectiveness"
-          description="For each critic and psychologist: % of stories where their notes changed the output, average diff size, and your feedback on their work."
+          title="Эффективность агентов"
+          description="Для каждого критика и психолога: % историй, где их замечания изменили результат, средний размер правок и твои отзывы об их работе."
         >
-          <ComingSoon label="Coming soon — effectiveness table" />
+          <ComingSoon label="Скоро — таблица эффективности" />
         </DashboardPanel>
 
         <DashboardPanel
-          title="Feedback Patterns"
-          description="Recurring themes across your text comments, clustered by the Improver. Shows whether themes disappear after prompt edits."
+          title="Паттерны отзывов"
+          description="Повторяющиеся темы из твоих комментариев, сгруппированные Улучшателем. Показывает, исчезают ли темы после правок промптов."
         >
-          <ComingSoon label="Coming soon — feedback clusters" />
+          <ComingSoon label="Скоро — кластеры отзывов" />
         </DashboardPanel>
 
         <DashboardPanel
-          title="Sasha&apos;s Reactions"
-          description="Annotations by type, most annotated passages, and Sasha&apos;s answers to discussion questions over time."
+          title="Реакции Саши"
+          description="Заметки по типам, самые отмеченные отрывки и ответы Саши на вопросы для обсуждения со временем."
         >
-          <ComingSoon label="Coming soon — reaction analysis" />
+          <ComingSoon label="Скоро — анализ реакций" />
         </DashboardPanel>
 
         <div className="lg:col-span-2">
           <DashboardPanel
-            title="Cost"
-            description="Per-story token usage and real cost broken down by agent. Helps identify where money is spent without visible quality impact."
+            title="Стоимость"
+            description="Использование токенов и реальная стоимость для каждой истории в разбивке по агентам. Помогает понять, где тратятся деньги без видимого влияния на качество."
           >
-            <ComingSoon label="Coming soon — cost breakdown" />
+            <ComingSoon label="Скоро — разбивка по стоимости" />
           </DashboardPanel>
         </div>
       </div>

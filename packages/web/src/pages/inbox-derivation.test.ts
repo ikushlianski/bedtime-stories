@@ -136,12 +136,12 @@ describe('groupInboxByAction', () => {
 
 describe('actionLabel and actionHref', () => {
   it('returns a human label for every action kind', () => {
-    expect(actionLabel('review_plan')).toBe('Review plan')
-    expect(actionLabel('review_text')).toBe('Review final text')
-    expect(actionLabel('read_to_sasha')).toBe('Read to Sasha')
-    expect(actionLabel('leave_feedback')).toBe('Leave feedback')
-    expect(actionLabel('pending_plan')).toBe('Waiting for plan')
-    expect(actionLabel('archived')).toBe('Archived')
+    expect(actionLabel('review_plan')).toBe('Проверить план')
+    expect(actionLabel('review_text')).toBe('Проверить текст')
+    expect(actionLabel('read_to_sasha')).toBe('Читать Саше')
+    expect(actionLabel('leave_feedback')).toBe('Оставить отзыв')
+    expect(actionLabel('pending_plan')).toBe('Ожидает плана')
+    expect(actionLabel('archived')).toBe('Архив')
   })
 
   it('routes each action to the page that lets the user complete it', () => {

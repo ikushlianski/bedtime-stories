@@ -22,6 +22,7 @@ export async function runWriter(options: {
   model: string
   resolvedPrompt?: ResolvedPrompt
   universeSystemPrompt?: string
+  sashaContext?: string | null
   cwd?: string
 }): Promise<string> {
   const { plan, criticNotes, model } = options
@@ -33,8 +34,12 @@ export async function runWriter(options: {
     ? `${options.universeSystemPrompt}\n\n---\n\n${resolved.text}`
     : resolved.text
 
+  const sashaContextBlock = options.sashaContext
+    ? `\n\n---\nКОНТЕКСТ САШИ (используй для вдохновения, не копируй буквально):\n${options.sashaContext}\n---\n`
+    : ''
+
   const parts: string[] = [
-    basePrompt,
+    `${basePrompt}${sashaContextBlock}`,
     '',
     `STORY PLAN:\n${plan}`,
   ]

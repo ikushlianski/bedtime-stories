@@ -16,7 +16,7 @@ function PipelineProgress({ steps }: PipelineProgressProps) {
   return (
     <section className="card border border-base-300 bg-base-100 shadow-sm">
       <div className="card-body gap-5">
-        <h2 className="font-serif text-2xl text-base-content">Pipeline Progress</h2>
+        <h2 className="font-serif text-2xl text-base-content">Ход обработки</h2>
 
         <ol className="space-y-2">
           {steps.map((step, i) => (
@@ -32,7 +32,7 @@ function PipelineProgress({ steps }: PipelineProgressProps) {
 
                 {step.iterationNumber !== undefined && (
                   <span className="badge badge-outline border-base-300 text-base-content/60">
-                    iteration {step.iterationNumber}
+                    итерация {step.iterationNumber}
                   </span>
                 )}
               </div>

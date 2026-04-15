@@ -60,17 +60,17 @@ export function groupInboxByAction(items: InboxItem[]): Partial<Record<InboxActi
 export function actionLabel(action: InboxAction): string {
   switch (action) {
     case 'pending_plan':
-      return 'Waiting for plan'
+      return 'Ожидает плана'
     case 'review_plan':
-      return 'Review plan'
+      return 'Проверить план'
     case 'review_text':
-      return 'Review final text'
+      return 'Проверить текст'
     case 'read_to_sasha':
-      return 'Read to Sasha'
+      return 'Читать Саше'
     case 'leave_feedback':
-      return 'Leave feedback'
+      return 'Оставить отзыв'
     case 'archived':
-      return 'Archived'
+      return 'Архив'
   }
 }
 

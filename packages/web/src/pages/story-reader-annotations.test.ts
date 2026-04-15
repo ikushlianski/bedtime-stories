@@ -22,23 +22,23 @@ function mkAnnotation(partial: Partial<Annotation> & Pick<Annotation, 'id' | 'ty
 
 describe('annotationTypeLabel', () => {
   it('returns a human label for sasha_reaction', () => {
-    expect(annotationTypeLabel('sasha_reaction')).toBe("Sasha's reaction")
+    expect(annotationTypeLabel('sasha_reaction')).toBe('Реакция Саши')
   })
 
   it('returns a human label for my_note', () => {
-    expect(annotationTypeLabel('my_note')).toBe('My note')
+    expect(annotationTypeLabel('my_note')).toBe('Моя заметка')
   })
 
   it('returns a human label for sasha_laughed', () => {
-    expect(annotationTypeLabel('sasha_laughed')).toBe('Sasha laughed')
+    expect(annotationTypeLabel('sasha_laughed')).toBe('Саша смеялся')
   })
 
   it('returns a human label for sasha_loved', () => {
-    expect(annotationTypeLabel('sasha_loved')).toBe('Sasha loved this')
+    expect(annotationTypeLabel('sasha_loved')).toBe('Саше понравилось')
   })
 
   it('returns a human label for sasha_disliked', () => {
-    expect(annotationTypeLabel('sasha_disliked')).toBe('Sasha disliked this')
+    expect(annotationTypeLabel('sasha_disliked')).toBe('Саше не понравилось')
   })
 })
 

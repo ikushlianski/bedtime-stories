@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PageHeader, StatusCallout } from '../components'
+import { api, type StoryGroup } from '../lib/api'
 import {
   EMPTY_STATE,
   addIdea,
@@ -13,6 +14,7 @@ import {
 } from './ideas-store'
 
 const STORAGE_KEY = 'bedtime-agent:ideas:v1'
+const LAST_UNIVERSE_KEY = 'bedtime-agent:last-universe'
 
 function loadState(): IdeasState {
   if (typeof window === 'undefined') return EMPTY_STATE
@@ -34,9 +36,16 @@ export function IdeasPage() {
   const navigate = useNavigate()
   const [state, setState] = useState<IdeasState>(EMPTY_STATE)
   const [draft, setDraft] = useState('')
+  const [universes, setUniverses] = useState<StoryGroup[]>([])
+  const [selectedUniverseId, setSelectedUniverseId] = useState<number | null>(() => {
+    const stored = localStorage.getItem(LAST_UNIVERSE_KEY)
+
+    return stored ? parseInt(stored, 10) : null
+  })
 
   useEffect(() => {
     setState(loadState())
+    api.universes.list().then(setUniverses).catch(() => setUniverses([]))
   }, [])
 
   const persist = useCallback((next: IdeasState) => {
@@ -57,7 +66,17 @@ export function IdeasPage() {
 
   const handlePromote = (id: string, text: string) => {
     persist(setIdeaStatus(state, id, 'promoted'))
-    navigate(`/?seed=${encodeURIComponent(text)}`)
+
+    const params = new URLSearchParams({ seed: text })
+
+    if (selectedUniverseId !== null) {
+      params.set('groupId', String(selectedUniverseId))
+      localStorage.setItem(LAST_UNIVERSE_KEY, String(selectedUniverseId))
+    } else {
+      localStorage.removeItem(LAST_UNIVERSE_KEY)
+    }
+
+    navigate(`/?${params.toString()}`)
   }
 
   const ideas = openIdeas(state)
@@ -65,32 +84,64 @@ export function IdeasPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Inbox"
-        title="Story Ideas"
-        description="Dump half-baked thoughts here and promote them to full stories when you're ready to run the pipeline."
+        eyebrow="Входящие"
+        title="Идеи для историй"
+        description="Записывай сюда незрелые мысли и превращай их в полноценные истории, когда будешь готов запустить конвейер."
       />
 
       <section className="mb-6 rounded-box border border-base-300 bg-base-100 p-6 shadow-sm">
         <textarea
           className="textarea textarea-bordered min-h-28 w-full bg-base-100"
-          placeholder="A little dragon who is afraid of fire..."
+          placeholder="Маленький дракон, который боится огня..."
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
         />
+
+        {universes.length > 0 && (
+          <div className="mt-3">
+            <label className="label pb-1">
+              <span className="label-text text-sm text-base-content/60">Вселенная (необязательно)</span>
+            </label>
+            <select
+              className="select select-bordered w-full bg-base-100"
+              value={selectedUniverseId ?? ''}
+              onChange={(e) => {
+                const val = e.target.value
+                const id = val === '' ? null : parseInt(val, 10)
+
+                setSelectedUniverseId(id)
+
+                if (id !== null) {
+                  localStorage.setItem(LAST_UNIVERSE_KEY, String(id))
+                } else {
+                  localStorage.removeItem(LAST_UNIVERSE_KEY)
+                }
+              }}
+            >
+              <option value="">Без вселенной</option>
+              {universes.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div className="mt-3 flex justify-end">
           <button
             className={`btn btn-primary ${draft.trim().length === 0 ? 'btn-disabled' : ''}`}
             onClick={handleAdd}
           >
-            Save idea
+            Сохранить идею
           </button>
         </div>
       </section>
 
       {ideas.length === 0 ? (
         <StatusCallout
-          title="No open ideas"
-          message="Write down anything that could become a bedtime story — emotions, situations, characters."
+          title="Идей пока нет"
+          message="Запиши всё, что могло бы стать сказкой на ночь — эмоции, ситуации, персонажей."
         />
       ) : (
         <ul className="space-y-3">
@@ -110,13 +161,13 @@ export function IdeasPage() {
                   className="btn btn-primary btn-sm"
                   onClick={() => handlePromote(idea.id, idea.text)}
                 >
-                  Promote to story →
+                  Превратить в историю →
                 </button>
                 <button
                   className="btn btn-ghost btn-sm"
                   onClick={() => handleDelete(idea.id)}
                 >
-                  Delete
+                  Удалить
                 </button>
               </div>
             </li>

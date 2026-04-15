@@ -42,7 +42,7 @@ function Section({
               <div>
                 <p className="font-serif text-lg text-base-content">{item.story.title}</p>
                 <p className="mt-1 text-xs text-base-content/50">
-                  Created {new Date(item.story.created_at).toLocaleString()}
+                  Создано {new Date(item.story.created_at).toLocaleString('ru-RU')}
                 </p>
               </div>
               <button
@@ -73,7 +73,7 @@ export function InboxPage() {
       const data = await api.stories.list()
       setStories(data)
     } catch (fetchError) {
-      setError(fetchError instanceof Error ? fetchError.message : 'Failed to load stories')
+      setError(fetchError instanceof Error ? fetchError.message : 'Не удалось загрузить истории')
     } finally {
       setLoading(false)
     }
@@ -92,21 +92,21 @@ export function InboxPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Inbox"
-        title="What needs you next"
-        description="Stories waiting for your attention, grouped by the next step the bedtime pipeline needs from you."
+        eyebrow="Входящие"
+        title="Что ждёт твоего внимания"
+        description="Истории, требующие действий, сгруппированные по следующему шагу в конвейере."
       />
 
-      {loading && <StatusCallout title="Loading" message="Pulling the story list." />}
+      {loading && <StatusCallout title="Загрузка" message="Получаем список историй." />}
 
       {!loading && error && (
-        <StatusCallout tone="error" title="Inbox unavailable" message={error} />
+        <StatusCallout tone="error" title="Входящие недоступны" message={error} />
       )}
 
       {!loading && !error && totalActionable === 0 && secondary.length === 0 && (
         <StatusCallout
-          title="All clear"
-          message="Nothing waiting. Add an idea or create a new story to get going."
+          title="Всё готово"
+          message="Ничего не ждёт. Добавь идею или создай новую историю, чтобы начать."
         />
       )}
 
@@ -115,38 +115,38 @@ export function InboxPage() {
           {totalActionable === 0 && secondary.length > 0 && (
             <div className="mb-6">
               <StatusCallout
-                title="Nothing actionable right now"
-                message="No plans or texts are waiting for review. Check back after the next pipeline run finishes."
+                title="Сейчас нет срочных задач"
+                message="Никакие планы или тексты не ждут проверки. Загляни сюда после следующего запуска конвейера."
               />
             </div>
           )}
 
           <Section
-            title="Needs review"
+            title="Нужна проверка"
             items={groups.review_plan ?? []}
             onPick={(href) => navigate(href)}
             tone="primary"
           />
           <Section
-            title="Needs final sign-off"
+            title="Нужно финальное одобрение"
             items={groups.review_text ?? []}
             onPick={(href) => navigate(href)}
             tone="primary"
           />
           <Section
-            title="Ready to read"
+            title="Готово к чтению"
             items={groups.read_to_sasha ?? []}
             onPick={(href) => navigate(href)}
             tone="primary"
           />
           <Section
-            title="In the pipeline"
+            title="В обработке"
             items={groups.pending_plan ?? []}
             onPick={(href) => navigate(href)}
             tone="secondary"
           />
           <Section
-            title="Waiting on your feedback"
+            title="Ждём твоего отзыва"
             items={groups.leave_feedback ?? []}
             onPick={(href) => navigate(href)}
             tone="secondary"

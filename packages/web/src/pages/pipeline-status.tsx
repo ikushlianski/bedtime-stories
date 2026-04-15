@@ -45,21 +45,21 @@ function isActivePolling(status: PipelineStatusValue): boolean {
 function describeStatus(status: PipelineStatusValue): string {
   switch (status) {
     case 'questions_pending':
-      return 'Waiting for answers to clarifying questions.'
+      return 'Ожидаем ответов на уточняющие вопросы.'
     case 'plan_running':
-      return 'Plan phase is running.'
+      return 'Идёт фаза планирования.'
     case 'plan_ready':
-      return 'Plan is ready for review.'
+      return 'План готов к проверке.'
     case 'text_running':
-      return 'Text phase is running.'
+      return 'Идёт фаза написания текста.'
     case 'text_ready':
-      return 'Text is ready for review.'
+      return 'Текст готов к проверке.'
     case 'failed':
-      return 'Pipeline failed.'
+      return 'Конвейер завершился с ошибкой.'
     case 'pending':
-      return 'Waiting for pipeline to start.'
+      return 'Ожидаем запуска конвейера.'
     default:
-      return 'Unknown status.'
+      return 'Неизвестный статус.'
   }
 }
 
@@ -104,7 +104,7 @@ export function PipelineStatusPage() {
         }, POLL_INTERVAL_MS)
       }
     } catch (err) {
-      setRetryError(err instanceof Error ? err.message : 'Failed to restart pipeline')
+      setRetryError(err instanceof Error ? err.message : 'Не удалось перезапустить конвейер')
     } finally {
       setRetrying(false)
     }
@@ -124,7 +124,7 @@ export function PipelineStatusPage() {
           }
         }
       } catch (fetchError) {
-        setError(fetchError instanceof Error ? fetchError.message : 'Failed to load pipeline status')
+        setError(fetchError instanceof Error ? fetchError.message : 'Не удалось загрузить статус конвейера')
 
         if (intervalRef.current) {
           clearInterval(intervalRef.current)
@@ -147,21 +147,21 @@ export function PipelineStatusPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Pipeline"
-        title="Pipeline Status"
+        eyebrow="Обработка"
+        title="Статус конвейера"
         description={
           status
-            ? `${describeStatus(status.status)}${status.current_step ? ` Current step: ${status.current_step}.` : ''}`
-            : 'Polling the current generation pipeline.'
+            ? `${describeStatus(status.status)}${status.current_step ? ` Текущий шаг: ${status.current_step}.` : ''}`
+            : 'Опрашиваем текущий конвейер генерации.'
         }
       />
 
       {error && (
-        <StatusCallout tone="error" title="Pipeline request failed" message={error} />
+        <StatusCallout tone="error" title="Ошибка запроса к конвейеру" message={error} />
       )}
 
       {!status && !error && (
-        <StatusCallout title="Loading" message="Fetching the latest pipeline status." />
+        <StatusCallout title="Загрузка" message="Получаем актуальный статус конвейера." />
       )}
 
       {status && (
@@ -171,7 +171,7 @@ export function PipelineStatusPage() {
           {status.status === 'plan_ready' && (
             <div className="flex justify-end">
               <button className="btn btn-primary" onClick={() => navigate(`/stories/${storyId}/plan-review`)}>
-                Review Plan →
+                Проверить план →
               </button>
             </div>
           )}
@@ -179,7 +179,7 @@ export function PipelineStatusPage() {
           {status.status === 'text_ready' && (
             <div className="flex justify-end">
               <button className="btn btn-primary" onClick={() => navigate(`/stories/${storyId}/text-review`)}>
-                Review Text →
+                Проверить текст →
               </button>
             </div>
           )}
@@ -187,8 +187,8 @@ export function PipelineStatusPage() {
           {status.status === 'failed' && (
             <StatusCallout
               tone="error"
-              title={status.phase === 'text' ? 'Text phase failed' : 'Plan phase failed'}
-              message="Check the API logs for the failing stage before retrying the story."
+              title={status.phase === 'text' ? 'Ошибка в фазе текста' : 'Ошибка в фазе планирования'}
+              message="Проверь логи API для упавшего шага, прежде чем перезапускать историю."
             />
           )}
 
@@ -201,8 +201,8 @@ export function PipelineStatusPage() {
               return (
                 <StatusCallout
                   tone="warning"
-                  title="Cannot retry"
-                  message="The story is missing its seed text, so the pipeline can't be restarted from here."
+                  title="Перезапуск невозможен"
+                  message="У истории нет затравки, поэтому конвейер нельзя перезапустить отсюда."
                 />
               )
             }
@@ -210,9 +210,9 @@ export function PipelineStatusPage() {
             const label =
               retryDecision.action === 'retry_plan'
                 ? retryDecision.reason === 'pending'
-                  ? 'Start pipeline'
-                  : 'Retry plan phase'
-                : 'Retry text phase'
+                  ? 'Запустить конвейер'
+                  : 'Повторить фазу планирования'
+                : 'Повторить фазу текста'
 
             const onClick = () => {
               if (retryDecision.action === 'retry_plan') {
@@ -222,19 +222,19 @@ export function PipelineStatusPage() {
 
             return (
               <div className="space-y-2">
-                {retryError && <StatusCallout tone="error" title="Retry failed" message={retryError} />}
+                {retryError && <StatusCallout tone="error" title="Перезапуск не удался" message={retryError} />}
                 <div className="flex justify-end">
                   <button
                     className="btn btn-primary"
                     onClick={onClick}
                     disabled={retrying || retryDecision.action !== 'retry_plan'}
                   >
-                    {retrying ? 'Starting…' : label}
+                    {retrying ? 'Запускаем…' : label}
                   </button>
                 </div>
                 {retryDecision.action === 'retry_text' && (
                   <p className="text-right text-xs text-base-content/60">
-                    Text-phase retry must be started from the plan-review page for now.
+                    Повторный запуск фазы текста пока нужно делать со страницы проверки плана.
                   </p>
                 )}
               </div>

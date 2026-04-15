@@ -15,10 +15,23 @@ function parseIntParam(raw: string | string[] | undefined): number {
 
 const router = Router({ mergeParams: true })
 
+const structuredFeedbackSchema = z.object({
+  enjoyed: z.number().int().min(1).max(5),
+  was_funny: z.boolean(),
+  was_scary: z.boolean(),
+  too_long: z.boolean(),
+  favorite_moment: z.string(),
+  favorite_character: z.string(),
+  understood_moral: z.boolean(),
+  want_again: z.boolean(),
+  notes: z.string(),
+}).nullable().optional()
+
 const createFeedbackSchema = z.object({
   rating: z.number().int().min(1).max(5),
-  comment: z.string().min(1),
+  comment: z.string().optional(),
   feedback_type: z.enum(['agent_run', 'retrospective']),
+  structured_feedback: structuredFeedbackSchema,
 })
 
 router.post('/', validate(createFeedbackSchema), async (req: Request<StoryParams>, res) => {
@@ -30,13 +43,14 @@ router.post('/', validate(createFeedbackSchema), async (req: Request<StoryParams
       return
     }
 
-    const { rating, comment, feedback_type } = req.body as z.infer<typeof createFeedbackSchema>
+    const { rating, comment, feedback_type, structured_feedback } = req.body as z.infer<typeof createFeedbackSchema>
 
     const newFeedback: NewFeedback = {
       storyId,
       rating,
       comment,
       feedbackType: feedback_type,
+      structuredFeedback: structured_feedback ?? null,
     }
 
     const [created] = await db.insert(feedback).values(newFeedback).returning()

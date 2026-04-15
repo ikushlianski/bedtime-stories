@@ -17,7 +17,7 @@ function useTextReviewStory(id: number) {
     api.stories
       .get(id)
       .then(setStory)
-      .catch((fetchError) => setError(fetchError instanceof Error ? fetchError.message : 'Failed to load story'))
+      .catch((fetchError) => setError(fetchError instanceof Error ? fetchError.message : 'Не удалось загрузить историю'))
       .finally(() => setLoading(false))
   }, [id])
 
@@ -37,7 +37,7 @@ function useRunSnapshot(id: number) {
       .snapshot(id)
       .then((data) => setSnapshot(data))
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err : new Error('Failed to load pipeline snapshot'))
+        setError(err instanceof Error ? err : new Error('Не удалось загрузить снимок конвейера'))
       })
       .finally(() => setLoading(false))
   }, [id])
@@ -68,26 +68,26 @@ export function TextReviewPage() {
       await api.stories.approveText(storyId)
       navigate(`/stories/${storyId}`)
     } catch (approvalError) {
-      setApproveError(approvalError instanceof Error ? approvalError.message : 'Failed to approve text')
+      setApproveError(approvalError instanceof Error ? approvalError.message : 'Не удалось одобрить текст')
     } finally {
       setApproving(false)
     }
   }
 
   if (loading) {
-    return <StatusCallout title="Loading" message="Fetching the text review data." />
+    return <StatusCallout title="Загрузка" message="Получаем данные для проверки текста." />
   }
 
   if (error) {
-    return <StatusCallout tone="error" title="Story load failed" message={error} />
+    return <StatusCallout tone="error" title="Ошибка загрузки истории" message={error} />
   }
 
   if (!story) {
-    return <StatusCallout tone="warning" title="Story not found" message="The requested story does not exist." />
+    return <StatusCallout tone="warning" title="История не найдена" message="Запрошенная история не существует." />
   }
 
   if (snapshotState.kind === 'loading') {
-    return <StatusCallout title="Loading assessment" message="Waiting for psychologist output." />
+    return <StatusCallout title="Загрузка оценки" message="Ожидаем результатов психолога." />
   }
 
   const approveHandler = () => {
@@ -99,19 +99,19 @@ export function TextReviewPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Review"
-        title="Text Review"
-        description="Compare the two text drafts and confirm the final wording is safe and therapeutically useful."
+        eyebrow="Проверка"
+        title="Проверка текста"
+        description="Сравни два черновика текста и убедись, что финальная версия безопасна и терапевтически полезна."
         backAction={
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>
-            ← Back to stories
+            ← К историям
           </button>
         }
       />
 
       {approveError && (
         <div className="mb-4">
-          <StatusCallout tone="error" title="Approval failed" message={approveError} />
+          <StatusCallout tone="error" title="Ошибка одобрения" message={approveError} />
         </div>
       )}
 
@@ -128,8 +128,8 @@ export function TextReviewPage() {
             tone={snapshotState.reason === 'error' ? 'error' : 'warning'}
             title={
               snapshotState.reason === 'error'
-                ? 'Psychologist assessment unavailable'
-                : 'No psychologist assessment recorded'
+                ? 'Оценка психолога недоступна'
+                : 'Оценка психолога не записана'
             }
             message={snapshotState.message}
           />
@@ -137,17 +137,17 @@ export function TextReviewPage() {
           <section className="card border border-base-300 bg-base-100 shadow-sm">
             <div className="card-body gap-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="font-serif text-3xl text-base-content">Text Review</h2>
+                <h2 className="font-serif text-3xl text-base-content">Проверка текста</h2>
 
                 <button className="btn btn-success btn-wide" onClick={approveHandler} disabled={approving}>
-                  Approve Text
+                  Одобрить текст
                 </button>
               </div>
 
               <DiffViewer
                 originalText={story.text_v1 ?? ''}
                 revisedText={story.text_v2 ?? ''}
-                label="Text v1 → v2"
+                label="Текст v1 → v2"
               />
             </div>
           </section>

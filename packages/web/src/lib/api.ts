@@ -108,10 +108,29 @@ export interface CriticOutput {
   improvement_needed: boolean
 }
 
+export interface StructuredFeedback {
+  enjoyed: number
+  was_funny: boolean
+  was_scary: boolean
+  too_long: boolean
+  favorite_moment: string
+  favorite_character: string
+  understood_moral: boolean
+  want_again: boolean
+  notes: string
+}
+
 export interface FeedbackData {
   rating: number
-  comment: string
+  comment?: string
   feedback_type: 'agent_run' | 'retrospective'
+  structured_feedback?: StructuredFeedback | null
+}
+
+export interface DiaryEntry {
+  id: number
+  content: string
+  createdAt: string
 }
 
 export type AnnotationType =
@@ -218,6 +237,12 @@ export const api = {
         body: JSON.stringify({ approved }),
       }),
 
+    updateStatus: (id: number, status: 'draft' | 'ready' | 'read' | 'archived') =>
+      request<Story>(`/api/stories/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      }),
+
     delete: (id: number) =>
       requestEmpty(`/api/stories/${id}`, {
         method: 'DELETE',
@@ -273,6 +298,16 @@ export const api = {
         `/api/pipeline/conversations/${storyId}`,
         { method: 'POST', body: JSON.stringify({ message }) },
       ),
+  },
+
+  diary: {
+    list: () => request<DiaryEntry[]>('/api/diary'),
+    create: (content: string) =>
+      request<DiaryEntry>('/api/diary', {
+        method: 'POST',
+        body: JSON.stringify({ content }),
+      }),
+    delete: (id: number) => requestEmpty(`/api/diary/${id}`, { method: 'DELETE' }),
   },
 
   universes: {

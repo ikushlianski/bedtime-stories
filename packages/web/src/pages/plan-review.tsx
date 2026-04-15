@@ -18,7 +18,7 @@ function usePlanReviewStory(id: number) {
     api.stories
       .get(id)
       .then(setStory)
-      .catch((fetchError) => setError(fetchError instanceof Error ? fetchError.message : 'Failed to load story'))
+      .catch((fetchError) => setError(fetchError instanceof Error ? fetchError.message : 'Не удалось загрузить историю'))
       .finally(() => setLoading(false))
   }, [id])
 
@@ -38,7 +38,7 @@ function useRunSnapshot(id: number) {
       .snapshot(id)
       .then((data) => setSnapshot(data))
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err : new Error('Failed to load pipeline snapshot'))
+        setError(err instanceof Error ? err : new Error('Не удалось загрузить снимок конвейера'))
       })
       .finally(() => setLoading(false))
   }, [id])
@@ -63,7 +63,7 @@ export function PlanReviewPage() {
   const [dismissing, setDismissing] = useState(false)
 
   const handleDismiss = async () => {
-    if (!confirm('Delete this story permanently? This cannot be undone.')) {
+    if (!confirm('Удалить эту историю навсегда? Это действие нельзя отменить.')) {
       return
     }
 
@@ -73,7 +73,7 @@ export function PlanReviewPage() {
       await api.stories.delete(storyId)
       navigate('/')
     } catch (dismissError) {
-      setApproveError(dismissError instanceof Error ? dismissError.message : 'Failed to delete story')
+      setApproveError(dismissError instanceof Error ? dismissError.message : 'Не удалось удалить историю')
       setDismissing(false)
     }
   }
@@ -86,26 +86,26 @@ export function PlanReviewPage() {
       await api.stories.approvePlan(storyId)
       navigate(`/stories/${storyId}/pipeline`)
     } catch (approvalError) {
-      setApproveError(approvalError instanceof Error ? approvalError.message : 'Failed to approve plan')
+      setApproveError(approvalError instanceof Error ? approvalError.message : 'Не удалось одобрить план')
     } finally {
       setApproving(false)
     }
   }
 
   if (loading) {
-    return <StatusCallout title="Loading" message="Fetching the plan review data." />
+    return <StatusCallout title="Загрузка" message="Получаем данные для проверки плана." />
   }
 
   if (error) {
-    return <StatusCallout tone="error" title="Story load failed" message={error} />
+    return <StatusCallout tone="error" title="Ошибка загрузки истории" message={error} />
   }
 
   if (!story) {
-    return <StatusCallout tone="warning" title="Story not found" message="The requested story does not exist." />
+    return <StatusCallout tone="warning" title="История не найдена" message="Запрошенная история не существует." />
   }
 
   if (snapshotState.kind === 'loading') {
-    return <StatusCallout title="Loading assessment" message="Waiting for psychologist output." />
+    return <StatusCallout title="Загрузка оценки" message="Ожидаем результатов психолога." />
   }
 
   const approveHandler = () => {
@@ -123,12 +123,12 @@ export function PlanReviewPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Review"
-        title="Plan Review"
-        description="Compare the first plan draft against the final version and validate the psychologist assessment."
+        eyebrow="Проверка"
+        title="Проверка плана"
+        description="Сравни первый черновик плана с финальной версией и проверь оценку психолога."
         backAction={
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>
-            ← Back to stories
+            ← К историям
           </button>
         }
         action={
@@ -137,14 +137,14 @@ export function PlanReviewPage() {
             onClick={dismissHandler}
             disabled={dismissing}
           >
-            Dismiss story
+            Удалить историю
           </button>
         }
       />
 
       {approveError && (
         <div className="mb-4">
-          <StatusCallout tone="error" title="Approval failed" message={approveError} />
+          <StatusCallout tone="error" title="Ошибка одобрения" message={approveError} />
         </div>
       )}
 
@@ -166,8 +166,8 @@ export function PlanReviewPage() {
             tone={snapshotState.reason === 'error' ? 'error' : 'warning'}
             title={
               snapshotState.reason === 'error'
-                ? 'Psychologist assessment unavailable'
-                : 'No psychologist assessment recorded'
+                ? 'Оценка психолога недоступна'
+                : 'Оценка психолога не записана'
             }
             message={snapshotState.message}
           />
@@ -176,21 +176,21 @@ export function PlanReviewPage() {
             <div className="card-body gap-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h2 className="font-serif text-3xl text-base-content">Plan Review</h2>
+                  <h2 className="font-serif text-3xl text-base-content">Проверка плана</h2>
                   <p className="text-sm text-base-content/65">
-                    Iterations: {story.plan_iterations ?? 0}
+                    Итераций: {story.plan_iterations ?? 0}
                   </p>
                 </div>
 
                 <button className="btn btn-success btn-wide" onClick={approveHandler} disabled={approving}>
-                  Approve Plan
+                  Одобрить план
                 </button>
               </div>
 
               <DiffViewer
                 originalText={story.plan_v1 ?? ''}
                 revisedText={story.plan_final ?? ''}
-                label="Plan v1 → Final"
+                label="План v1 → Финал"
               />
             </div>
           </section>

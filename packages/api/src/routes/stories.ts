@@ -217,6 +217,7 @@ router.post('/:id/approve-plan', validate(approvePlanSchema), async (req, res) =
 
     if (decision.action === 'start_text_phase') {
       let universeSystemPrompt: string | undefined
+      let sashaContext: string | null = null
 
       if (existing.groupId !== null && existing.groupId !== undefined) {
         const [group] = await db.select().from(storyGroups).where(eq(storyGroups.id, existing.groupId))
@@ -226,7 +227,18 @@ router.post('/:id/approve-plan', validate(approvePlanSchema), async (req, res) =
         }
       }
 
-      triggerTextPhase(storyId, decision.seed, decision.planFinal, universeSystemPrompt)
+      const [snapshot] = await db
+        .select()
+        .from(runSnapshots)
+        .where(eq(runSnapshots.storyId, storyId))
+        .orderBy(desc(runSnapshots.createdAt))
+        .limit(1)
+
+      if (snapshot?.sashaContext) {
+        sashaContext = snapshot.sashaContext
+      }
+
+      triggerTextPhase(storyId, decision.seed, decision.planFinal, universeSystemPrompt, sashaContext)
     }
 
     res.json(toSnakeCase(existing as Story))

@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { runPlanPhase } from '@bedtime/core/pipeline/orchestrator'
+import { synthesizeSashaContext } from '@bedtime/core/pipeline/feedback-synthesizer'
 import { db } from '@bedtime/core/db/client'
 import { runSnapshots, stories } from '@bedtime/core/db/schema'
 import {
@@ -23,13 +24,17 @@ export function triggerPlanPhaseFromAnswers(
 
   const seedWithAnswers = `SEED: ${seed}\n\nCLARIFYING Q&A:\n${qaBlock}`
 
-  runPlanPhase({
-    seed: seedWithAnswers,
-    storyId,
-    models: defaultModels,
-    promptVersions: defaultPromptVersions,
-    ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
-  })
+  synthesizeSashaContext()
+    .then((sashaContext) =>
+      runPlanPhase({
+        seed: seedWithAnswers,
+        storyId,
+        models: defaultModels,
+        promptVersions: defaultPromptVersions,
+        ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
+        ...(sashaContext !== null ? { sashaContext } : {}),
+      })
+    )
     .then(async (plan) => {
       try {
         await db.insert(runSnapshots).values(buildPlanSnapshotInsert(storyId, plan))

@@ -43,6 +43,17 @@ export const feedback = pgTable('feedback', {
   comment: text('comment'),
   feedbackType: text('feedback_type').$type<'agent_run' | 'retrospective'>(),
   createdAt: timestamp('created_at').defaultNow(),
+  structuredFeedback: jsonb('structured_feedback').$type<{
+    enjoyed: number
+    was_funny: boolean
+    was_scary: boolean
+    too_long: boolean
+    favorite_moment: string
+    favorite_character: string
+    understood_moral: boolean
+    want_again: boolean
+    notes: string
+  } | null>().default(null),
 })
 
 export const prompts = pgTable('prompts', {
@@ -64,6 +75,12 @@ export const annotations = pgTable('annotations', {
   selectedText: text('selected_text').notNull(),
   positionStart: integer('position_start'),
   positionEnd: integer('position_end'),
+  createdAt: timestamp('created_at').defaultNow(),
+})
+
+export const childDiary = pgTable('child_diary', {
+  id: serial('id').primaryKey(),
+  content: text('content').notNull(),
   createdAt: timestamp('created_at').defaultNow(),
 })
 
@@ -92,6 +109,7 @@ export const runSnapshots = pgTable('run_snapshots', {
   psychologistTextOutput: jsonb('psychologist_text_output'),
   writerCriticOutput: jsonb('writer_critic_output'),
   createdAt: timestamp('created_at').defaultNow(),
+  sashaContext: text('sasha_context'),
 })
 
 export const planQuestions = pgTable('plan_questions', {

@@ -34,6 +34,7 @@ export interface PlanPhaseResult {
   plotCriticOutput: CriticOutput
   models: PipelineModels
   promptVersions: PipelinePromptVersions
+  sashaContext: string | null
 }
 
 export interface TextPhaseResult {
@@ -53,12 +54,16 @@ export async function runPlanPhase(options: {
   models: PipelineModels
   promptVersions: PipelinePromptVersions
   universeSystemPrompt?: string
+  sashaContext?: string | null
   cwd?: string
 }): Promise<PlanPhaseResult> {
   const { seed, models } = options
   const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
   const universeArg = options.universeSystemPrompt !== undefined
     ? { universeSystemPrompt: options.universeSystemPrompt }
+    : {}
+  const sashaContextArg = options.sashaContext !== undefined && options.sashaContext !== null
+    ? { sashaContext: options.sashaContext }
     : {}
 
   const plotterPrompt = await resolvePrompt('plotter', PLOTTER_SYSTEM_PROMPT_DEFAULT, options.promptVersions.plotter)
@@ -74,6 +79,7 @@ export async function runPlanPhase(options: {
     resolvedPrompt: plotterPrompt,
     ...cwdArg,
     ...universeArg,
+    ...sashaContextArg,
   })
 
   let currentPlan = planV1
@@ -97,6 +103,7 @@ export async function runPlanPhase(options: {
         model: models.psychologist,
         ...cwdArg,
         ...universeArg,
+        ...sashaContextArg,
       })
 
       psychologistPlanOutput = psych
@@ -108,6 +115,7 @@ export async function runPlanPhase(options: {
         model: models.plotCritic,
         ...cwdArg,
         ...universeArg,
+        ...sashaContextArg,
       })
     } else {
       if (psychologistPlanOutput === undefined) {
@@ -121,6 +129,7 @@ export async function runPlanPhase(options: {
         model: models.plotCritic,
         ...cwdArg,
         ...universeArg,
+        ...sashaContextArg,
       })
     }
 
@@ -137,6 +146,7 @@ export async function runPlanPhase(options: {
         resolvedPrompt: plotterPrompt,
         ...cwdArg,
         ...universeArg,
+        ...sashaContextArg,
       })
     }
   }
@@ -153,6 +163,7 @@ export async function runPlanPhase(options: {
     plotCriticOutput,
     models,
     promptVersions: resolvedVersions,
+    sashaContext: options.sashaContext ?? null,
   }
 }
 
@@ -163,12 +174,16 @@ export async function runTextPhase(options: {
   models: PipelineModels
   promptVersions: PipelinePromptVersions
   universeSystemPrompt?: string
+  sashaContext?: string | null
   cwd?: string
 }): Promise<TextPhaseResult> {
   const { seed, planFinal, models } = options
   const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
   const universeArg = options.universeSystemPrompt !== undefined
     ? { universeSystemPrompt: options.universeSystemPrompt }
+    : {}
+  const sashaContextArg = options.sashaContext !== undefined && options.sashaContext !== null
+    ? { sashaContext: options.sashaContext }
     : {}
 
   const writerPrompt: ResolvedPrompt = await resolvePrompt(
@@ -188,6 +203,7 @@ export async function runTextPhase(options: {
     resolvedPrompt: writerPrompt,
     ...cwdArg,
     ...universeArg,
+    ...sashaContextArg,
   })
 
   const psychologistTextOutput = await runPsychologist({
@@ -198,6 +214,7 @@ export async function runTextPhase(options: {
     model: models.psychologist,
     ...cwdArg,
     ...universeArg,
+    ...sashaContextArg,
   })
 
   const writerCriticOutput = await runWriterCritic({
@@ -207,6 +224,7 @@ export async function runTextPhase(options: {
     model: models.writerCritic,
     ...cwdArg,
     ...universeArg,
+    ...sashaContextArg,
   })
 
   const textV2 = await runWriter({
@@ -216,6 +234,7 @@ export async function runTextPhase(options: {
     resolvedPrompt: writerPrompt,
     ...cwdArg,
     ...universeArg,
+    ...sashaContextArg,
   })
 
   return {
@@ -233,6 +252,7 @@ export async function runQuestionsPhase(options: {
   storyId: number
   models: PipelineModels
   universeSystemPrompt?: string
+  sashaContext?: string | null
   cwd?: string
 }): Promise<string[]> {
   const { seed, models } = options
@@ -240,12 +260,16 @@ export async function runQuestionsPhase(options: {
   const universeArg = options.universeSystemPrompt !== undefined
     ? { universeSystemPrompt: options.universeSystemPrompt }
     : {}
+  const sashaContextArg = options.sashaContext !== undefined && options.sashaContext !== null
+    ? { sashaContext: options.sashaContext }
+    : {}
 
   return runPlotterQuestions({
     seed,
     model: models.plotter,
     ...cwdArg,
     ...universeArg,
+    ...sashaContextArg,
   })
 }
 
@@ -255,6 +279,7 @@ export async function runPipeline(options: {
   models: PipelineModels
   promptVersions: PipelinePromptVersions
   universeSystemPrompt?: string
+  sashaContext?: string | null
   cwd?: string
 }): Promise<PipelineResult> {
   const planPhase = await runPlanPhase(options)
@@ -266,6 +291,7 @@ export async function runPipeline(options: {
     models: options.models,
     promptVersions: options.promptVersions,
     ...(options.universeSystemPrompt !== undefined ? { universeSystemPrompt: options.universeSystemPrompt } : {}),
+    ...(options.sashaContext !== undefined ? { sashaContext: options.sashaContext } : {}),
     ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
   })
 

@@ -32,10 +32,7 @@ export interface PsychologistOutput {
   recommended_changes: string[];
 }
 
-export interface FeedbackValues {
-  rating: number
-  comment: string
-}
+export type { FeedbackValues } from './feedback-form'
 
 export interface PipelineStep {
   agentName: AgentName;
