@@ -3,63 +3,35 @@ import { eq, desc } from 'drizzle-orm'
 import { z } from 'zod'
 import { validate } from '../middleware/validate'
 import {
-  runPlanPhase,
+  runQuestionsPhase,
   runTextPhase,
   type PipelineModels,
   type PipelinePromptVersions,
-  type PlanPhaseResult,
   type TextPhaseResult,
 } from '@bedtime/core/pipeline/orchestrator'
 import { db } from '@bedtime/core/db/client'
-import { runSnapshots, stories, storyGroups } from '@bedtime/core/db/schema'
+import { runSnapshots, stories, storyGroups, planQuestions } from '@bedtime/core/db/schema'
 import {
   toPublicStatus,
   type PipelineInternalStatus,
   type PublicPipelineStatus,
 } from './pipeline-status'
 import {
-  buildPlanSnapshotInsert,
   buildTextSnapshotUpdate,
-  buildPlanStoriesUpdate,
   buildTextStoriesUpdate,
 } from './pipeline-persistence'
+import { getPipelineStatus, setPipelineStatus } from './pipeline-state'
+import { defaultModels, defaultPromptVersions } from './pipeline-defaults'
+import pipelineQuestionsRouter from './pipeline-questions'
 
 export { toPublicStatus, type PipelineInternalStatus, type PublicPipelineStatus }
+export { getPipelineStatus, setPipelineStatus }
+export { defaultModels, defaultPromptVersions }
+export type { PipelineModels, PipelinePromptVersions }
 
 const router = Router()
 
-const pipelineStatusMap = new Map<number, PipelineInternalStatus>()
-
-export function getPipelineStatus(storyId: number): PipelineInternalStatus | undefined {
-  return pipelineStatusMap.get(storyId)
-}
-
-export function setPipelineStatus(storyId: number, status: PipelineInternalStatus): void {
-  pipelineStatusMap.set(storyId, status)
-}
-
-export const defaultModels: PipelineModels = {
-  plotter: 'claude-sonnet-4-6',
-  psychologist: 'claude-sonnet-4-6',
-  plotCritic: 'claude-haiku-4-5-20251001',
-  writer: 'claude-sonnet-4-6',
-  writerCritic: 'claude-haiku-4-5-20251001',
-}
-
-export const defaultPromptVersions: PipelinePromptVersions = {
-  plotter: 1,
-  psychologistPlan: 1,
-  psychologistText: 1,
-  plotCritic: 1,
-  writer: 1,
-  writerCritic: 1,
-}
-
-async function persistPlanPhase(storyId: number, plan: PlanPhaseResult): Promise<void> {
-  await db.insert(runSnapshots).values(buildPlanSnapshotInsert(storyId, plan))
-
-  await db.update(stories).set(buildPlanStoriesUpdate(plan)).where(eq(stories.id, storyId))
-}
+router.use('/', pipelineQuestionsRouter)
 
 async function persistTextPhase(storyId: number, text: TextPhaseResult): Promise<void> {
   const [existing] = await db
@@ -77,31 +49,6 @@ async function persistTextPhase(storyId: number, text: TextPhaseResult): Promise
   }
 
   await db.update(stories).set(buildTextStoriesUpdate(text)).where(eq(stories.id, storyId))
-}
-
-export function triggerPlanPhase(storyId: number, seed: string, universeSystemPrompt?: string): void {
-  setPipelineStatus(storyId, 'plan_running')
-
-  runPlanPhase({
-    seed,
-    storyId,
-    models: defaultModels,
-    promptVersions: defaultPromptVersions,
-    ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
-  })
-    .then(async (plan) => {
-      try {
-        await persistPlanPhase(storyId, plan)
-        setPipelineStatus(storyId, 'plan_ready')
-      } catch (dbError) {
-        console.error(`Failed to persist plan phase for storyId=${storyId}:`, dbError)
-        setPipelineStatus(storyId, 'plan_failed')
-      }
-    })
-    .catch((planError) => {
-      setPipelineStatus(storyId, 'plan_failed')
-      console.error(`Plan phase failed for storyId=${storyId}:`, planError)
-    })
 }
 
 export function triggerTextPhase(storyId: number, seed: string, planFinal: string, universeSystemPrompt?: string): void {
@@ -155,7 +102,12 @@ router.post('/run', validate(runPipelineSchema), async (req, res) => {
 
     const current = getPipelineStatus(storyId)
 
-    if (current !== undefined && current !== 'plan_failed' && current !== 'text_failed') {
+    if (
+      current !== undefined &&
+      current !== 'plan_failed' &&
+      current !== 'text_failed' &&
+      current !== 'questions_pending'
+    ) {
       res.status(409).json({
         error: 'Pipeline already in progress or completed for this story',
         currentStatus: current,
@@ -173,9 +125,22 @@ router.post('/run', validate(runPipelineSchema), async (req, res) => {
       }
     }
 
-    triggerPlanPhase(storyId, seed, universeSystemPrompt)
+    const questions = await runQuestionsPhase({
+      seed,
+      storyId,
+      models: defaultModels,
+      ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
+    })
 
-    res.json({ started: true, storyId, phase: 'plan' })
+    await db.delete(planQuestions).where(eq(planQuestions.storyId, storyId))
+
+    await db.insert(planQuestions).values(
+      questions.map((q) => ({ storyId, questionText: q })),
+    )
+
+    setPipelineStatus(storyId, 'questions_pending')
+
+    res.json({ started: true, storyId, phase: 'questions' })
   } catch (err) {
     console.error('POST /pipeline/run failed:', err)
     res.status(500).json({ error: 'Failed to start pipeline' })
@@ -195,6 +160,19 @@ async function inferStatusFromDb(storyId: number): Promise<PipelineInternalStatu
 
   if (row.planFinal !== null && row.planFinal !== undefined) {
     return 'plan_ready'
+  }
+
+  const unanswered = await db
+    .select()
+    .from(planQuestions)
+    .where(eq(planQuestions.storyId, storyId))
+
+  const hasUnanswered = unanswered.some(
+    (q) => q.answerText === null || q.answerText === undefined,
+  )
+
+  if (unanswered.length > 0 && hasUnanswered) {
+    return 'questions_pending'
   }
 
   return undefined

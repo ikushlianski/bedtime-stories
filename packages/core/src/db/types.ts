@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { annotations, feedback, prompts, runSnapshots, stories, storyGroups } from './schema.js'
+import { annotations, feedback, planConversations, planQuestions, prompts, runSnapshots, stories, storyGroups } from './schema.js'
 
 export type StoryGroup = typeof storyGroups.$inferSelect
 export type NewStoryGroup = typeof storyGroups.$inferInsert
@@ -171,6 +171,42 @@ export const newRunSnapshotSchema = z.object({
   textV2: z.string().optional(),
   psychologistTextOutput: z.unknown().optional(),
   writerCriticOutput: z.unknown().optional(),
+})
+
+export type PlanQuestion = typeof planQuestions.$inferSelect
+export type NewPlanQuestion = typeof planQuestions.$inferInsert
+
+export type PlanConversation = typeof planConversations.$inferSelect
+export type NewPlanConversation = typeof planConversations.$inferInsert
+
+export const planQuestionSchema = z.object({
+  id: z.number().int(),
+  storyId: z.number().int().nullable(),
+  questionText: z.string(),
+  answerText: z.string().nullable(),
+  createdAt: z.date().nullable(),
+  answeredAt: z.date().nullable(),
+})
+
+export const newPlanQuestionSchema = z.object({
+  storyId: z.number().int().optional(),
+  questionText: z.string(),
+  answerText: z.string().optional(),
+  answeredAt: z.date().optional(),
+})
+
+export const planConversationSchema = z.object({
+  id: z.number().int(),
+  storyId: z.number().int().nullable(),
+  role: z.enum(['user', 'assistant']),
+  content: z.string(),
+  createdAt: z.date().nullable(),
+})
+
+export const newPlanConversationSchema = z.object({
+  storyId: z.number().int().optional(),
+  role: z.enum(['user', 'assistant']),
+  content: z.string(),
 })
 
 export const annotationSchema = z.object({

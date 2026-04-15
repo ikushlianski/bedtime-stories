@@ -3,6 +3,7 @@ import { runPsychologist } from './stages/psychologist'
 import { runPlotCritic } from './stages/plot-critic'
 import { runWriter, WRITER_SYSTEM_PROMPT_DEFAULT } from './stages/writer'
 import { runWriterCritic } from './stages/writer-critic'
+import { runPlotterQuestions } from './stages/plotter-questions'
 import { resolvePrompt, type ResolvedPrompt } from './prompt-resolver'
 import type { PsychologistOutput, CriticOutput } from './schemas'
 
@@ -225,6 +226,27 @@ export async function runTextPhase(options: {
     models,
     promptVersions: resolvedVersions,
   }
+}
+
+export async function runQuestionsPhase(options: {
+  seed: string
+  storyId: number
+  models: PipelineModels
+  universeSystemPrompt?: string
+  cwd?: string
+}): Promise<string[]> {
+  const { seed, models } = options
+  const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
+  const universeArg = options.universeSystemPrompt !== undefined
+    ? { universeSystemPrompt: options.universeSystemPrompt }
+    : {}
+
+  return runPlotterQuestions({
+    seed,
+    model: models.plotter,
+    ...cwdArg,
+    ...universeArg,
+  })
 }
 
 export async function runPipeline(options: {

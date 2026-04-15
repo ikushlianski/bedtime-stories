@@ -142,6 +142,22 @@ export interface Annotation {
   createdAt: string
 }
 
+export interface PlanQuestion {
+  id: number
+  questionText: string
+  answerText: string | null
+  createdAt: string
+  answeredAt: string | null
+}
+
+export interface ConversationMessage {
+  id: number
+  storyId: number
+  role: 'user' | 'assistant'
+  content: string
+  createdAt: string
+}
+
 export type CreateStoryInput =
   | { seed: string; groupId?: number }
   | { title?: string; textFinal: string; groupId?: number }
@@ -154,6 +170,7 @@ export interface CreateAnnotationInput {
 }
 
 export type PipelineStatusValue =
+  | 'questions_pending'
   | 'plan_running'
   | 'plan_ready'
   | 'text_running'
@@ -232,7 +249,7 @@ export const api = {
 
   pipeline: {
     run: (storyId: number, seed: string) =>
-      request<{ started: boolean; storyId: number; phase: 'plan' }>('/api/pipeline/run', {
+      request<{ started: boolean; storyId: number; phase: 'plan' | 'questions' }>('/api/pipeline/run', {
         method: 'POST',
         body: JSON.stringify({ storyId, seed }),
       }),
@@ -240,6 +257,22 @@ export const api = {
     status: (storyId: number) => request<PipelineStatus>(`/api/pipeline/status/${storyId}`),
 
     snapshot: (storyId: number) => request<RunSnapshot>(`/api/pipeline/snapshot/${storyId}`),
+
+    questions: (storyId: number) => request<PlanQuestion[]>(`/api/pipeline/questions/${storyId}`),
+
+    submitAnswers: (storyId: number, answers: Array<{ id: number; answer: string }>) =>
+      request<{ ok: boolean }>(`/api/pipeline/questions/${storyId}/submit`, {
+        method: 'POST',
+        body: JSON.stringify({ answers }),
+      }),
+
+    conversations: (storyId: number) => request<ConversationMessage[]>(`/api/pipeline/conversations/${storyId}`),
+
+    sendConversationMessage: (storyId: number, message: string) =>
+      request<{ userMessage: ConversationMessage; assistantMessage: ConversationMessage }>(
+        `/api/pipeline/conversations/${storyId}`,
+        { method: 'POST', body: JSON.stringify({ message }) },
+      ),
   },
 
   universes: {

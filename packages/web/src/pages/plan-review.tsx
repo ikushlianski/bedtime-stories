@@ -4,6 +4,7 @@ import { api, type Story, type RunSnapshot } from '../lib/api'
 import { PageHeader, PlanReviewCard, StatusCallout } from '../components'
 import DiffViewer from '../components/diff-viewer'
 import { deriveReviewSnapshotState } from './review-snapshot-state'
+import { PlanConversationPanel } from './plan-conversation-panel'
 
 function usePlanReviewStory(id: number) {
   const [story, setStory] = useState<Story | null>(null)
@@ -148,13 +149,17 @@ export function PlanReviewPage() {
       )}
 
       {snapshotState.kind === 'ready' ? (
-        <PlanReviewCard
-          planV1={story.plan_v1 ?? ''}
-          planFinal={story.plan_final ?? ''}
-          iterationsCount={story.plan_iterations ?? 0}
-          psychologistOutput={snapshotState.psychOutput}
-          onApprove={approveHandler}
-        />
+        <div className="space-y-6">
+          <PlanReviewCard
+            planV1={story.plan_v1 ?? ''}
+            planFinal={story.plan_final ?? ''}
+            iterationsCount={story.plan_iterations ?? 0}
+            psychologistOutput={snapshotState.psychOutput}
+            onApprove={approveHandler}
+          />
+
+          <PlanConversationPanel storyId={storyId} />
+        </div>
       ) : (
         <div className="space-y-4">
           <StatusCallout
@@ -189,6 +194,8 @@ export function PlanReviewPage() {
               />
             </div>
           </section>
+
+          <PlanConversationPanel storyId={storyId} />
         </div>
       )}
     </div>

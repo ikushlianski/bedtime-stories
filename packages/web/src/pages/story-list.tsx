@@ -46,6 +46,8 @@ export function StoryListPage() {
 
     if ('seed' in input) {
       await api.pipeline.run(created.id, input.seed)
+      navigate(`/stories/${created.id}/questions`)
+      return
     }
 
     navigate(`/stories/${created.id}/pipeline`)

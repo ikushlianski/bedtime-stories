@@ -4,6 +4,7 @@ import { StoryReaderPage } from './pages/story-reader'
 import { PlanReviewPage } from './pages/plan-review'
 import { TextReviewPage } from './pages/text-review'
 import { PipelineStatusPage } from './pages/pipeline-status'
+import { PlanQuestionsPage } from './pages/plan-questions'
 import { DashboardPage } from './pages/dashboard'
 import { IdeasPage } from './pages/ideas'
 import { InboxPage } from './pages/inbox'
@@ -55,6 +56,7 @@ function App() {
             <Route path="/stories/:id/plan-review" element={<PlanReviewPage />} />
             <Route path="/stories/:id/text-review" element={<TextReviewPage />} />
             <Route path="/stories/:id/pipeline" element={<PipelineStatusPage />} />
+            <Route path="/stories/:id/questions" element={<PlanQuestionsPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/ideas" element={<IdeasPage />} />
             <Route path="/inbox" element={<InboxPage />} />

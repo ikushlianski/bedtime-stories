@@ -44,6 +44,8 @@ function isActivePolling(status: PipelineStatusValue): boolean {
 
 function describeStatus(status: PipelineStatusValue): string {
   switch (status) {
+    case 'questions_pending':
+      return 'Waiting for answers to clarifying questions.'
     case 'plan_running':
       return 'Plan phase is running.'
     case 'plan_ready':

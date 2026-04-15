@@ -93,3 +93,20 @@ export const runSnapshots = pgTable('run_snapshots', {
   writerCriticOutput: jsonb('writer_critic_output'),
   createdAt: timestamp('created_at').defaultNow(),
 })
+
+export const planQuestions = pgTable('plan_questions', {
+  id: serial('id').primaryKey(),
+  storyId: integer('story_id').references(() => stories.id),
+  questionText: text('question_text').notNull(),
+  answerText: text('answer_text'),
+  createdAt: timestamp('created_at').defaultNow(),
+  answeredAt: timestamp('answered_at'),
+})
+
+export const planConversations = pgTable('plan_conversations', {
+  id: serial('id').primaryKey(),
+  storyId: integer('story_id').references(() => stories.id),
+  role: text('role').$type<'user' | 'assistant'>().notNull(),
+  content: text('content').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+})
