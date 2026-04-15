@@ -17,7 +17,9 @@
   "author": "",
   "license": "ISC",
   "type": "module",
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*"
+  ],
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.89",
     "@mastra/core": "^1.17.0",
@@ -25,6 +27,7 @@
     "@mastra/memory": "^1.10.0",
     "@mastra/pg": "^1.8.3",
     "@neondatabase/serverless": "^1.0.2",
+    "ai-sdk-provider-claude-code": "^3.4.4",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "drizzle-orm": "^0.45.2",

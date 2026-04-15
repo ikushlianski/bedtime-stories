@@ -19,7 +19,7 @@ app.use('/api/pipeline', pipelineRouter)
 app.use('/api/dashboard', dashboardRouter)
 app.use('/api/improver', improverRouter)
 
-const PORT = process.env['PORT'] ?? 3001
+const PORT = process.env['PORT'] ?? 8020
 
 export function startServer(): void {
   app.listen(PORT, () => {

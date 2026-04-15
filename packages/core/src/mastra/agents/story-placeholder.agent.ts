@@ -1,6 +1,7 @@
 import { Agent } from '@mastra/core/agent'
 import { Memory } from '@mastra/memory'
 import { PostgresStore, PgVector } from '@mastra/pg'
+import { claudeCliModel } from '../../ai/mastra-models'
 import { env } from '../../env'
 
 const memory = new Memory({
@@ -28,6 +29,6 @@ export const storyPlaceholderAgent = new Agent({
   id: 'story-placeholder',
   name: 'Story Placeholder',
   instructions: 'Placeholder agent for the bedtime story pipeline.',
-  model: 'anthropic/claude-sonnet-4-5',
+  model: claudeCliModel('sonnet'),
   memory,
 })
