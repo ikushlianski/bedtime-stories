@@ -7,6 +7,7 @@ import { PipelineStatusPage } from './pages/pipeline-status'
 import { DashboardPage } from './pages/dashboard'
 import { IdeasPage } from './pages/ideas'
 import { InboxPage } from './pages/inbox'
+import { UniversesPage } from './pages/universes'
 
 function Nav() {
   return (
@@ -32,6 +33,9 @@ function Nav() {
           <Link to="/dashboard" className="btn btn-ghost join-item btn-sm sm:btn-md">
             Dashboard
           </Link>
+          <Link to="/universes" className="btn btn-ghost join-item btn-sm sm:btn-md">
+            Universes
+          </Link>
         </div>
       </div>
     </nav>
@@ -54,6 +58,7 @@ function App() {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/ideas" element={<IdeasPage />} />
             <Route path="/inbox" element={<InboxPage />} />
+            <Route path="/universes" element={<UniversesPage />} />
           </Routes>
         </main>
       </div>

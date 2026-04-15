@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { eq, desc } from 'drizzle-orm'
 import { db } from '@bedtime/core/db/client'
-import { stories, annotations, feedback, runSnapshots } from '@bedtime/core/db/schema'
+import { stories, annotations, feedback, runSnapshots, storyGroups } from '@bedtime/core/db/schema'
 import type { Story, NewStory, NewAnnotation } from '@bedtime/core/db/types'
 import { validate } from '../middleware/validate'
 import { triggerTextPhase, getPipelineStatus } from './pipeline'
@@ -41,6 +41,7 @@ function toSnakeCase(row: Story) {
     is_legacy: row.isLegacy,
     discussion_questions: row.discussionQuestions,
     seed: row.seed,
+    group_id: row.groupId,
   }
 }
 
@@ -74,6 +75,7 @@ router.post('/', validate(createStorySchema), async (req, res) => {
         textFinal: resolved.textFinal,
         status: 'ready',
         source: 'user',
+        ...(resolved.groupId !== undefined ? { groupId: resolved.groupId } : {}),
       }
       const [created] = await db.insert(stories).values(userStory).returning()
 
@@ -86,6 +88,7 @@ router.post('/', validate(createStorySchema), async (req, res) => {
       title: resolved.title,
       status: 'draft',
       source: 'agent',
+      ...(resolved.groupId !== undefined ? { groupId: resolved.groupId } : {}),
     }
     const [story] = await db.insert(stories).values(newStory).returning()
 
@@ -213,7 +216,17 @@ router.post('/:id/approve-plan', validate(approvePlanSchema), async (req, res) =
     }
 
     if (decision.action === 'start_text_phase') {
-      triggerTextPhase(storyId, decision.seed, decision.planFinal)
+      let universeSystemPrompt: string | undefined
+
+      if (existing.groupId !== null && existing.groupId !== undefined) {
+        const [group] = await db.select().from(storyGroups).where(eq(storyGroups.id, existing.groupId))
+
+        if (group) {
+          universeSystemPrompt = group.systemPrompt
+        }
+      }
+
+      triggerTextPhase(storyId, decision.seed, decision.planFinal, universeSystemPrompt)
     }
 
     res.json(toSnakeCase(existing as Story))

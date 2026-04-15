@@ -7,6 +7,7 @@ export async function runPsychologist(options: {
   seed: string
   iterationNumber: number
   model: string
+  universeSystemPrompt?: string
   cwd?: string
 }): Promise<PsychologistOutput> {
   const { content, contentType, seed, iterationNumber, model } = options
@@ -14,12 +15,18 @@ export async function runPsychologist(options: {
 
   const label = contentType === 'plan' ? 'Story plan (from plotter)' : 'Written story text (from writer)'
 
-  const prompt = [
+  const parts = [
     `Content type: ${contentType}`,
     `${label}:\n${content}`,
     `Seed (original situation from Sasha's life):\n${seed}`,
     `Iteration number: ${iterationNumber}`,
-  ].join('\n\n')
+  ]
+
+  const basePrompt = parts.join('\n\n')
+
+  const prompt = options.universeSystemPrompt
+    ? `${options.universeSystemPrompt}\n\n---\n\n${basePrompt}`
+    : basePrompt
 
   return claudeCliRunner.runStructured({
     skill: 'psychologist',

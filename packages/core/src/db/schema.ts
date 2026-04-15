@@ -1,5 +1,14 @@
 import { boolean, integer, jsonb, pgTable, serial, text, timestamp } from 'drizzle-orm/pg-core'
 
+export const storyGroups = pgTable('story_groups', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  description: text('description').notNull().default(''),
+  systemPrompt: text('system_prompt').notNull(),
+  agentOverrides: jsonb('agent_overrides').default({}),
+  createdAt: timestamp('created_at').defaultNow(),
+})
+
 export const stories = pgTable('stories', {
   id: serial('id').primaryKey(),
   title: text('title').notNull().default(''),
@@ -24,6 +33,7 @@ export const stories = pgTable('stories', {
   isLegacy: boolean('is_legacy').default(false),
   discussionQuestions: jsonb('discussion_questions').default([]),
   seed: text('seed'),
+  groupId: integer('group_id').references(() => storyGroups.id),
 })
 
 export const feedback = pgTable('feedback', {

@@ -1,5 +1,8 @@
 import { z } from 'zod'
-import { annotations, feedback, prompts, runSnapshots, stories } from './schema.js'
+import { annotations, feedback, prompts, runSnapshots, stories, storyGroups } from './schema.js'
+
+export type StoryGroup = typeof storyGroups.$inferSelect
+export type NewStoryGroup = typeof storyGroups.$inferInsert
 
 export type Story = typeof stories.$inferSelect
 export type NewStory = typeof stories.$inferInsert
@@ -15,6 +18,22 @@ export type NewRunSnapshot = typeof runSnapshots.$inferInsert
 
 export type Annotation = typeof annotations.$inferSelect
 export type NewAnnotation = typeof annotations.$inferInsert
+
+export const storyGroupSchema = z.object({
+  id: z.number().int(),
+  name: z.string(),
+  description: z.string(),
+  systemPrompt: z.string(),
+  agentOverrides: z.record(z.string(), z.string()).nullable(),
+  createdAt: z.date().nullable(),
+})
+
+export const newStoryGroupSchema = z.object({
+  name: z.string().min(1),
+  description: z.string().optional(),
+  systemPrompt: z.string().min(1),
+  agentOverrides: z.record(z.string(), z.string()).optional(),
+})
 
 export const storySchema = z.object({
   id: z.number().int(),
@@ -40,6 +59,7 @@ export const storySchema = z.object({
   isLegacy: z.boolean().nullable(),
   discussionQuestions: z.unknown().nullable(),
   seed: z.string().nullable(),
+  groupId: z.number().int().nullable(),
 })
 
 export const newStorySchema = z.object({
@@ -64,6 +84,7 @@ export const newStorySchema = z.object({
   isLegacy: z.boolean().optional(),
   discussionQuestions: z.unknown().optional(),
   seed: z.string().optional(),
+  groupId: z.number().int().optional(),
 })
 
 export const feedbackSchema = z.object({

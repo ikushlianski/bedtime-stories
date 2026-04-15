@@ -22,6 +22,7 @@ export async function runPlotter(options: {
   criticNotes?: CriticOutput
   model: string
   resolvedPrompt?: ResolvedPrompt
+  universeSystemPrompt?: string
   cwd?: string
 }): Promise<string> {
   const { seed, previousPlan, criticNotes, model } = options
@@ -29,8 +30,12 @@ export async function runPlotter(options: {
 
   const resolved = options.resolvedPrompt ?? (await resolvePrompt('plotter', PLOTTER_SYSTEM_PROMPT_DEFAULT))
 
+  const basePrompt = options.universeSystemPrompt
+    ? `${options.universeSystemPrompt}\n\n---\n\n${resolved.text}`
+    : resolved.text
+
   const parts: string[] = [
-    resolved.text,
+    basePrompt,
     '',
     `SEED (real-life situation to base the story on):\n${seed}`,
   ]

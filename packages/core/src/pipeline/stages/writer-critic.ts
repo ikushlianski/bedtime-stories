@@ -6,16 +6,21 @@ export async function runWriterCritic(options: {
   psychologistOutput: PsychologistOutput
   finalPlan: string
   model: string
+  universeSystemPrompt?: string
   cwd?: string
 }): Promise<CriticOutput> {
   const { textV1, psychologistOutput, finalPlan, model } = options
   const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
 
-  const prompt = [
+  const basePrompt = [
     `Story text v1:\n${textV1}`,
     `Psychologist assessment of this text:\n${JSON.stringify(psychologistOutput, null, 2)}`,
     `Final approved plan (for checking story matches plan):\n${finalPlan}`,
   ].join('\n\n')
+
+  const prompt = options.universeSystemPrompt
+    ? `${options.universeSystemPrompt}\n\n---\n\n${basePrompt}`
+    : basePrompt
 
   return claudeCliRunner.runStructured({
     skill: 'writer-critic',

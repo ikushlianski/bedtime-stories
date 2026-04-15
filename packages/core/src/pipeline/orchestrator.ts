@@ -51,10 +51,14 @@ export async function runPlanPhase(options: {
   storyId: number
   models: PipelineModels
   promptVersions: PipelinePromptVersions
+  universeSystemPrompt?: string
   cwd?: string
 }): Promise<PlanPhaseResult> {
   const { seed, models } = options
   const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
+  const universeArg = options.universeSystemPrompt !== undefined
+    ? { universeSystemPrompt: options.universeSystemPrompt }
+    : {}
 
   const plotterPrompt = await resolvePrompt('plotter', PLOTTER_SYSTEM_PROMPT_DEFAULT, options.promptVersions.plotter)
 
@@ -68,6 +72,7 @@ export async function runPlanPhase(options: {
     model: models.plotter,
     resolvedPrompt: plotterPrompt,
     ...cwdArg,
+    ...universeArg,
   })
 
   let currentPlan = planV1
@@ -90,6 +95,7 @@ export async function runPlanPhase(options: {
         iterationNumber,
         model: models.psychologist,
         ...cwdArg,
+        ...universeArg,
       })
 
       psychologistPlanOutput = psych
@@ -100,6 +106,7 @@ export async function runPlanPhase(options: {
         iterationNumber,
         model: models.plotCritic,
         ...cwdArg,
+        ...universeArg,
       })
     } else {
       if (psychologistPlanOutput === undefined) {
@@ -112,6 +119,7 @@ export async function runPlanPhase(options: {
         iterationNumber,
         model: models.plotCritic,
         ...cwdArg,
+        ...universeArg,
       })
     }
 
@@ -127,6 +135,7 @@ export async function runPlanPhase(options: {
         model: models.plotter,
         resolvedPrompt: plotterPrompt,
         ...cwdArg,
+        ...universeArg,
       })
     }
   }
@@ -152,10 +161,14 @@ export async function runTextPhase(options: {
   storyId: number
   models: PipelineModels
   promptVersions: PipelinePromptVersions
+  universeSystemPrompt?: string
   cwd?: string
 }): Promise<TextPhaseResult> {
   const { seed, planFinal, models } = options
   const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
+  const universeArg = options.universeSystemPrompt !== undefined
+    ? { universeSystemPrompt: options.universeSystemPrompt }
+    : {}
 
   const writerPrompt: ResolvedPrompt = await resolvePrompt(
     'writer',
@@ -173,6 +186,7 @@ export async function runTextPhase(options: {
     model: models.writer,
     resolvedPrompt: writerPrompt,
     ...cwdArg,
+    ...universeArg,
   })
 
   const psychologistTextOutput = await runPsychologist({
@@ -182,6 +196,7 @@ export async function runTextPhase(options: {
     iterationNumber: 1,
     model: models.psychologist,
     ...cwdArg,
+    ...universeArg,
   })
 
   const writerCriticOutput = await runWriterCritic({
@@ -190,6 +205,7 @@ export async function runTextPhase(options: {
     finalPlan: planFinal,
     model: models.writerCritic,
     ...cwdArg,
+    ...universeArg,
   })
 
   const textV2 = await runWriter({
@@ -198,6 +214,7 @@ export async function runTextPhase(options: {
     model: models.writer,
     resolvedPrompt: writerPrompt,
     ...cwdArg,
+    ...universeArg,
   })
 
   return {
@@ -215,6 +232,7 @@ export async function runPipeline(options: {
   storyId: number
   models: PipelineModels
   promptVersions: PipelinePromptVersions
+  universeSystemPrompt?: string
   cwd?: string
 }): Promise<PipelineResult> {
   const planPhase = await runPlanPhase(options)
@@ -225,6 +243,7 @@ export async function runPipeline(options: {
     storyId: options.storyId,
     models: options.models,
     promptVersions: options.promptVersions,
+    ...(options.universeSystemPrompt !== undefined ? { universeSystemPrompt: options.universeSystemPrompt } : {}),
     ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
   })
 

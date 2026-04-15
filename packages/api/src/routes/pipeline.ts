@@ -11,7 +11,7 @@ import {
   type TextPhaseResult,
 } from '@bedtime/core/pipeline/orchestrator'
 import { db } from '@bedtime/core/db/client'
-import { runSnapshots, stories } from '@bedtime/core/db/schema'
+import { runSnapshots, stories, storyGroups } from '@bedtime/core/db/schema'
 import {
   toPublicStatus,
   type PipelineInternalStatus,
@@ -79,7 +79,7 @@ async function persistTextPhase(storyId: number, text: TextPhaseResult): Promise
   await db.update(stories).set(buildTextStoriesUpdate(text)).where(eq(stories.id, storyId))
 }
 
-export function triggerPlanPhase(storyId: number, seed: string): void {
+export function triggerPlanPhase(storyId: number, seed: string, universeSystemPrompt?: string): void {
   setPipelineStatus(storyId, 'plan_running')
 
   runPlanPhase({
@@ -87,6 +87,7 @@ export function triggerPlanPhase(storyId: number, seed: string): void {
     storyId,
     models: defaultModels,
     promptVersions: defaultPromptVersions,
+    ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
   })
     .then(async (plan) => {
       try {
@@ -103,7 +104,7 @@ export function triggerPlanPhase(storyId: number, seed: string): void {
     })
 }
 
-export function triggerTextPhase(storyId: number, seed: string, planFinal: string): void {
+export function triggerTextPhase(storyId: number, seed: string, planFinal: string, universeSystemPrompt?: string): void {
   setPipelineStatus(storyId, 'text_running')
 
   runTextPhase({
@@ -112,6 +113,7 @@ export function triggerTextPhase(storyId: number, seed: string, planFinal: strin
     storyId,
     models: defaultModels,
     promptVersions: defaultPromptVersions,
+    ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
   })
     .then(async (text) => {
       try {
@@ -161,7 +163,17 @@ router.post('/run', validate(runPipelineSchema), async (req, res) => {
       return
     }
 
-    triggerPlanPhase(storyId, seed)
+    let universeSystemPrompt: string | undefined
+
+    if (storyRow.groupId !== null && storyRow.groupId !== undefined) {
+      const [group] = await db.select().from(storyGroups).where(eq(storyGroups.id, storyRow.groupId))
+
+      if (group) {
+        universeSystemPrompt = group.systemPrompt
+      }
+    }
+
+    triggerPlanPhase(storyId, seed, universeSystemPrompt)
 
     res.json({ started: true, storyId, phase: 'plan' })
   } catch (err) {

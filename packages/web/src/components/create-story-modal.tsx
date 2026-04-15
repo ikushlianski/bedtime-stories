@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import type { CreateStoryInput } from '../lib/api'
+import { api, type CreateStoryInput, type StoryGroup } from '../lib/api'
 import {
   INITIAL_CREATE_STORY_FORM,
   validateCreateStoryForm,
@@ -21,11 +21,14 @@ function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '' }: CreateS
   })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [universes, setUniverses] = useState<StoryGroup[]>([])
 
   useEffect(() => {
     if (open) {
       setForm({ ...INITIAL_CREATE_STORY_FORM, seed: initialSeed })
       setError(null)
+
+      api.universes.list().then(setUniverses).catch(() => setUniverses([]))
     }
   }, [open, initialSeed])
 
@@ -81,6 +84,28 @@ function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '' }: CreateS
           >
             Paste existing story
           </button>
+        </div>
+
+        <div className="mt-4">
+          <label className="label">
+            <span className="label-text text-sm text-base-content/60">Universe (optional)</span>
+          </label>
+          <select
+            className="select select-bordered w-full bg-base-100"
+            value={form.groupId ?? ''}
+            onChange={(event) => {
+              const value = event.target.value
+
+              setForm((prev) => ({ ...prev, groupId: value === '' ? null : parseInt(value, 10) }))
+            }}
+          >
+            <option value="">No universe</option>
+            {universes.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name}
+              </option>
+            ))}
+          </select>
         </div>
 
         {form.mode === 'generate' && (

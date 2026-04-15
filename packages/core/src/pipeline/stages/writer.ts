@@ -21,6 +21,7 @@ export async function runWriter(options: {
   criticNotes?: CriticOutput
   model: string
   resolvedPrompt?: ResolvedPrompt
+  universeSystemPrompt?: string
   cwd?: string
 }): Promise<string> {
   const { plan, criticNotes, model } = options
@@ -28,8 +29,12 @@ export async function runWriter(options: {
 
   const resolved = options.resolvedPrompt ?? (await resolvePrompt('writer', WRITER_SYSTEM_PROMPT_DEFAULT))
 
+  const basePrompt = options.universeSystemPrompt
+    ? `${options.universeSystemPrompt}\n\n---\n\n${resolved.text}`
+    : resolved.text
+
   const parts: string[] = [
-    resolved.text,
+    basePrompt,
     '',
     `STORY PLAN:\n${plan}`,
   ]

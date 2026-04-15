@@ -1,0 +1,613 @@
+{
+  "id": "bb8aaa93-2481-47fe-9b9b-780d446c0693",
+  "prevId": "99bd93d1-1815-4753-a706-7125e649987c",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.annotations": {
+      "name": "annotations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "story_id": {
+          "name": "story_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "selected_text": {
+          "name": "selected_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position_start": {
+          "name": "position_start",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "position_end": {
+          "name": "position_end",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "annotations_story_id_stories_id_fk": {
+          "name": "annotations_story_id_stories_id_fk",
+          "tableFrom": "annotations",
+          "tableTo": "stories",
+          "columnsFrom": [
+            "story_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.feedback": {
+      "name": "feedback",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "story_id": {
+          "name": "story_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rating": {
+          "name": "rating",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "comment": {
+          "name": "comment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "feedback_type": {
+          "name": "feedback_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "feedback_story_id_stories_id_fk": {
+          "name": "feedback_story_id_stories_id_fk",
+          "tableFrom": "feedback",
+          "tableTo": "stories",
+          "columnsFrom": [
+            "story_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.prompts": {
+      "name": "prompts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "agent": {
+          "name": "agent",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "text": {
+          "name": "text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "change_reason": {
+          "name": "change_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_feedbacks": {
+          "name": "source_feedbacks",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'[]'::jsonb"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.run_snapshots": {
+      "name": "run_snapshots",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "story_id": {
+          "name": "story_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "plotter_model": {
+          "name": "plotter_model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "plotter_prompt_version": {
+          "name": "plotter_prompt_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "psychologist_plan_model": {
+          "name": "psychologist_plan_model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "psychologist_plan_prompt_version": {
+          "name": "psychologist_plan_prompt_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "plot_critic_model": {
+          "name": "plot_critic_model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "plot_critic_prompt_version": {
+          "name": "plot_critic_prompt_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "writer_model": {
+          "name": "writer_model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "writer_prompt_version": {
+          "name": "writer_prompt_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "psychologist_text_model": {
+          "name": "psychologist_text_model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "psychologist_text_prompt_version": {
+          "name": "psychologist_text_prompt_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "writer_critic_model": {
+          "name": "writer_critic_model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "writer_critic_prompt_version": {
+          "name": "writer_critic_prompt_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "plan_iterations_count": {
+          "name": "plan_iterations_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "plan_v1": {
+          "name": "plan_v1",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "plan_final": {
+          "name": "plan_final",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "psychologist_plan_output": {
+          "name": "psychologist_plan_output",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "plot_critic_output": {
+          "name": "plot_critic_output",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "text_v1": {
+          "name": "text_v1",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "text_v2": {
+          "name": "text_v2",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "psychologist_text_output": {
+          "name": "psychologist_text_output",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "writer_critic_output": {
+          "name": "writer_critic_output",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "run_snapshots_story_id_stories_id_fk": {
+          "name": "run_snapshots_story_id_stories_id_fk",
+          "tableFrom": "run_snapshots",
+          "tableTo": "stories",
+          "columnsFrom": [
+            "story_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.stories": {
+      "name": "stories",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "text_final": {
+          "name": "text_final",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "plan_v1": {
+          "name": "plan_v1",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "plan_final": {
+          "name": "plan_final",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "plan_iterations": {
+          "name": "plan_iterations",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 1
+        },
+        "text_v1": {
+          "name": "text_v1",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "text_v2": {
+          "name": "text_v2",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "plotter_model": {
+          "name": "plotter_model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "plotter_prompt_version": {
+          "name": "plotter_prompt_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "plot_critic_model": {
+          "name": "plot_critic_model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "plot_critic_prompt_version": {
+          "name": "plot_critic_prompt_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "writer_model": {
+          "name": "writer_model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "writer_prompt_version": {
+          "name": "writer_prompt_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "writer_critic_model": {
+          "name": "writer_critic_model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "writer_critic_prompt_version": {
+          "name": "writer_critic_prompt_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'draft'"
+        },
+        "tags": {
+          "name": "tags",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'[]'::jsonb"
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'agent'"
+        },
+        "is_legacy": {
+          "name": "is_legacy",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "discussion_questions": {
+          "name": "discussion_questions",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'[]'::jsonb"
+        },
+        "seed": {
+          "name": "seed",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "group_id": {
+          "name": "group_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "stories_group_id_story_groups_id_fk": {
+          "name": "stories_group_id_story_groups_id_fk",
+          "tableFrom": "stories",
+          "tableTo": "story_groups",
+          "columnsFrom": [
+            "group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.story_groups": {
+      "name": "story_groups",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "system_prompt": {
+          "name": "system_prompt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "agent_overrides": {
+          "name": "agent_overrides",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'{}'::jsonb"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

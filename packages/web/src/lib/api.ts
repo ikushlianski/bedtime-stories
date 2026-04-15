@@ -42,6 +42,15 @@ async function requestEmpty(path: string, init?: RequestInit): Promise<void> {
   }
 }
 
+export interface StoryGroup {
+  id: number
+  name: string
+  description: string
+  systemPrompt: string
+  agentOverrides: Record<string, string> | null
+  createdAt: string
+}
+
 export interface Story {
   id: number
   title: string
@@ -65,6 +74,7 @@ export interface Story {
   source: 'agent' | 'legacy' | 'user'
   is_legacy: boolean
   discussion_questions: string[] | null
+  group_id: number | null
 }
 
 export interface RunSnapshot {
@@ -133,8 +143,8 @@ export interface Annotation {
 }
 
 export type CreateStoryInput =
-  | { seed: string }
-  | { title?: string; textFinal: string }
+  | { seed: string; groupId?: number }
+  | { title?: string; textFinal: string; groupId?: number }
 
 export interface CreateAnnotationInput {
   type: AnnotationType
@@ -230,5 +240,38 @@ export const api = {
     status: (storyId: number) => request<PipelineStatus>(`/api/pipeline/status/${storyId}`),
 
     snapshot: (storyId: number) => request<RunSnapshot>(`/api/pipeline/snapshot/${storyId}`),
+  },
+
+  universes: {
+    list: () => request<StoryGroup[]>('/api/universes'),
+
+    get: (id: number) => request<StoryGroup>(`/api/universes/${id}`),
+
+    create: (data: {
+      name: string
+      systemPrompt: string
+      description?: string
+      agentOverrides?: Record<string, string>
+    }) =>
+      request<StoryGroup>('/api/universes', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    update: (
+      id: number,
+      data: Partial<{
+        name: string
+        systemPrompt: string
+        description: string
+        agentOverrides: Record<string, string>
+      }>,
+    ) =>
+      request<StoryGroup>(`/api/universes/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+
+    delete: (id: number) => requestEmpty(`/api/universes/${id}`, { method: 'DELETE' }),
   },
 }

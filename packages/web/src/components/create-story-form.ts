@@ -7,6 +7,7 @@ export interface CreateStoryFormState {
   seed: string
   title: string
   textFinal: string
+  groupId: number | null
 }
 
 export const INITIAL_CREATE_STORY_FORM: CreateStoryFormState = {
@@ -14,6 +15,7 @@ export const INITIAL_CREATE_STORY_FORM: CreateStoryFormState = {
   seed: '',
   title: '',
   textFinal: '',
+  groupId: null,
 }
 
 export type CreateStoryFormValidation =
@@ -21,6 +23,8 @@ export type CreateStoryFormValidation =
   | { valid: false; reason: string }
 
 export function validateCreateStoryForm(state: CreateStoryFormState): CreateStoryFormValidation {
+  const groupId = state.groupId ?? undefined
+
   if (state.mode === 'generate') {
     const seed = state.seed.trim()
 
@@ -32,7 +36,7 @@ export function validateCreateStoryForm(state: CreateStoryFormState): CreateStor
       return { valid: false, reason: 'Seed is too long' }
     }
 
-    return { valid: true, input: { seed } }
+    return { valid: true, input: { seed, ...(groupId !== undefined ? { groupId } : {}) } }
   }
 
   const textFinal = state.textFinal.trim()
@@ -48,8 +52,8 @@ export function validateCreateStoryForm(state: CreateStoryFormState): CreateStor
   }
 
   if (title.length === 0) {
-    return { valid: true, input: { textFinal } }
+    return { valid: true, input: { textFinal, ...(groupId !== undefined ? { groupId } : {}) } }
   }
 
-  return { valid: true, input: { title, textFinal } }
+  return { valid: true, input: { title, textFinal, ...(groupId !== undefined ? { groupId } : {}) } }
 }
