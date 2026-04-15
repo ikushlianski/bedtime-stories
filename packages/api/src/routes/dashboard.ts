@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { eq, desc, asc, and } from 'drizzle-orm'
+import { eq, desc, asc } from 'drizzle-orm'
 import { db } from '@bedtime/core/db/client.js'
 import { stories, feedback, runSnapshots, annotations } from '@bedtime/core/db/schema.js'
 

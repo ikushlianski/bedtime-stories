@@ -242,6 +242,22 @@ export function StoryReaderPage() {
         </section>
       )}
 
+      {story.discussion_questions !== null && story.discussion_questions.length > 0 && (
+        <section className="mt-10">
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
+            Discussion questions
+          </h3>
+          <p className="mb-3 text-sm text-base-content/60">
+            Ask Sasha these after the story — capture any memorable answers as annotations above.
+          </p>
+          <ol className="list-decimal space-y-2 pl-6 text-base text-base-content">
+            {story.discussion_questions.map((question, i) => (
+              <li key={i}>{question}</li>
+            ))}
+          </ol>
+        </section>
+      )}
+
       <section className="mt-12">
         <PageHeader
           eyebrow="Feedback"
