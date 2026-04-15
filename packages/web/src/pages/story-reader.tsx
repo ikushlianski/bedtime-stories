@@ -9,6 +9,7 @@ import {
   appendAnnotation,
   countByType,
 } from './story-reader-annotations'
+import { findTextOffset } from './find-text-offset'
 
 interface SelectionState {
   text: string
@@ -192,7 +193,12 @@ export function StoryReaderPage() {
             <AnnotationToolbar
               selectedText={selection.text}
               onAnnotate={(type, text) => {
-                void handleAnnotate(type, text, selection.start, selection.end)
+                const storyText = story?.text_final ?? ''
+                const globalOffset = findTextOffset(storyText, text)
+                const start = globalOffset?.start ?? selection.start
+                const end = globalOffset?.end ?? selection.end
+
+                void handleAnnotate(type, text, start, end)
                 handleAnnotationDismiss()
               }}
             />
