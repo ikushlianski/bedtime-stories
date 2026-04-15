@@ -85,13 +85,32 @@ export function StoryListPage() {
       {!loading && !error && stories.length > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {stories.map((story) => (
-            <button
-              key={story.id}
-              className="text-left"
-              onClick={() => navigate(`/stories/${story.id}`)}
-            >
-              <StoryCard title={story.title} status={story.status} createdAt={story.created_at} />
-            </button>
+            <div key={story.id} className="relative">
+              <button
+                className="w-full text-left"
+                onClick={() => navigate(`/stories/${story.id}`)}
+              >
+                <StoryCard title={story.title} status={story.status} createdAt={story.created_at} />
+              </button>
+
+              <button
+                className="btn btn-ghost btn-xs absolute bottom-3 right-3 text-error hover:bg-error/10"
+                onClick={(e) => {
+                  e.stopPropagation()
+
+                  if (confirm('Delete this story permanently? This cannot be undone.')) {
+                    api.stories
+                      .delete(story.id)
+                      .then(() => setStories((prev) => prev.filter((s) => s.id !== story.id)))
+                      .catch((err) =>
+                        setError(err instanceof Error ? err.message : 'Failed to delete story'),
+                      )
+                  }
+                }}
+              >
+                Dismiss
+              </button>
+            </div>
           ))}
         </div>
       )}

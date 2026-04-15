@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { eq, desc } from 'drizzle-orm'
 import { db } from '@bedtime/core/db/client'
-import { stories, annotations } from '@bedtime/core/db/schema'
+import { stories, annotations, feedback, runSnapshots } from '@bedtime/core/db/schema'
 import type { Story, NewStory, NewAnnotation } from '@bedtime/core/db/types'
 import { validate } from '../middleware/validate'
 import { triggerTextPhase, getPipelineStatus } from './pipeline'
@@ -321,6 +321,36 @@ router.get('/:id/annotations', async (req, res) => {
   } catch (err) {
     console.error('GET /stories/:id/annotations failed:', err)
     res.status(500).json({ error: 'Failed to fetch annotations' })
+  }
+})
+
+router.delete('/:id', async (req, res) => {
+  try {
+    const storyId = parseIntParam(req.params['id'])
+
+    if (isNaN(storyId) || storyId <= 0) {
+      res.status(400).json({ error: 'Invalid story id' })
+      return
+    }
+
+    const [existing] = await db.select().from(stories).where(eq(stories.id, storyId))
+
+    if (!existing) {
+      res.status(404).json({ error: 'Story not found' })
+      return
+    }
+
+    await db.transaction(async (tx) => {
+      await tx.delete(annotations).where(eq(annotations.storyId, storyId))
+      await tx.delete(runSnapshots).where(eq(runSnapshots.storyId, storyId))
+      await tx.delete(feedback).where(eq(feedback.storyId, storyId))
+      await tx.delete(stories).where(eq(stories.id, storyId))
+    })
+
+    res.status(204).send()
+  } catch (err) {
+    console.error('DELETE /stories/:id failed:', err)
+    res.status(500).json({ error: 'Failed to delete story' })
   }
 })
 

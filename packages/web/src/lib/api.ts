@@ -23,6 +23,25 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>
 }
 
+async function requestEmpty(path: string, init?: RequestInit): Promise<void> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: { 'Content-Type': 'application/json', ...init?.headers },
+    ...init,
+  })
+
+  if (!res.ok) {
+    let body: unknown = null
+
+    try {
+      body = await res.json()
+    } catch {
+      body = null
+    }
+
+    throw new Error(formatApiError(res.status, res.statusText, body))
+  }
+}
+
 export interface Story {
   id: number
   title: string
@@ -170,6 +189,11 @@ export const api = {
       request<Story>(`/api/stories/${id}/approve-text`, {
         method: 'POST',
         body: JSON.stringify({ approved }),
+      }),
+
+    delete: (id: number) =>
+      requestEmpty(`/api/stories/${id}`, {
+        method: 'DELETE',
       }),
   },
 

@@ -59,6 +59,23 @@ export function PlanReviewPage() {
   })
   const [approving, setApproving] = useState(false)
   const [approveError, setApproveError] = useState<string | null>(null)
+  const [dismissing, setDismissing] = useState(false)
+
+  const handleDismiss = async () => {
+    if (!confirm('Delete this story permanently? This cannot be undone.')) {
+      return
+    }
+
+    setDismissing(true)
+
+    try {
+      await api.stories.delete(storyId)
+      navigate('/')
+    } catch (dismissError) {
+      setApproveError(dismissError instanceof Error ? dismissError.message : 'Failed to delete story')
+      setDismissing(false)
+    }
+  }
 
   const handleApprove = async () => {
     setApproving(true)
@@ -96,6 +113,12 @@ export function PlanReviewPage() {
     }
   }
 
+  const dismissHandler = () => {
+    if (!dismissing) {
+      void handleDismiss()
+    }
+  }
+
   return (
     <div>
       <PageHeader
@@ -105,6 +128,15 @@ export function PlanReviewPage() {
         backAction={
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>
             ← Back to stories
+          </button>
+        }
+        action={
+          <button
+            className="btn btn-error btn-outline btn-sm"
+            onClick={dismissHandler}
+            disabled={dismissing}
+          >
+            Dismiss story
           </button>
         }
       />
