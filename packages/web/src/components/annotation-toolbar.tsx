@@ -1,7 +1,8 @@
+import { useState } from 'react'
 import type { AnnotationType } from './types'
 
 interface AnnotationToolbarProps {
-  onAnnotate: (type: AnnotationType, selectedText: string) => void
+  onAnnotate: (type: AnnotationType, text: string) => void
   selectedText: string
 }
 
@@ -12,8 +13,56 @@ const REACTION_BUTTONS: Array<{ type: AnnotationType; label: string }> = [
 ]
 
 function AnnotationToolbar({ onAnnotate, selectedText }: AnnotationToolbarProps) {
-  if (!selectedText) {
-    return null
+  const [noteMode, setNoteMode] = useState(false)
+  const [noteText, setNoteText] = useState('')
+
+  if (!selectedText) return null
+
+  if (noteMode) {
+    return (
+      <div className="inline-flex items-center gap-2 rounded-full border border-neutral/20 bg-neutral px-3 py-2 text-neutral-content shadow-xl">
+        <input
+          autoFocus
+          type="text"
+          className="rounded-full border border-neutral-content/20 bg-neutral px-3 py-1 text-sm text-neutral-content placeholder-neutral-content/40 outline-none"
+          placeholder="Ваша заметка..."
+          value={noteText}
+          onChange={(e) => setNoteText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && noteText.trim()) {
+              onAnnotate('my_note', noteText.trim())
+            }
+
+            if (e.key === 'Escape') {
+              setNoteMode(false)
+              setNoteText('')
+            }
+          }}
+        />
+
+        <button
+          className="btn btn-primary btn-xs"
+          disabled={!noteText.trim()}
+          onClick={() => {
+            if (noteText.trim()) {
+              onAnnotate('my_note', noteText.trim())
+            }
+          }}
+        >
+          Сохранить
+        </button>
+
+        <button
+          className="btn btn-ghost btn-xs"
+          onClick={() => {
+            setNoteMode(false)
+            setNoteText('')
+          }}
+        >
+          ✕
+        </button>
+      </div>
+    )
   }
 
   return (
@@ -32,7 +81,7 @@ function AnnotationToolbar({ onAnnotate, selectedText }: AnnotationToolbarProps)
         </button>
       ))}
 
-      <button className="btn btn-primary btn-xs" onClick={() => onAnnotate('my_note', selectedText)}>
+      <button className="btn btn-primary btn-xs" onClick={() => setNoteMode(true)}>
         Заметка
       </button>
     </div>
