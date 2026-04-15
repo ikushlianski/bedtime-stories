@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { api, type PipelineStatus, type PipelineStatusValue } from '../lib/api'
+import { api, type PipelineStatus, type PipelineStatusValue, type Story } from '../lib/api'
 import { PageHeader, PipelineProgress, StatusCallout } from '../components'
 import type { PipelineStep, AgentName, AgentStatus } from '../components/types'
+import { decidePipelineRetry } from './pipeline-retry'
 
 const POLL_INTERVAL_MS = 3000
 
@@ -65,8 +66,47 @@ export function PipelineStatusPage() {
   const navigate = useNavigate()
   const storyId = Number(id)
   const [status, setStatus] = useState<PipelineStatus | null>(null)
+  const [story, setStory] = useState<Story | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [retrying, setRetrying] = useState(false)
+  const [retryError, setRetryError] = useState<string | null>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    if (isNaN(storyId)) return
+
+    api.stories
+      .get(storyId)
+      .then(setStory)
+      .catch(() => {
+        /* non-fatal — retry button will hide until story loads */
+      })
+  }, [storyId])
+
+  const handleRetry = useCallback(async (seed: string) => {
+    setRetrying(true)
+    setRetryError(null)
+
+    try {
+      await api.pipeline.run(storyId, seed)
+      setError(null)
+
+      if (intervalRef.current === null) {
+        intervalRef.current = setInterval(async () => {
+          try {
+            const data = await api.pipeline.status(storyId)
+            setStatus(data)
+          } catch {
+            /* polling will self-heal on next tick */
+          }
+        }, POLL_INTERVAL_MS)
+      }
+    } catch (err) {
+      setRetryError(err instanceof Error ? err.message : 'Failed to restart pipeline')
+    } finally {
+      setRetrying(false)
+    }
+  }, [storyId])
 
   useEffect(() => {
     const fetchStatus = async () => {
@@ -149,6 +189,55 @@ export function PipelineStatusPage() {
               message="Check the API logs for the failing stage before retrying the story."
             />
           )}
+
+          {(() => {
+            const retryDecision = decidePipelineRetry(status.status, story)
+
+            if (retryDecision.action === 'hidden') return null
+
+            if (retryDecision.action === 'blocked') {
+              return (
+                <StatusCallout
+                  tone="warning"
+                  title="Cannot retry"
+                  message="The story is missing its seed text, so the pipeline can't be restarted from here."
+                />
+              )
+            }
+
+            const label =
+              retryDecision.action === 'retry_plan'
+                ? retryDecision.reason === 'pending'
+                  ? 'Start pipeline'
+                  : 'Retry plan phase'
+                : 'Retry text phase'
+
+            const onClick = () => {
+              if (retryDecision.action === 'retry_plan') {
+                void handleRetry(retryDecision.seed)
+              }
+            }
+
+            return (
+              <div className="space-y-2">
+                {retryError && <StatusCallout tone="error" title="Retry failed" message={retryError} />}
+                <div className="flex justify-end">
+                  <button
+                    className="btn btn-primary"
+                    onClick={onClick}
+                    disabled={retrying || retryDecision.action !== 'retry_plan'}
+                  >
+                    {retrying ? 'Starting…' : label}
+                  </button>
+                </div>
+                {retryDecision.action === 'retry_text' && (
+                  <p className="text-right text-xs text-base-content/60">
+                    Text-phase retry must be started from the plan-review page for now.
+                  </p>
+                )}
+              </div>
+            )
+          })()}
         </div>
       )}
     </div>
