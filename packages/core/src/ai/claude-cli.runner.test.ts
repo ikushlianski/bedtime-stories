@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { isRetryable, extractJsonFromText, jsonCandidates, AiValidationError } from './claude-cli.runner'
+import { z } from 'zod'
+import {
+  isRetryable,
+  extractJsonFromText,
+  jsonCandidates,
+  parseJsonWithSchema,
+  AiValidationError,
+} from './claude-cli.runner'
 
 describe('isRetryable', () => {
   describe('transient network errors', () => {
@@ -182,5 +189,51 @@ describe('jsonCandidates', () => {
 
       expect(result).toEqual([])
     })
+  })
+})
+
+describe('parseJsonWithSchema', () => {
+  const improverLikeSchema = z.object({
+    patterns: z.array(z.object({ description: z.string(), evidence_count: z.number() })),
+    proposed_changes: z.array(z.object({ agent: z.string(), rationale: z.string() })),
+  })
+
+  const validPayload = {
+    patterns: [{ description: 'too dry', evidence_count: 3 }],
+    proposed_changes: [{ agent: 'writer', rationale: 'add more sensory detail' }],
+  }
+
+  it('returns ok=true for a clean json response', () => {
+    const raw = JSON.stringify(validPayload)
+    const result = parseJsonWithSchema(raw, improverLikeSchema)
+
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.value).toEqual(validPayload)
+  })
+
+  it('skips a leading example block that does not match the schema and picks the real answer', () => {
+    const exampleBlock = '{"patterns": "not an array, wrong shape"}'
+    const realAnswer = JSON.stringify(validPayload)
+    const raw = `Example:\n\`\`\`json\n${exampleBlock}\n\`\`\`\n\nMy answer:\n\`\`\`json\n${realAnswer}\n\`\`\``
+
+    const result = parseJsonWithSchema(raw, improverLikeSchema)
+
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.value).toEqual(validPayload)
+  })
+
+  it('returns ok=false with the last validation error when no candidate matches the schema', () => {
+    const raw = '{"wrong": "shape"}'
+    const result = parseJsonWithSchema(raw, improverLikeSchema)
+
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toBeDefined()
+  })
+
+  it('returns ok=false when the text contains no json at all', () => {
+    const raw = 'I could not produce a response.'
+    const result = parseJsonWithSchema(raw, improverLikeSchema)
+
+    expect(result.ok).toBe(false)
   })
 })

@@ -120,6 +120,34 @@ function extractBalancedObject(raw: string): string | null {
   return null
 }
 
+export function parseJsonWithSchema<T>(
+  rawText: string,
+  schema: z.ZodType<T>,
+): { ok: true; value: T } | { ok: false; error: unknown } {
+  let lastError: unknown
+
+  for (const candidate of jsonCandidates(rawText)) {
+    let parsed: unknown
+
+    try {
+      parsed = JSON.parse(candidate)
+    } catch (err) {
+      lastError = err
+      continue
+    }
+
+    const validated = schema.safeParse(parsed)
+
+    if (validated.success) {
+      return { ok: true, value: validated.data }
+    }
+
+    lastError = validated.error
+  }
+
+  return { ok: false, error: lastError }
+}
+
 export function* jsonCandidates(raw: string): Iterable<string> {
   const jsonFenced = raw.matchAll(/```json\s*([\s\S]*?)```/g)
 
@@ -244,27 +272,12 @@ export class ClaudeCliRunner implements AiRunner {
 
     const resultText = await this.runText({ model, prompt: fullPrompt, label: `skill:${skill}`, ...cwdArg })
 
-    let lastError: unknown
+    const parsed = parseJsonWithSchema(resultText, outputSchema)
 
-    for (const candidate of jsonCandidates(resultText)) {
-      let parsed: unknown
-
-      try {
-        parsed = JSON.parse(candidate)
-      } catch (err) {
-        lastError = err
-        continue
-      }
-
-      const validated = outputSchema.safeParse(parsed)
-
-      if (validated.success) {
-        return validated.data
-      }
-
-      lastError = validated.error
+    if (parsed.ok) {
+      return parsed.value
     }
 
-    throw new AiValidationError(resultText, lastError)
+    throw new AiValidationError(resultText, parsed.error)
   }
 }

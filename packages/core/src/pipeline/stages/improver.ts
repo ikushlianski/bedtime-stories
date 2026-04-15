@@ -4,7 +4,7 @@ import { feedback, prompts } from '../../db/schema'
 import type { Feedback, Prompt } from '../../db/types'
 import { claudeCliRunner } from '../../ai'
 import { ImproverOutputSchema, type ImproverOutput } from '../schemas'
-import { AiValidationError, extractJsonFromText } from '../../ai/claude-cli.runner'
+import { AiValidationError, parseJsonWithSchema } from '../../ai/claude-cli.runner'
 
 const IMPROVER_MODEL = 'claude-sonnet-4-6'
 
@@ -116,21 +116,11 @@ export async function runImprover(): Promise<ImproverOutput> {
 
   const rawOutput = await claudeCliRunner.runText({ model: IMPROVER_MODEL, prompt: pass2Prompt })
 
-  const jsonText = extractJsonFromText(rawOutput)
+  const parsed = parseJsonWithSchema(rawOutput, ImproverOutputSchema)
 
-  let parsed: unknown
-
-  try {
-    parsed = JSON.parse(jsonText)
-  } catch (err) {
-    throw new AiValidationError(rawOutput, err)
+  if (!parsed.ok) {
+    throw new AiValidationError(rawOutput, parsed.error)
   }
 
-  const validated = ImproverOutputSchema.safeParse(parsed)
-
-  if (!validated.success) {
-    throw new AiValidationError(rawOutput, validated.error)
-  }
-
-  return validated.data
+  return parsed.value
 }
