@@ -29,18 +29,18 @@ function DiffViewer({ originalText, revisedText, label }: DiffViewerProps) {
         </h3>
       </header>
 
-      <div className="p-3">
-        <pre className="max-h-96 space-y-1 overflow-auto text-xs">
+      <div className="max-h-96 overflow-y-auto p-3">
+        <div className="space-y-1 text-sm">
           {diffLines.map((line, i) => (
             <div
               key={i}
-              className={`rounded-box border px-3 py-2 font-mono ${lineStyle[line.type]}`}
+              className={`rounded-box border px-3 py-2 leading-relaxed ${lineStyle[line.type]}`}
             >
-              <span className="select-none opacity-50">{linePrefix[line.type]}</span>
+              <span className="select-none opacity-40">{linePrefix[line.type]}</span>
               {line.text}
             </div>
           ))}
-        </pre>
+        </div>
       </div>
     </section>
   )

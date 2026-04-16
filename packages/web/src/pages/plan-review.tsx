@@ -187,11 +187,13 @@ export function PlanReviewPage() {
                 </button>
               </div>
 
-              <DiffViewer
-                originalText={story.plan_v1 ?? ''}
-                revisedText={story.plan_final ?? ''}
-                label="План v1 → Финал"
-              />
+              <div className="max-h-96 overflow-y-auto rounded-box border border-base-300 bg-base-100 p-5">
+                {(story.plan_final ?? '').split('\n').map((line, i) => (
+                  <p key={i} className={`leading-relaxed text-base-content ${line.trim() === '' ? 'mb-3' : 'mb-1'}`}>
+                    {line || '\u00A0'}
+                  </p>
+                ))}
+              </div>
             </div>
           </section>
 

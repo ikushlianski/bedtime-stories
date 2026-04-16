@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { PsychologistOutput } from './types'
 import DiffViewer from './diff-viewer'
 import SafetyVerdictBadge from './safety-verdict-badge'
@@ -19,6 +20,8 @@ function PlanReviewCard({
   onApprove,
 }: PlanReviewCardProps) {
   const { safety, therapeutic, recommended_changes } = psychologistOutput
+  const [showDiff, setShowDiff] = useState(false)
+  const hasRevisions = iterationsCount > 1 && planV1 !== planFinal
 
   return (
     <section className="card border border-base-300 bg-base-100 shadow-sm">
@@ -34,7 +37,34 @@ function PlanReviewCard({
           </button>
         </div>
 
-        <DiffViewer originalText={planV1} revisedText={planFinal} label="План v1 → Финал" />
+        <div className="rounded-box border border-base-300 bg-base-100 p-5">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
+              Финальный план
+            </h3>
+
+            {hasRevisions && (
+              <button
+                className="btn btn-ghost btn-xs"
+                onClick={() => setShowDiff((v) => !v)}
+              >
+                {showDiff ? 'Скрыть изменения' : 'Показать изменения'}
+              </button>
+            )}
+          </div>
+
+          {showDiff ? (
+            <DiffViewer originalText={planV1} revisedText={planFinal} label="v1 → Финал" />
+          ) : (
+            <div className="max-h-96 overflow-y-auto">
+              {planFinal.split('\n').map((line, i) => (
+                <p key={i} className={`leading-relaxed text-base-content ${line.trim() === '' ? 'mb-3' : 'mb-1'}`}>
+                  {line || '\u00A0'}
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
 
         <section className="rounded-box border border-base-300 bg-base-200/70 p-5">
           <h3 className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
