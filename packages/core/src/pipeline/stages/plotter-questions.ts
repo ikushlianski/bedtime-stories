@@ -1,9 +1,16 @@
 import { z } from 'zod'
 import { claudeCliRunner } from '../../ai'
 
-const PlotterQuestionsOutputSchema = z.object({
-  questions: z.array(z.string()).min(5),
+const PlotterQuestionItemSchema = z.object({
+  question: z.string(),
+  options: z.array(z.string()).min(2).max(4),
 })
+
+const PlotterQuestionsOutputSchema = z.object({
+  questions: z.array(PlotterQuestionItemSchema).min(5),
+})
+
+export type PlotterQuestionItem = z.infer<typeof PlotterQuestionItemSchema>
 
 export async function runPlotterQuestions(options: {
   seed: string
@@ -11,7 +18,7 @@ export async function runPlotterQuestions(options: {
   universeSystemPrompt?: string
   sashaContext?: string | null
   cwd?: string
-}): Promise<string[]> {
+}): Promise<PlotterQuestionItem[]> {
   const { seed, model } = options
   const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
 
@@ -30,6 +37,7 @@ export async function runPlotterQuestions(options: {
     model,
     prompt,
     outputSchema: PlotterQuestionsOutputSchema,
+    thinking: { type: 'enabled', budgetTokens: 8000 },
     ...cwdArg,
   })
 

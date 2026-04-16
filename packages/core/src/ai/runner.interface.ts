@@ -1,10 +1,16 @@
 import { z } from 'zod'
 
+export type ThinkingConfig =
+  | { type: 'enabled'; budgetTokens?: number }
+  | { type: 'adaptive' }
+  | { type: 'disabled' }
+
 export interface RunTextOptions {
   model: string
   prompt: string
   cwd?: string
   label?: string
+  thinking?: ThinkingConfig
 }
 
 export interface RunStructuredOptions<T> {
@@ -13,6 +19,7 @@ export interface RunStructuredOptions<T> {
   prompt: string
   outputSchema: z.ZodType<T>
   cwd?: string
+  thinking?: ThinkingConfig
 }
 
 export interface AiRunner {

@@ -4,7 +4,7 @@ import { join, resolve, dirname } from 'node:path'
 import { query } from '@anthropic-ai/claude-agent-sdk'
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk'
 import { z } from 'zod'
-import type { AiRunner, RunStructuredOptions, RunTextOptions } from './runner.interface'
+import type { AiRunner, RunStructuredOptions, RunTextOptions, ThinkingConfig } from './runner.interface'
 
 const skillCache = new Map<string, string>()
 let cachedSkillsRoot: string | null = null
@@ -186,11 +186,16 @@ async function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+function thinkingOption(thinking: ThinkingConfig | undefined): { thinking: ThinkingConfig } | Record<string, never> {
+  return thinking !== undefined ? { thinking } : {}
+}
+
 export class ClaudeCliRunner implements AiRunner {
   async runText(options: RunTextOptions): Promise<string> {
     const { model, prompt } = options
     const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
     const label = options.label ?? 'runText'
+    const thinkingArg = thinkingOption(options.thinking)
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       const startedAt = Date.now()
@@ -204,6 +209,7 @@ export class ClaudeCliRunner implements AiRunner {
           options: {
             model,
             ...cwdArg,
+            ...thinkingArg,
             tools: [],
             permissionMode: 'dontAsk',
             persistSession: false,
@@ -270,7 +276,8 @@ export class ClaudeCliRunner implements AiRunner {
       'Return ONLY the JSON output described in the skill. No prose, no markdown fence, no commentary.',
     ].join('\n')
 
-    const resultText = await this.runText({ model, prompt: fullPrompt, label: `skill:${skill}`, ...cwdArg })
+    const thinkingArg = options.thinking !== undefined ? { thinking: options.thinking } : {}
+    const resultText = await this.runText({ model, prompt: fullPrompt, label: `skill:${skill}`, ...cwdArg, ...thinkingArg })
 
     const parsed = parseJsonWithSchema(resultText, outputSchema)
 

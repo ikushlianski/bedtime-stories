@@ -117,6 +117,7 @@ export const planQuestions = pgTable('plan_questions', {
   id: serial('id').primaryKey(),
   storyId: integer('story_id').references(() => stories.id),
   questionText: text('question_text').notNull(),
+  answerOptions: jsonb('answer_options').$type<string[]>().default([]),
   answerText: text('answer_text'),
   createdAt: timestamp('created_at').defaultNow(),
   answeredAt: timestamp('answered_at'),

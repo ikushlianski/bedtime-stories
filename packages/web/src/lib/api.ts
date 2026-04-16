@@ -165,6 +165,7 @@ export interface Annotation {
 export interface PlanQuestion {
   id: number
   questionText: string
+  answerOptions: string[] | null
   answerText: string | null
   createdAt: string
   answeredAt: string | null

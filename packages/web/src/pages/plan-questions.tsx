@@ -119,19 +119,34 @@ export function PlanQuestionsPage() {
         <div className="card border border-base-300 bg-base-100 shadow-sm">
           <div className="card-body gap-6">
             {questions.map((question, index) => (
-              <div key={question.id} className="space-y-2">
+              <div key={question.id} className="space-y-3">
                 <label className="label">
                   <span className="label-text font-medium">
                     {index + 1}. {question.questionText}
                   </span>
                 </label>
 
+                {question.answerOptions && question.answerOptions.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {question.answerOptions.map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        className={`btn btn-sm ${answers[question.id] === option ? 'btn-primary' : 'btn-outline'}`}
+                        onClick={() => handleAnswerChange(question.id, option)}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 <textarea
                   className="textarea textarea-bordered w-full"
-                  rows={3}
+                  rows={2}
                   value={answers[question.id] ?? ''}
                   onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-                  placeholder="Твой ответ..."
+                  placeholder="Свой ответ..."
                 />
               </div>
             ))}

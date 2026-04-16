@@ -3,7 +3,7 @@ import { runPsychologist } from './stages/psychologist'
 import { runPlotCritic } from './stages/plot-critic'
 import { runWriter, WRITER_SYSTEM_PROMPT_DEFAULT } from './stages/writer'
 import { runWriterCritic } from './stages/writer-critic'
-import { runPlotterQuestions } from './stages/plotter-questions'
+import { runPlotterQuestions, type PlotterQuestionItem } from './stages/plotter-questions'
 import { resolvePrompt, type ResolvedPrompt } from './prompt-resolver'
 import type { PsychologistOutput, CriticOutput } from './schemas'
 
@@ -254,7 +254,7 @@ export async function runQuestionsPhase(options: {
   universeSystemPrompt?: string
   sashaContext?: string | null
   cwd?: string
-}): Promise<string[]> {
+}): Promise<PlotterQuestionItem[]> {
   const { seed, models } = options
   const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
   const universeArg = options.universeSystemPrompt !== undefined

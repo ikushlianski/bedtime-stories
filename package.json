@@ -7,6 +7,7 @@
     "dev": "mastra dev",
     "dev:api": "npm run dev -w @bedtime/api",
     "dev:web": "npm run dev -w @bedtime/web",
+    "dev:debug": "npm run dev:api 2>&1 | tee /tmp/bedtime-api.log & npm run dev:web 2>&1 | tee /tmp/bedtime-web.log",
     "build": "tsc --build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

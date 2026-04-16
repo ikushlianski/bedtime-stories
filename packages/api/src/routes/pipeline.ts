@@ -146,7 +146,7 @@ router.post('/run', validate(runPipelineSchema), async (req, res) => {
     await db.delete(planQuestions).where(eq(planQuestions.storyId, storyId))
 
     await db.insert(planQuestions).values(
-      questions.map((q) => ({ storyId, questionText: q })),
+      questions.map((q) => ({ storyId, questionText: q.question, answerOptions: q.options })),
     )
 
     setPipelineStatus(storyId, 'questions_pending')
