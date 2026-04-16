@@ -207,27 +207,36 @@ router.get('/status/:storyId', async (req, res) => {
 
     const publicStatus = toPublicStatus(internal)
 
-    const steps = PIPELINE_STEP_NAMES.map((name) => ({
-      name,
-      status:
-        publicStatus.status === 'plan_ready' || publicStatus.status === 'text_ready'
-          ? 'completed'
-          : publicStatus.status === 'failed'
-            ? 'failed'
-            : publicStatus.status === 'plan_running' || publicStatus.status === 'text_running'
-              ? 'running'
-              : 'pending',
-      agent: name,
-    }))
+    const isRunning = publicStatus.status === 'plan_running' || publicStatus.status === 'text_running'
+    const isAllDone = publicStatus.status === 'plan_ready' || publicStatus.status === 'text_ready'
+    const isFailed = publicStatus.status === 'failed'
+
+    const activeStep = isRunning
+      ? (getCurrentStep(storyIdRaw) ?? (publicStatus.status === 'plan_running' ? 'Plotter' : 'Writer'))
+      : null
+
+    let passedActive = false
+    const steps = PIPELINE_STEP_NAMES.map((name) => {
+      if (isAllDone) return { name, status: 'completed', agent: name }
+      if (isFailed) return { name, status: 'failed', agent: name }
+
+      if (!isRunning) return { name, status: 'pending', agent: name }
+
+      if (name === activeStep) {
+        passedActive = true
+        return { name, status: 'running', agent: name }
+      }
+
+      if (passedActive) return { name, status: 'pending', agent: name }
+
+      return { name, status: 'completed', agent: name }
+    })
 
     res.json({
       story_id: storyIdRaw,
       status: publicStatus.status,
       phase: publicStatus.phase,
-      current_step:
-        (publicStatus.status === 'plan_running' || publicStatus.status === 'text_running')
-          ? (getCurrentStep(storyIdRaw) ?? (publicStatus.status === 'plan_running' ? 'Plotter' : 'Writer'))
-          : null,
+      current_step: activeStep,
       steps,
     })
   } catch (err) {

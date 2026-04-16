@@ -62,7 +62,6 @@ const MAX_ATTEMPTS = 3
 const RETRY_BASE_DELAY_MS = 1500
 
 export function isRetryable(err: unknown): boolean {
-  if (err instanceof AiValidationError) return false
   const message = err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase()
   return (
     message.includes('timeout') ||
