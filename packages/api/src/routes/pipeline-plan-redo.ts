@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import { runPlanPhase } from '@bedtime/core/pipeline/orchestrator'
 import { synthesizeSashaContext } from '@bedtime/core/pipeline/feedback-synthesizer'
 import { db } from '@bedtime/core/db/client'
@@ -19,7 +19,7 @@ export function triggerPlanRedo(storyId: number, seed: string, universeSystemPro
 
   db.select({ selectedText: annotations.selectedText, noteText: annotations.noteText })
     .from(annotations)
-    .where(eq(annotations.storyId, storyId))
+    .where(and(eq(annotations.storyId, storyId), eq(annotations.context, 'plan')))
     .then((rows) => {
       const planRows = rows.filter((r): r is { selectedText: string; noteText: string | null } => true)
       const userFeedback = formatAnnotationsAsFeedback(planRows)
