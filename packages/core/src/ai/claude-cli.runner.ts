@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { join, resolve, dirname } from 'node:path'
 import { query } from '@anthropic-ai/claude-agent-sdk'
-import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk'
+import type { SDKMessage, JsonSchemaOutputFormat } from '@anthropic-ai/claude-agent-sdk'
 import { z } from 'zod'
 import type { AiRunner, RunStructuredOptions, RunTextOptions, ThinkingConfig } from './runner.interface'
 
@@ -272,29 +272,93 @@ export class ClaudeCliRunner implements AiRunner {
       '',
       '=== INPUT ===',
       prompt,
-      '',
-      'Return ONLY the JSON output described in the skill. No prose, no markdown fence, no commentary.',
     ].join('\n')
 
     const thinkingArg = options.thinking !== undefined ? { thinking: options.thinking } : {}
     const label = `skill:${skill}`
 
+    const jsonSchema = z.toJSONSchema(outputSchema as z.ZodType) as Record<string, unknown>
+    const outputFormat: JsonSchemaOutputFormat = { type: 'json_schema', schema: jsonSchema }
+
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-      const resultText = await this.runText({ model, prompt: fullPrompt, label, ...cwdArg, ...thinkingArg })
-      const parsed = parseJsonWithSchema(resultText, outputSchema)
+      const startedAt = Date.now()
+      console.log(`[ai] ${label} start model=${model} promptLen=${fullPrompt.length} attempt=${attempt}/${MAX_ATTEMPTS}`)
+      console.log(`[ai:prompt] ${label}\n${'─'.repeat(80)}\n${fullPrompt}\n${'─'.repeat(80)}`)
 
-      if (parsed.ok) {
-        return parsed.value
+      let structuredResult: unknown = undefined
+      let resultText = ''
+
+      try {
+        const messages = query({
+          prompt: fullPrompt,
+          options: {
+            model,
+            ...cwdArg,
+            ...thinkingArg,
+            tools: [],
+            permissionMode: 'dontAsk',
+            persistSession: false,
+            outputFormat,
+            systemPrompt: 'You are an AI assistant following the instructions in the user message exactly. Do not introduce yourself, do not explain what you are about to do, and do not add trailing commentary. Produce only the output the user asked for.',
+          },
+        })
+
+        for await (const msg of messages as AsyncIterable<SDKMessage>) {
+          if (msg.type === 'result') {
+            if (msg.subtype !== 'success') {
+              const errDetails = 'errors' in msg && Array.isArray(msg.errors) && msg.errors.length > 0
+                ? msg.errors.join('; ')
+                : 'no error details'
+              throw new AiExecutionError(`subtype=${msg.subtype} errors=[${errDetails}]`)
+            }
+
+            structuredResult = msg.structured_output
+            resultText = msg.result
+          }
+        }
+
+        const durationMs = Date.now() - startedAt
+
+        if (structuredResult !== undefined) {
+          const validated = outputSchema.safeParse(structuredResult)
+
+          if (validated.success) {
+            console.log(`[ai] ${label} done model=${model} durationMs=${durationMs} attempt=${attempt} (structured_output)`)
+            return validated.data
+          }
+
+          console.warn(`[ai] ${label} structured_output schema mismatch attempt=${attempt}:`, validated.error)
+        }
+
+        const parsed = parseJsonWithSchema(resultText, outputSchema)
+
+        if (parsed.ok) {
+          console.log(`[ai] ${label} done model=${model} durationMs=${durationMs} attempt=${attempt} (parsed text)`)
+          return parsed.value
+        }
+
+        if (attempt < MAX_ATTEMPTS) {
+          const backoffMs = RETRY_BASE_DELAY_MS * attempt
+          console.warn(`[ai] ${label} invalid JSON attempt=${attempt}, retrying in ${backoffMs}ms. parseError:`, parsed.error)
+          await sleep(backoffMs)
+          continue
+        }
+
+        throw new AiValidationError(resultText, parsed.error)
+      } catch (err) {
+        const durationMs = Date.now() - startedAt
+        const retryable = isRetryable(err) && attempt < MAX_ATTEMPTS
+
+        if (retryable) {
+          const backoffMs = RETRY_BASE_DELAY_MS * attempt
+          console.warn(`[ai] ${label} transient failure model=${model} durationMs=${durationMs} attempt=${attempt}, retrying in ${backoffMs}ms:`, err)
+          await sleep(backoffMs)
+          continue
+        }
+
+        console.error(`[ai] ${label} failed model=${model} durationMs=${durationMs} attempt=${attempt}:`, err)
+        throw err
       }
-
-      if (attempt < MAX_ATTEMPTS) {
-        const backoffMs = RETRY_BASE_DELAY_MS * attempt
-        console.warn(`[ai] ${label} invalid JSON attempt=${attempt}, retrying in ${backoffMs}ms. parseError:`, parsed.error)
-        await sleep(backoffMs)
-        continue
-      }
-
-      throw new AiValidationError(resultText, parsed.error)
     }
 
     throw new AiExecutionError(`exhausted ${MAX_ATTEMPTS} attempts`)
