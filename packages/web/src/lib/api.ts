@@ -189,6 +189,7 @@ export interface CreateAnnotationInput {
   noteText?: string
   positionStart: number
   positionEnd: number
+  context?: 'plan' | 'text'
 }
 
 export type PipelineStatusValue =
@@ -270,10 +271,12 @@ export const api = {
           note_text: data.noteText,
           position_start: data.positionStart,
           position_end: data.positionEnd,
+          context: data.context ?? 'text',
         }),
       }),
 
-    list: (storyId: number) => request<Annotation[]>(`/api/stories/${storyId}/annotations`),
+    list: (storyId: number, context?: 'plan' | 'text') =>
+      request<Annotation[]>(`/api/stories/${storyId}/annotations${context ? `?context=${context}` : ''}`),
   },
 
   pipeline: {

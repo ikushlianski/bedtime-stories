@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { z } from 'zod'
-import { eq, desc } from 'drizzle-orm'
+import { eq, desc, and } from 'drizzle-orm'
 import { db } from '@bedtime/core/db/client'
 import { stories, annotations, feedback, runSnapshots, storyGroups, planQuestions, planConversations } from '@bedtime/core/db/schema'
 import type { Story, NewStory, NewAnnotation } from '@bedtime/core/db/types'
@@ -63,6 +63,7 @@ const createAnnotationSchema = z.object({
   note_text: z.string().optional(),
   position_start: z.number().int().nonnegative(),
   position_end: z.number().int().nonnegative(),
+  context: z.enum(['plan', 'text']).optional(),
 })
 
 router.post('/', validate(createStorySchema), async (req, res) => {
@@ -308,7 +309,7 @@ router.post('/:id/annotations', validate(createAnnotationSchema), async (req, re
       return
     }
 
-    const { type, selected_text, note_text, position_start, position_end } = req.body as z.infer<
+    const { type, selected_text, note_text, position_start, position_end, context } = req.body as z.infer<
       typeof createAnnotationSchema
     >
 
@@ -319,6 +320,7 @@ router.post('/:id/annotations', validate(createAnnotationSchema), async (req, re
       noteText: note_text,
       positionStart: position_start,
       positionEnd: position_end,
+      context: context ?? 'text',
     }
 
     const [annotation] = await db.insert(annotations).values(newAnnotation).returning()
@@ -339,10 +341,15 @@ router.get('/:id/annotations', async (req, res) => {
       return
     }
 
+    const context = req.query['context'] as 'plan' | 'text' | undefined
+    const whereClause = context
+      ? and(eq(annotations.storyId, storyId), eq(annotations.context, context))
+      : eq(annotations.storyId, storyId)
+
     const result = await db
       .select()
       .from(annotations)
-      .where(eq(annotations.storyId, storyId))
+      .where(whereClause)
 
     res.json(result)
   } catch (err) {

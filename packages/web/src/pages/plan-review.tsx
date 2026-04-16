@@ -151,6 +151,7 @@ export function PlanReviewPage() {
       {snapshotState.kind === 'ready' ? (
         <div className="space-y-6">
           <PlanReviewCard
+            storyId={storyId}
             planV1={story.plan_v1 ?? ''}
             planFinal={story.plan_final ?? ''}
             iterationsCount={story.plan_iterations ?? 0}

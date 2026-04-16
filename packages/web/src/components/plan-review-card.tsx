@@ -3,8 +3,10 @@ import type { PsychologistOutput } from './types'
 import DiffViewer from './diff-viewer'
 import SafetyVerdictBadge from './safety-verdict-badge'
 import TherapeuticScoreBar from './therapeutic-score-bar'
+import PlanAnnotator from './plan-annotator'
 
 interface PlanReviewCardProps {
+  storyId: number
   planV1: string
   planFinal: string
   iterationsCount: number
@@ -13,6 +15,7 @@ interface PlanReviewCardProps {
 }
 
 function PlanReviewCard({
+  storyId,
   planV1,
   planFinal,
   iterationsCount,
@@ -32,39 +35,27 @@ function PlanReviewCard({
             <p className="text-sm text-base-content/65">Итераций: {iterationsCount}</p>
           </div>
 
-          <button className="btn btn-primary" onClick={onApprove}>
-            Одобрить план
-          </button>
-        </div>
-
-        <div className="rounded-box border border-base-300 bg-base-100 p-5">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
-              Финальный план
-            </h3>
-
+          <div className="flex items-center gap-3">
             {hasRevisions && (
               <button
-                className="btn btn-ghost btn-xs"
+                className="btn btn-ghost btn-sm"
                 onClick={() => setShowDiff((v) => !v)}
               >
-                {showDiff ? 'Скрыть изменения' : 'Показать изменения'}
+                {showDiff ? 'Читать план' : 'Показать изменения'}
               </button>
             )}
-          </div>
 
-          {showDiff ? (
-            <DiffViewer originalText={planV1} revisedText={planFinal} label="v1 → Финал" />
-          ) : (
-            <div className="max-h-96 overflow-y-auto">
-              {planFinal.split('\n').map((line, i) => (
-                <p key={i} className={`leading-relaxed text-base-content ${line.trim() === '' ? 'mb-3' : 'mb-1'}`}>
-                  {line || '\u00A0'}
-                </p>
-              ))}
-            </div>
-          )}
+            <button className="btn btn-primary" onClick={onApprove}>
+              Одобрить план
+            </button>
+          </div>
         </div>
+
+        {showDiff ? (
+          <DiffViewer originalText={planV1} revisedText={planFinal} label="v1 → Финал" />
+        ) : (
+          <PlanAnnotator storyId={storyId} planText={planFinal} />
+        )}
 
         <section className="rounded-box border border-base-300 bg-base-200/70 p-5">
           <h3 className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">

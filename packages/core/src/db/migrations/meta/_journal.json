@@ -43,6 +43,13 @@
       "when": 1776292700226,
       "tag": "0005_known_wind_dancer",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1776370921625,
+      "tag": "0006_annotations_context",
+      "breakpoints": true
     }
   ]
 }

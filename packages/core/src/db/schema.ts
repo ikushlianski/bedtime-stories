@@ -76,6 +76,7 @@ export const annotations = pgTable('annotations', {
   noteText: text('note_text'),
   positionStart: integer('position_start'),
   positionEnd: integer('position_end'),
+  context: text('context').$type<'plan' | 'text'>().default('text'),
   createdAt: timestamp('created_at').defaultNow(),
 })
 
