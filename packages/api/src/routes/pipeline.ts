@@ -21,7 +21,7 @@ import {
   buildTextSnapshotUpdate,
   buildTextStoriesUpdate,
 } from './pipeline-persistence'
-import { getPipelineStatus, setPipelineStatus } from './pipeline-state'
+import { getPipelineStatus, setPipelineStatus, setCurrentStep, getCurrentStep } from './pipeline-state'
 import { defaultModels, defaultPromptVersions } from './pipeline-defaults'
 import pipelineQuestionsRouter from './pipeline-questions'
 
@@ -69,6 +69,7 @@ export function triggerTextPhase(
     promptVersions: defaultPromptVersions,
     ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
     ...(sashaContext !== undefined && sashaContext !== null ? { sashaContext } : {}),
+    onStepChange: (step) => setCurrentStep(storyId, step),
   })
     .then(async (text) => {
       try {
@@ -224,11 +225,9 @@ router.get('/status/:storyId', async (req, res) => {
       status: publicStatus.status,
       phase: publicStatus.phase,
       current_step:
-        publicStatus.status === 'plan_running'
-          ? 'Plotter'
-          : publicStatus.status === 'text_running'
-            ? 'Writer'
-            : null,
+        (publicStatus.status === 'plan_running' || publicStatus.status === 'text_running')
+          ? (getCurrentStep(storyIdRaw) ?? (publicStatus.status === 'plan_running' ? 'Plotter' : 'Writer'))
+          : null,
       steps,
     })
   } catch (err) {

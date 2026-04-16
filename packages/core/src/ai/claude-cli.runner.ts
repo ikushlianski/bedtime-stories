@@ -200,6 +200,7 @@ export class ClaudeCliRunner implements AiRunner {
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       const startedAt = Date.now()
       console.log(`[ai] ${label} start model=${model} promptLen=${prompt.length} attempt=${attempt}/${MAX_ATTEMPTS}`)
+      console.log(`[ai:prompt] ${label}\n${'─'.repeat(80)}\n${prompt}\n${'─'.repeat(80)}`)
 
       let resultText = ''
 

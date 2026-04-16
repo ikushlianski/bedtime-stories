@@ -57,8 +57,10 @@ export async function runPlanPhase(options: {
   sashaContext?: string | null
   userFeedback?: string
   cwd?: string
+  onStepChange?: (step: string) => void
 }): Promise<PlanPhaseResult> {
   const { seed, models } = options
+  const notify = options.onStepChange ?? (() => undefined)
   const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
   const universeArg = options.universeSystemPrompt !== undefined
     ? { universeSystemPrompt: options.universeSystemPrompt }
@@ -76,6 +78,7 @@ export async function runPlanPhase(options: {
 
   const userFeedbackArg = options.userFeedback ? { userFeedback: options.userFeedback } : {}
 
+  notify('Plotter')
   const planV1 = await runPlotter({
     seed,
     model: models.plotter,
@@ -99,6 +102,7 @@ export async function runPlanPhase(options: {
     iterationsCount = iterationNumber
 
     if (isFirstIteration || isFinalIteration) {
+      notify('Psychologist')
       const psych = await runPsychologist({
         content: currentPlan,
         contentType: 'plan',
@@ -112,6 +116,7 @@ export async function runPlanPhase(options: {
 
       psychologistPlanOutput = psych
 
+      notify('PlotCritic')
       plotCriticOutput = await runPlotCritic({
         plan: currentPlan,
         psychologistOutput: psych,
@@ -126,6 +131,7 @@ export async function runPlanPhase(options: {
         throw new Error('Invariant violated: psychologistPlanOutput missing on intermediate iteration')
       }
 
+      notify('PlotCritic')
       plotCriticOutput = await runPlotCritic({
         plan: currentPlan,
         psychologistOutput: psychologistPlanOutput,
@@ -142,6 +148,7 @@ export async function runPlanPhase(options: {
     }
 
     if (!isFinalIteration) {
+      notify('Plotter')
       currentPlan = await runPlotter({
         seed,
         previousPlan: currentPlan,
@@ -180,8 +187,10 @@ export async function runTextPhase(options: {
   universeSystemPrompt?: string
   sashaContext?: string | null
   cwd?: string
+  onStepChange?: (step: string) => void
 }): Promise<TextPhaseResult> {
   const { seed, planFinal, models } = options
+  const notify = options.onStepChange ?? (() => undefined)
   const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
   const universeArg = options.universeSystemPrompt !== undefined
     ? { universeSystemPrompt: options.universeSystemPrompt }
@@ -201,6 +210,7 @@ export async function runTextPhase(options: {
     writer: writerPrompt.version,
   }
 
+  notify('Writer')
   const textV1 = await runWriter({
     plan: planFinal,
     model: models.writer,
@@ -210,6 +220,7 @@ export async function runTextPhase(options: {
     ...sashaContextArg,
   })
 
+  notify('Psychologist')
   const psychologistTextOutput = await runPsychologist({
     content: textV1,
     contentType: 'text',
@@ -221,6 +232,7 @@ export async function runTextPhase(options: {
     ...sashaContextArg,
   })
 
+  notify('WriterCritic')
   const writerCriticOutput = await runWriterCritic({
     textV1,
     psychologistOutput: psychologistTextOutput,
@@ -231,6 +243,7 @@ export async function runTextPhase(options: {
     ...sashaContextArg,
   })
 
+  notify('Improver')
   const textV2 = await runWriter({
     plan: planFinal,
     criticNotes: writerCriticOutput,

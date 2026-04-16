@@ -4,7 +4,7 @@ import { synthesizeSashaContext } from '@bedtime/core/pipeline/feedback-synthesi
 import { db } from '@bedtime/core/db/client'
 import { annotations, runSnapshots, stories } from '@bedtime/core/db/schema'
 import { buildPlanSnapshotInsert, buildPlanStoriesUpdate } from './pipeline-persistence'
-import { setPipelineStatus } from './pipeline-state'
+import { setPipelineStatus, setCurrentStep } from './pipeline-state'
 import { defaultModels, defaultPromptVersions } from './pipeline-defaults'
 
 function formatAnnotationsAsFeedback(items: Array<{ selectedText: string; noteText: string | null }>): string {
@@ -33,6 +33,7 @@ export function triggerPlanRedo(storyId: number, seed: string, universeSystemPro
           ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
           ...(sashaContext !== null ? { sashaContext } : {}),
           ...(userFeedback ? { userFeedback } : {}),
+          onStepChange: (step) => setCurrentStep(storyId, step),
         })
       )
     })

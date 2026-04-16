@@ -7,7 +7,7 @@ import {
   buildPlanSnapshotInsert,
   buildPlanStoriesUpdate,
 } from './pipeline-persistence'
-import { setPipelineStatus } from './pipeline-state'
+import { setPipelineStatus, setCurrentStep } from './pipeline-state'
 import { defaultModels, defaultPromptVersions } from './pipeline-defaults'
 
 export function triggerPlanPhaseFromAnswers(
@@ -33,6 +33,7 @@ export function triggerPlanPhaseFromAnswers(
         promptVersions: defaultPromptVersions,
         ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
         ...(sashaContext !== null ? { sashaContext } : {}),
+        onStepChange: (step) => setCurrentStep(storyId, step),
       })
     )
     .then(async (plan) => {
