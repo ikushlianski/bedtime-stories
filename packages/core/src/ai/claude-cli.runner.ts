@@ -277,14 +277,26 @@ export class ClaudeCliRunner implements AiRunner {
     ].join('\n')
 
     const thinkingArg = options.thinking !== undefined ? { thinking: options.thinking } : {}
-    const resultText = await this.runText({ model, prompt: fullPrompt, label: `skill:${skill}`, ...cwdArg, ...thinkingArg })
+    const label = `skill:${skill}`
 
-    const parsed = parseJsonWithSchema(resultText, outputSchema)
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      const resultText = await this.runText({ model, prompt: fullPrompt, label, ...cwdArg, ...thinkingArg })
+      const parsed = parseJsonWithSchema(resultText, outputSchema)
 
-    if (parsed.ok) {
-      return parsed.value
+      if (parsed.ok) {
+        return parsed.value
+      }
+
+      if (attempt < MAX_ATTEMPTS) {
+        const backoffMs = RETRY_BASE_DELAY_MS * attempt
+        console.warn(`[ai] ${label} invalid JSON attempt=${attempt}, retrying in ${backoffMs}ms. parseError:`, parsed.error)
+        await sleep(backoffMs)
+        continue
+      }
+
+      throw new AiValidationError(resultText, parsed.error)
     }
 
-    throw new AiValidationError(resultText, parsed.error)
+    throw new AiExecutionError(`exhausted ${MAX_ATTEMPTS} attempts`)
   }
 }
