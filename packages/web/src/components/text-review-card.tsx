@@ -19,7 +19,7 @@ function TextReviewCard({ textV1, textV2, psychologistOutput, onApprove }: TextR
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-serif text-3xl text-base-content">Проверка текста</h2>
 
-          <button className="btn btn-success btn-wide" onClick={onApprove}>
+          <button className="btn btn-primary" onClick={onApprove}>
             Одобрить текст
           </button>
         </div>

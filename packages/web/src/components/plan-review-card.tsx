@@ -29,7 +29,7 @@ function PlanReviewCard({
             <p className="text-sm text-base-content/65">Итераций: {iterationsCount}</p>
           </div>
 
-          <button className="btn btn-success btn-wide" onClick={onApprove}>
+          <button className="btn btn-primary" onClick={onApprove}>
             Одобрить план
           </button>
         </div>

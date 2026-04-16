@@ -139,7 +139,7 @@ export function TextReviewPage() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="font-serif text-3xl text-base-content">Проверка текста</h2>
 
-                <button className="btn btn-success btn-wide" onClick={approveHandler} disabled={approving}>
+                <button className="btn btn-primary" onClick={approveHandler} disabled={approving}>
                   Одобрить текст
                 </button>
               </div>

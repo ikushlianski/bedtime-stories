@@ -182,7 +182,7 @@ export function PlanReviewPage() {
                   </p>
                 </div>
 
-                <button className="btn btn-success btn-wide" onClick={approveHandler} disabled={approving}>
+                <button className="btn btn-primary" onClick={approveHandler} disabled={approving}>
                   Одобрить план
                 </button>
               </div>
