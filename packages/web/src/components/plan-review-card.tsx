@@ -38,7 +38,7 @@ function PlanReviewCard({
           <div className="flex items-center gap-3">
             {hasRevisions && (
               <button
-                className="btn btn-secondary btn-sm"
+                className="btn btn-primary btn-sm"
                 onClick={() => setShowDiff((v) => !v)}
               >
                 {showDiff ? 'Читать план' : 'Показать изменения'}
