@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { api, type Story, type RunSnapshot } from '../lib/api'
+import { api, type Story, type RunSnapshot, type PipelineStatusValue } from '../lib/api'
 import { PageHeader, PlanReviewCard, StatusCallout } from '../components'
 import DiffViewer from '../components/diff-viewer'
 import { deriveReviewSnapshotState } from './review-snapshot-state'
@@ -61,6 +61,25 @@ export function PlanReviewPage() {
   const [approving, setApproving] = useState(false)
   const [approveError, setApproveError] = useState<string | null>(null)
   const [dismissing, setDismissing] = useState(false)
+  const [pipelineStatus, setPipelineStatus] = useState<PipelineStatusValue | null>(null)
+  const [retrying, setRetrying] = useState(false)
+
+  useEffect(() => {
+    api.pipeline.status(storyId).then((s) => setPipelineStatus(s.status)).catch(() => undefined)
+  }, [storyId])
+
+  const handleRetryPlan = useCallback(async () => {
+    setRetrying(true)
+    setApproveError(null)
+
+    try {
+      await api.annotations.redoPlan(storyId)
+      navigate(`/stories/${storyId}/pipeline`)
+    } catch (err) {
+      setApproveError(err instanceof Error ? err.message : 'Не удалось перезапустить план')
+      setRetrying(false)
+    }
+  }, [storyId, navigate])
 
   const handleDismiss = async () => {
     if (!confirm('Удалить эту историю навсегда? Это действие нельзя отменить.')) {
@@ -144,7 +163,22 @@ export function PlanReviewPage() {
 
       {approveError && (
         <div className="mb-4">
-          <StatusCallout tone="error" title="Ошибка одобрения" message={approveError} />
+          <StatusCallout tone="error" title="Ошибка" message={approveError} />
+        </div>
+      )}
+
+      {pipelineStatus === 'failed' && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-box border border-error/30 bg-error/10 p-4">
+          <p className="text-sm text-base-content">
+            Генерация плана завершилась с ошибкой. Можно попробовать снова.
+          </p>
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={() => void handleRetryPlan()}
+            disabled={retrying}
+          >
+            {retrying ? 'Запускаем…' : 'Повторить генерацию плана'}
+          </button>
         </div>
       )}
 
