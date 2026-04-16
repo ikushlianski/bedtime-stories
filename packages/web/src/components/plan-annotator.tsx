@@ -32,7 +32,7 @@ function RedoPlanButton({ storyId, disabled }: { storyId: number; disabled: bool
 
   return (
     <button
-      className="btn btn-outline btn-sm"
+      className="btn btn-primary btn-sm"
       onClick={() => void handleRedo()}
       disabled={disabled || redoing}
     >
