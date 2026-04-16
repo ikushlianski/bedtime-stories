@@ -22,13 +22,17 @@ function PipelineProgress({ steps }: PipelineProgressProps) {
           {steps.map((step, i) => (
             <li key={i} className="flex items-start gap-4">
               <div className="flex flex-col items-center">
-                <div className={`mt-1 h-3 w-3 rounded-full ${stepLineColor[step.status]}`} />
+                <div className={`mt-1 h-3 w-3 rounded-full ${stepLineColor[step.status]} ${step.status === 'running' ? 'ring-2 ring-primary ring-offset-1 ring-offset-base-100 animate-pulse' : ''}`} />
 
                 {i < steps.length - 1 && <div className="mt-1 h-10 w-0.5 bg-base-300" />}
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 pb-4">
+              <div className={`flex flex-wrap items-center gap-2 pb-4 transition-all duration-500 ${step.status === 'running' ? 'opacity-100' : ''}`}>
                 <AgentStatusBadge agentName={step.agentName} status={step.status} />
+
+                {step.status === 'running' && (
+                  <span className="text-xs text-primary animate-pulse">думает…</span>
+                )}
 
                 {step.iterationNumber !== undefined && (
                   <span className="badge badge-outline border-base-300 text-base-content/60">

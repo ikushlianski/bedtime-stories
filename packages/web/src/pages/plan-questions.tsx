@@ -93,33 +93,35 @@ function GeneratingQuestionsState() {
   )
 }
 
-function answersStorageKey(storyId: number) {
-  return `plan-questions-answers-${storyId}`
-}
+const STORAGE_KEY_OPTIONS = (id: number) => `plan-questions-options-${id}`
+const STORAGE_KEY_CUSTOM = (id: number) => `plan-questions-custom-${id}`
 
-function loadSavedAnswers(storyId: number): Record<number, string> {
+function loadFromStorage<T>(key: string, fallback: T): T {
   try {
-    const raw = localStorage.getItem(answersStorageKey(storyId))
-    return raw ? (JSON.parse(raw) as Record<number, string>) : {}
+    const raw = localStorage.getItem(key)
+    return raw ? (JSON.parse(raw) as T) : fallback
   } catch {
-    return {}
+    return fallback
   }
 }
 
-function saveAnswers(storyId: number, answers: Record<number, string>) {
+function saveToStorage(key: string, value: unknown) {
   try {
-    localStorage.setItem(answersStorageKey(storyId), JSON.stringify(answers))
-  } catch {
-    /* localStorage unavailable */
-  }
-}
-
-function clearSavedAnswers(storyId: number) {
-  try {
-    localStorage.removeItem(answersStorageKey(storyId))
+    localStorage.setItem(key, JSON.stringify(value))
   } catch {
     /* ignore */
   }
+}
+
+function clearStorage(...keys: string[]) {
+  keys.forEach((k) => {
+    try { localStorage.removeItem(k) } catch { /* ignore */ }
+  })
+}
+
+function resolveAnswer(selected: string | undefined, custom: string): string {
+  const trimmed = custom.trim()
+  return trimmed.length > 0 ? trimmed : (selected ?? '')
 }
 
 export function PlanQuestionsPage() {
@@ -127,25 +129,35 @@ export function PlanQuestionsPage() {
   const navigate = useNavigate()
   const storyId = Number(id)
   const { questions, loading, error } = usePlanQuestions(storyId)
-  const [answers, setAnswers] = useState<Record<number, string>>(() => loadSavedAnswers(storyId))
+  const [selectedOptions, setSelectedOptions] = useState<Record<number, string>>(
+    () => loadFromStorage(STORAGE_KEY_OPTIONS(storyId), {}),
+  )
+  const [customTexts, setCustomTexts] = useState<Record<number, string>>(
+    () => loadFromStorage(STORAGE_KEY_CUSTOM(storyId), {}),
+  )
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
   usePipelineStatusRedirect(storyId, navigate)
 
   useEffect(() => {
-    saveAnswers(storyId, answers)
-  }, [storyId, answers])
+    saveToStorage(STORAGE_KEY_OPTIONS(storyId), selectedOptions)
+  }, [storyId, selectedOptions])
+
+  useEffect(() => {
+    saveToStorage(STORAGE_KEY_CUSTOM(storyId), customTexts)
+  }, [storyId, customTexts])
 
   const allAnswered =
     questions.length > 0 &&
-    questions.every((q) => {
-      const answer = answers[q.id]
-      return answer !== undefined && answer.trim().length > 0
-    })
+    questions.every((q) => resolveAnswer(selectedOptions[q.id], customTexts[q.id] ?? '').length > 0)
 
-  const handleAnswerChange = (questionId: number, value: string) => {
-    setAnswers((prev) => ({ ...prev, [questionId]: value }))
+  const handleSelectOption = (questionId: number, option: string) => {
+    setSelectedOptions((prev) => ({ ...prev, [questionId]: option }))
+  }
+
+  const handleCustomText = (questionId: number, value: string) => {
+    setCustomTexts((prev) => ({ ...prev, [questionId]: value }))
   }
 
   const handleSubmit = async () => {
@@ -155,12 +167,12 @@ export function PlanQuestionsPage() {
     try {
       const answersPayload = questions.map((q) => ({
         id: q.id,
-        answer: answers[q.id] ?? '',
+        answer: resolveAnswer(selectedOptions[q.id], customTexts[q.id] ?? ''),
       }))
 
       await api.pipeline.submitAnswers(storyId, answersPayload)
 
-      clearSavedAnswers(storyId)
+      clearStorage(STORAGE_KEY_OPTIONS(storyId), STORAGE_KEY_CUSTOM(storyId))
       navigate(`/stories/${storyId}/pipeline`)
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Не удалось отправить ответы')
@@ -222,12 +234,12 @@ export function PlanQuestionsPage() {
                 {question.answerOptions && question.answerOptions.length > 0 && (
                   <div className="flex flex-col gap-2">
                     {question.answerOptions.map((option) => {
-                      const selected = answers[question.id] === option
+                      const selected = selectedOptions[question.id] === option
                       return (
                         <button
                           key={option}
                           type="button"
-                          onClick={() => handleAnswerChange(question.id, option)}
+                          onClick={() => handleSelectOption(question.id, option)}
                           className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left transition-colors ${
                             selected
                               ? 'border-primary bg-primary/10 text-primary'
@@ -250,13 +262,20 @@ export function PlanQuestionsPage() {
                   </div>
                 )}
 
-                <textarea
-                  className="textarea textarea-bordered w-full"
-                  rows={2}
-                  value={answers[question.id] ?? ''}
-                  onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-                  placeholder="Свой ответ..."
-                />
+                <div className="mt-1">
+                  <p className="mb-1 text-xs text-base-content/40">
+                    {question.answerOptions && question.answerOptions.length > 0
+                      ? 'Или напиши свой вариант:'
+                      : 'Твой ответ:'}
+                  </p>
+                  <textarea
+                    className="textarea textarea-bordered w-full"
+                    rows={2}
+                    value={customTexts[question.id] ?? ''}
+                    onChange={(e) => handleCustomText(question.id, e.target.value)}
+                    placeholder="Свой ответ..."
+                  />
+                </div>
               </div>
             ))}
 

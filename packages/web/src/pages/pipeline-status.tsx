@@ -23,6 +23,15 @@ const KNOWN_AGENT_NAMES = new Set<AgentName>([
   'Improver',
 ])
 
+const AGENT_DISPLAY_NAMES: Record<string, string> = {
+  Plotter: 'Сюжетник',
+  Psychologist: 'Психолог',
+  PlotCritic: 'Критик плана',
+  Writer: 'Писатель',
+  WriterCritic: 'Критик текста',
+  Improver: 'Улучшатель',
+}
+
 function toAgentName(raw: string): AgentName {
   if (KNOWN_AGENT_NAMES.has(raw as AgentName)) {
     return raw as AgentName
@@ -32,10 +41,32 @@ function toAgentName(raw: string): AgentName {
 }
 
 function toPipelineSteps(status: PipelineStatus): PipelineStep[] {
-  return status.steps.map((step) => ({
-    agentName: toAgentName(step.agent ?? step.name),
-    status: API_STATUS_MAP[step.status] ?? 'idle',
-  }))
+  const currentStep = status.current_step ?? null
+  let passedCurrent = false
+
+  return status.steps.map((step) => {
+    const agentName = toAgentName(step.agent ?? step.name)
+    const isCurrent = currentStep !== null && (step.agent === currentStep || step.name === currentStep)
+
+    let resolvedStatus: AgentStatus
+
+    if (step.status === 'completed') {
+      resolvedStatus = 'done'
+    } else if (step.status === 'failed') {
+      resolvedStatus = 'error'
+    } else if (isCurrent) {
+      resolvedStatus = 'running'
+      passedCurrent = true
+    } else if (passedCurrent) {
+      resolvedStatus = 'idle'
+    } else if (currentStep === null) {
+      resolvedStatus = API_STATUS_MAP[step.status] ?? 'idle'
+    } else {
+      resolvedStatus = 'done'
+    }
+
+    return { agentName, status: resolvedStatus }
+  })
 }
 
 function isActivePolling(status: PipelineStatusValue): boolean {
@@ -151,7 +182,7 @@ export function PipelineStatusPage() {
         title="Статус конвейера"
         description={
           status
-            ? `${describeStatus(status.status)}${status.current_step ? ` Текущий шаг: ${status.current_step}.` : ''}`
+            ? `${describeStatus(status.status)}${status.current_step ? ` Сейчас работает: ${AGENT_DISPLAY_NAMES[status.current_step] ?? status.current_step}.` : ''}`
             : 'Опрашиваем текущий конвейер генерации.'
         }
       />

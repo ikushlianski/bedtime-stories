@@ -12,13 +12,22 @@ const statusConfig: Record<AgentStatus, { tone: string; label: string; dot: stri
   error: { tone: 'badge-error', label: 'Ошибка', dot: 'bg-error' },
 }
 
+const agentDisplayName: Record<AgentName, string> = {
+  Plotter: 'Сюжетник',
+  Psychologist: 'Психолог',
+  PlotCritic: 'Критик плана',
+  Writer: 'Писатель',
+  WriterCritic: 'Критик текста',
+  Improver: 'Улучшатель',
+}
+
 function AgentStatusBadge({ agentName, status }: AgentStatusBadgeProps) {
   const config = statusConfig[status]
 
   return (
     <span className={`badge gap-2 px-3 py-3 ${config.tone}`}>
       <span className={`h-2 w-2 rounded-full ${config.dot}`} />
-      {agentName} — {config.label}
+      {agentDisplayName[agentName] ?? agentName} — {config.label}
     </span>
   )
 }

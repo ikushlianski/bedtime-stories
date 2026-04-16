@@ -150,6 +150,26 @@ export function StoryReaderPage() {
   const counts = countByType(annotations)
   const reactionCount = totalReactions(counts)
 
+  useEffect(() => {
+    if (!story) return
+
+    if (story.status === 'draft' && !story.text_final) {
+      api.pipeline.status(storyId).then((pipelineStatus) => {
+        if (pipelineStatus.status === 'questions_pending') {
+          navigate(`/stories/${storyId}/questions`, { replace: true })
+        } else if (pipelineStatus.status === 'plan_ready') {
+          navigate(`/stories/${storyId}/plan-review`, { replace: true })
+        } else if (pipelineStatus.status === 'text_ready') {
+          navigate(`/stories/${storyId}/text-review`, { replace: true })
+        } else {
+          navigate(`/stories/${storyId}/pipeline`, { replace: true })
+        }
+      }).catch(() => {
+        navigate(`/stories/${storyId}/pipeline`, { replace: true })
+      })
+    }
+  }, [story, storyId, navigate])
+
   if (loading) {
     return <StatusCallout title="Загрузка" message="Получаем текст истории." />
   }
@@ -160,6 +180,10 @@ export function StoryReaderPage() {
 
   if (!story) {
     return <StatusCallout tone="warning" title="История не найдена" message="Запрошенная история не существует." />
+  }
+
+  if (story.status === 'draft' && !story.text_final) {
+    return <StatusCallout title="Перенаправление" message="Определяем статус конвейера..." />
   }
 
   return (
