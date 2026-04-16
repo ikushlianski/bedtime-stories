@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { eq, desc } from 'drizzle-orm'
 import { db } from '@bedtime/core/db/client'
-import { stories, annotations, feedback, runSnapshots, storyGroups } from '@bedtime/core/db/schema'
+import { stories, annotations, feedback, runSnapshots, storyGroups, planQuestions, planConversations } from '@bedtime/core/db/schema'
 import type { Story, NewStory, NewAnnotation } from '@bedtime/core/db/types'
 import { validate } from '../middleware/validate'
 import { triggerTextPhase, getPipelineStatus } from './pipeline'
@@ -367,12 +367,12 @@ router.delete('/:id', async (req, res) => {
       return
     }
 
-    await db.transaction(async (tx) => {
-      await tx.delete(annotations).where(eq(annotations.storyId, storyId))
-      await tx.delete(runSnapshots).where(eq(runSnapshots.storyId, storyId))
-      await tx.delete(feedback).where(eq(feedback.storyId, storyId))
-      await tx.delete(stories).where(eq(stories.id, storyId))
-    })
+    await db.delete(annotations).where(eq(annotations.storyId, storyId))
+    await db.delete(runSnapshots).where(eq(runSnapshots.storyId, storyId))
+    await db.delete(feedback).where(eq(feedback.storyId, storyId))
+    await db.delete(planQuestions).where(eq(planQuestions.storyId, storyId))
+    await db.delete(planConversations).where(eq(planConversations.storyId, storyId))
+    await db.delete(stories).where(eq(stories.id, storyId))
 
     res.status(204).send()
   } catch (err) {

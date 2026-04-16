@@ -15,11 +15,34 @@ interface CreateStoryModalProps {
   initialGroupId?: number | null
 }
 
+const LAST_UNIVERSE_KEY = 'create-story-last-universe-id'
+
+function loadLastUniverseId(): number | null {
+  try {
+    const raw = localStorage.getItem(LAST_UNIVERSE_KEY)
+    return raw ? Number(raw) : null
+  } catch {
+    return null
+  }
+}
+
+function saveLastUniverseId(id: number | null) {
+  try {
+    if (id === null) {
+      localStorage.removeItem(LAST_UNIVERSE_KEY)
+    } else {
+      localStorage.setItem(LAST_UNIVERSE_KEY, String(id))
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
 function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '', initialGroupId = null }: CreateStoryModalProps) {
   const [form, setForm] = useState<CreateStoryFormState>({
     ...INITIAL_CREATE_STORY_FORM,
     seed: initialSeed,
-    groupId: initialGroupId,
+    groupId: initialGroupId ?? loadLastUniverseId(),
   })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -27,7 +50,11 @@ function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '', initialGr
 
   useEffect(() => {
     if (open) {
-      setForm({ ...INITIAL_CREATE_STORY_FORM, seed: initialSeed, groupId: initialGroupId })
+      setForm({
+        ...INITIAL_CREATE_STORY_FORM,
+        seed: initialSeed,
+        groupId: initialGroupId ?? loadLastUniverseId(),
+      })
       setError(null)
 
       api.universes.list().then(setUniverses).catch(() => setUniverses([]))
@@ -71,7 +98,7 @@ function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '', initialGr
       <div className="modal-box max-w-2xl border border-base-300 bg-base-100 shadow-2xl">
         <h2 className="font-serif text-3xl text-base-content">Новая история</h2>
 
-        <div role="tablist" className="tabs tabs-boxed mt-4">
+        <div role="tablist" className="tabs tabs-boxed mt-4 gap-2">
           <button
             role="tab"
             className={`tab ${form.mode === 'generate' ? 'tab-active' : ''}`}
@@ -97,8 +124,10 @@ function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '', initialGr
             value={form.groupId ?? ''}
             onChange={(event) => {
               const value = event.target.value
+              const groupId = value === '' ? null : parseInt(value, 10)
 
-              setForm((prev) => ({ ...prev, groupId: value === '' ? null : parseInt(value, 10) }))
+              saveLastUniverseId(groupId)
+              setForm((prev) => ({ ...prev, groupId }))
             }}
           >
             <option value="">Без вселенной</option>

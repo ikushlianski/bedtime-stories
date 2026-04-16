@@ -19,7 +19,7 @@ function StoryFilterTabs({ value, onChange }: StoryFilterTabsProps) {
       {filterTabs.map((tab) => (
         <button
           key={tab.value}
-          className={`btn btn-sm sm:btn-md ${value === tab.value ? 'btn-primary' : 'btn-outline'}`}
+          className={`btn btn-sm sm:btn-md focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${value === tab.value ? 'btn-primary' : 'btn-outline'}`}
           onClick={() => onChange(tab.value)}
         >
           {tab.label}
