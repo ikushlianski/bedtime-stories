@@ -277,6 +277,9 @@ export const api = {
 
     list: (storyId: number, context?: 'plan' | 'text') =>
       request<Annotation[]>(`/api/stories/${storyId}/annotations${context ? `?context=${context}` : ''}`),
+
+    redoPlan: (storyId: number) =>
+      request<{ started: boolean; storyId: number }>(`/api/stories/${storyId}/redo-plan`, { method: 'POST' }),
   },
 
   pipeline: {

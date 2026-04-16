@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { api, type Annotation } from '../lib/api'
 
 interface SelectionPopover {
@@ -12,6 +13,32 @@ interface SelectionPopover {
 interface PlanAnnotatorProps {
   storyId: number
   planText: string
+}
+
+function RedoPlanButton({ storyId, disabled }: { storyId: number; disabled: boolean }) {
+  const navigate = useNavigate()
+  const [redoing, setRedoing] = useState(false)
+
+  const handleRedo = async () => {
+    setRedoing(true)
+
+    try {
+      await api.annotations.redoPlan(storyId)
+      navigate(`/stories/${storyId}/pipeline`)
+    } catch {
+      setRedoing(false)
+    }
+  }
+
+  return (
+    <button
+      className="btn btn-outline btn-sm"
+      onClick={() => void handleRedo()}
+      disabled={disabled || redoing}
+    >
+      {redoing ? 'Запускаем...' : 'Переделать с учётом комментариев'}
+    </button>
+  )
 }
 
 function PlanAnnotator({ storyId, planText }: PlanAnnotatorProps) {
@@ -84,8 +111,16 @@ function PlanAnnotator({ storyId, planText }: PlanAnnotatorProps) {
     }
   }
 
+  const hasAnnotations = annotations.length > 0
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      {hasAnnotations && (
+        <div className="flex justify-end">
+          <RedoPlanButton storyId={storyId} disabled={false} />
+        </div>
+      )}
+
       <div className="relative" ref={containerRef} onMouseUp={handleMouseUp}>
         <div className="select-text cursor-text leading-relaxed text-base-content">
           {planText.split('\n').map((line, i) => (
@@ -141,20 +176,26 @@ function PlanAnnotator({ storyId, planText }: PlanAnnotatorProps) {
         )}
       </div>
 
-      {annotations.length > 0 && (
-        <section>
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
-            Заметки к плану
-          </h3>
-          <ul className="space-y-3">
-            {annotations.map((a) => (
-              <li key={a.id} className="rounded-box border border-base-300 bg-base-200/50 p-4">
-                <p className="mb-1 text-xs italic text-base-content/50">&ldquo;{a.selectedText}&rdquo;</p>
-                <p className="text-sm text-base-content">{a.noteText}</p>
-              </li>
-            ))}
-          </ul>
-        </section>
+      {hasAnnotations && (
+        <div className="space-y-4">
+          <section>
+            <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
+              Заметки к плану
+            </h3>
+            <ul className="space-y-3">
+              {annotations.map((a) => (
+                <li key={a.id} className="rounded-box border border-base-300 bg-base-200/50 p-4">
+                  <p className="mb-1 text-xs italic text-base-content/50">&ldquo;{a.selectedText}&rdquo;</p>
+                  <p className="text-sm text-base-content">{a.noteText}</p>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <div className="flex justify-end">
+            <RedoPlanButton storyId={storyId} disabled={false} />
+          </div>
+        </div>
       )}
     </div>
   )

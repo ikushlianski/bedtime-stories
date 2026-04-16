@@ -20,13 +20,14 @@ export async function runPlotter(options: {
   seed: string
   previousPlan?: string
   criticNotes?: CriticOutput
+  userFeedback?: string
   model: string
   resolvedPrompt?: ResolvedPrompt
   universeSystemPrompt?: string
   sashaContext?: string | null
   cwd?: string
 }): Promise<string> {
-  const { seed, previousPlan, criticNotes, model } = options
+  const { seed, previousPlan, criticNotes, userFeedback, model } = options
   const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
 
   const resolved = options.resolvedPrompt ?? (await resolvePrompt('plotter', PLOTTER_SYSTEM_PROMPT_DEFAULT))
@@ -47,6 +48,10 @@ export async function runPlotter(options: {
 
   if (previousPlan !== undefined) {
     parts.push(`\nPREVIOUS PLAN (revise based on critic notes below):\n${previousPlan}`)
+  }
+
+  if (userFeedback !== undefined) {
+    parts.push(`\nPARENT FEEDBACK ON PREVIOUS PLAN (the parent has reviewed the plan and left these notes — address each one):\n${userFeedback}`)
   }
 
   if (criticNotes !== undefined) {

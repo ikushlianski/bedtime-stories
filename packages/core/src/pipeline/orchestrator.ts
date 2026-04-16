@@ -55,6 +55,7 @@ export async function runPlanPhase(options: {
   promptVersions: PipelinePromptVersions
   universeSystemPrompt?: string
   sashaContext?: string | null
+  userFeedback?: string
   cwd?: string
 }): Promise<PlanPhaseResult> {
   const { seed, models } = options
@@ -73,6 +74,8 @@ export async function runPlanPhase(options: {
     plotter: plotterPrompt.version,
   }
 
+  const userFeedbackArg = options.userFeedback ? { userFeedback: options.userFeedback } : {}
+
   const planV1 = await runPlotter({
     seed,
     model: models.plotter,
@@ -80,6 +83,7 @@ export async function runPlanPhase(options: {
     ...cwdArg,
     ...universeArg,
     ...sashaContextArg,
+    ...userFeedbackArg,
   })
 
   let currentPlan = planV1

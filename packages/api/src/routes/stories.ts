@@ -6,6 +6,7 @@ import { stories, annotations, feedback, runSnapshots, storyGroups, planQuestion
 import type { Story, NewStory, NewAnnotation } from '@bedtime/core/db/types'
 import { validate } from '../middleware/validate'
 import { triggerTextPhase, getPipelineStatus } from './pipeline'
+import { triggerPlanRedo } from './pipeline-plan-redo'
 import { decideApprovePlan } from './approve-plan-decision'
 import { createStorySchema, resolveCreateStoryMode } from './create-story-schema'
 
@@ -247,6 +248,41 @@ router.post('/:id/approve-plan', validate(approvePlanSchema), async (req, res) =
   } catch (err) {
     console.error('POST /stories/:id/approve-plan failed:', err)
     res.status(500).json({ error: 'Failed to approve plan' })
+  }
+})
+
+router.post('/:id/redo-plan', async (req, res) => {
+  try {
+    const storyId = parseIntParam(req.params['id'])
+
+    if (isNaN(storyId)) {
+      res.status(400).json({ error: 'Invalid story id' })
+      return
+    }
+
+    const [existing] = await db.select().from(stories).where(eq(stories.id, storyId))
+
+    if (!existing || !existing.seed) {
+      res.status(400).json({ error: 'Story not found or has no seed' })
+      return
+    }
+
+    let universeSystemPrompt: string | undefined
+
+    if (existing.groupId !== null && existing.groupId !== undefined) {
+      const [group] = await db.select().from(storyGroups).where(eq(storyGroups.id, existing.groupId))
+
+      if (group?.systemPrompt) {
+        universeSystemPrompt = group.systemPrompt
+      }
+    }
+
+    triggerPlanRedo(storyId, existing.seed, universeSystemPrompt)
+
+    res.json({ started: true, storyId })
+  } catch (err) {
+    console.error('POST /stories/:id/redo-plan failed:', err)
+    res.status(500).json({ error: 'Failed to start plan redo' })
   }
 })
 
