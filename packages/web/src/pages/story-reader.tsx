@@ -207,7 +207,7 @@ export function StoryReaderPage() {
             )}
             {(currentStatus ?? story.status) === 'ready' && (
               <button
-                className="btn btn-success btn-sm"
+                className="btn btn-primary btn-sm"
                 disabled={markingRead}
                 onClick={() => {
                   setMarkingRead(true)

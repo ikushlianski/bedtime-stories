@@ -158,13 +158,13 @@ export function IdeasPage() {
               </p>
               <div className="mt-3 flex gap-2">
                 <button
-                  className="btn btn-primary btn-sm"
+                  className="btn btn-primary"
                   onClick={() => handlePromote(idea.id, idea.text)}
                 >
                   Превратить в историю →
                 </button>
                 <button
-                  className="btn btn-ghost btn-sm"
+                  className="btn btn-error btn-sm btn-outline"
                   onClick={() => handleDelete(idea.id)}
                 >
                   Удалить

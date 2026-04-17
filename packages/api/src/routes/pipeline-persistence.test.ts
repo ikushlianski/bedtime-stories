@@ -27,6 +27,8 @@ const basePlan: PlanPhaseResult = {
   planV1: 'plan draft one',
   planFinal: 'plan final version',
   planIterationsCount: 2,
+  titleSuggested: 'Волшебный лес',
+  sashaContext: null,
   psychologistPlanOutput,
   plotCriticOutput,
   models: {
@@ -138,6 +140,7 @@ describe('buildPlanStoriesUpdate', () => {
     const update = buildPlanStoriesUpdate(basePlan)
 
     expect(update).toEqual({
+      title: 'Волшебный лес',
       planV1: 'plan draft one',
       planFinal: 'plan final version',
       planIterations: 2,

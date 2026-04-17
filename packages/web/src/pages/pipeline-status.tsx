@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { api, type PipelineStatus, type PipelineStatusValue, type Story } from '../lib/api'
 import { PageHeader, PipelineProgress, StatusCallout } from '../components'
+import { QuestionsPipelineSection } from '../components/questions-pipeline-section'
 import type { PipelineStep, AgentName, AgentStatus } from '../components/types'
 import { decidePipelineRetry } from './pipeline-retry'
 
@@ -15,6 +16,7 @@ const API_STATUS_MAP: Record<string, AgentStatus> = {
 }
 
 const KNOWN_AGENT_NAMES = new Set<AgentName>([
+  'Questions',
   'Plotter',
   'Psychologist',
   'PlotCritic',
@@ -24,6 +26,7 @@ const KNOWN_AGENT_NAMES = new Set<AgentName>([
 ])
 
 const AGENT_DISPLAY_NAMES: Record<string, string> = {
+  Questions: 'Уточняющие вопросы',
   Plotter: 'Сюжетник',
   Psychologist: 'Психолог',
   PlotCritic: 'Критик плана',
@@ -40,11 +43,21 @@ function toAgentName(raw: string): AgentName {
   return 'Plotter'
 }
 
+function questionsStepStatus(statusValue: PipelineStatusValue): AgentStatus {
+  if (statusValue === 'pending' || statusValue === 'questions_pending') return 'running'
+  return 'done'
+}
+
 function toPipelineSteps(status: PipelineStatus): PipelineStep[] {
+  const questionsStep: PipelineStep = {
+    agentName: 'Questions',
+    status: questionsStepStatus(status.status),
+  }
+
   const currentStep = status.current_step ?? null
   let passedCurrent = false
 
-  return status.steps.map((step) => {
+  const agentSteps = status.steps.map((step) => {
     const agentName = toAgentName(step.agent ?? step.name)
     const isCurrent = currentStep !== null && (step.agent === currentStep || step.name === currentStep)
 
@@ -67,10 +80,12 @@ function toPipelineSteps(status: PipelineStatus): PipelineStep[] {
 
     return { agentName, status: resolvedStatus }
   })
+
+  return [questionsStep, ...agentSteps]
 }
 
 function isActivePolling(status: PipelineStatusValue): boolean {
-  return status === 'plan_running' || status === 'text_running' || status === 'pending'
+  return status === 'plan_running' || status === 'text_running' || status === 'pending' || status === 'questions_pending'
 }
 
 function describeStatus(status: PipelineStatusValue): string {
@@ -141,29 +156,29 @@ export function PipelineStatusPage() {
     }
   }, [storyId])
 
-  useEffect(() => {
-    const fetchStatus = async () => {
-      try {
-        const data = await api.pipeline.status(storyId)
+  const fetchStatus = useCallback(async () => {
+    try {
+      const data = await api.pipeline.status(storyId)
 
-        setStatus(data)
+      setStatus(data)
 
-        if (!isActivePolling(data.status)) {
-          if (intervalRef.current) {
-            clearInterval(intervalRef.current)
-            intervalRef.current = null
-          }
-        }
-      } catch (fetchError) {
-        setError(fetchError instanceof Error ? fetchError.message : 'Не удалось загрузить статус конвейера')
-
+      if (!isActivePolling(data.status)) {
         if (intervalRef.current) {
           clearInterval(intervalRef.current)
           intervalRef.current = null
         }
       }
-    }
+    } catch (fetchError) {
+      setError(fetchError instanceof Error ? fetchError.message : 'Не удалось загрузить статус конвейера')
 
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+    }
+  }, [storyId])
+
+  useEffect(() => {
     void fetchStatus()
 
     intervalRef.current = setInterval(() => void fetchStatus(), POLL_INTERVAL_MS)
@@ -173,7 +188,7 @@ export function PipelineStatusPage() {
         clearInterval(intervalRef.current)
       }
     }
-  }, [storyId])
+  }, [fetchStatus])
 
   return (
     <div>
@@ -197,6 +212,14 @@ export function PipelineStatusPage() {
 
       {status && (
         <div className="space-y-6">
+          {status.status !== 'pending' && (
+            <QuestionsPipelineSection
+              storyId={storyId}
+              pipelineStatus={status.status}
+              onAnswersSubmitted={() => void fetchStatus()}
+            />
+          )}
+
           <PipelineProgress steps={toPipelineSteps(status)} />
 
           {status.status === 'plan_ready' && (

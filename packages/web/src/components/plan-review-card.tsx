@@ -38,14 +38,14 @@ function PlanReviewCard({
           <div className="flex items-center gap-3">
             {hasRevisions && (
               <button
-                className="btn btn-primary btn-sm"
+                className="btn btn-sm btn-outline"
                 onClick={() => setShowDiff((v) => !v)}
               >
                 {showDiff ? 'Читать план' : 'Показать изменения'}
               </button>
             )}
 
-            <button className="btn btn-primary btn-sm" onClick={onApprove}>
+            <button className="btn btn-primary" onClick={onApprove}>
               Одобрить план
             </button>
           </div>

@@ -173,7 +173,7 @@ export function PlanReviewPage() {
             Генерация плана завершилась с ошибкой. Можно попробовать снова.
           </p>
           <button
-            className="btn btn-primary btn-sm"
+            className="btn btn-sm btn-outline"
             onClick={() => void handleRetryPlan()}
             disabled={retrying}
           >

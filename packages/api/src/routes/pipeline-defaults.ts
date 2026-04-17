@@ -1,11 +1,11 @@
 import type { PipelineModels, PipelinePromptVersions } from '@bedtime/core/pipeline/orchestrator'
 
 export const defaultModels: PipelineModels = {
-  plotter: 'claude-sonnet-4-6',
-  psychologist: 'claude-sonnet-4-6',
-  plotCritic: 'claude-haiku-4-5-20251001',
-  writer: 'claude-sonnet-4-6',
-  writerCritic: 'claude-haiku-4-5-20251001',
+  plotter: 'claude-opus-4-6',
+  psychologist: 'claude-opus-4-6',
+  plotCritic: 'claude-opus-4-6',
+  writer: 'claude-opus-4-6',
+  writerCritic: 'claude-opus-4-6',
 }
 
 export const defaultPromptVersions: PipelinePromptVersions = {

@@ -1,6 +1,7 @@
 export type StoryStatus = "draft" | "ready" | "read" | "archived";
 
 export type AgentName =
+  | "Questions"
   | "Plotter"
   | "Psychologist"
   | "PlotCritic"

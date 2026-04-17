@@ -35,6 +35,7 @@ export function buildTextSnapshotUpdate(text: TextPhaseResult): Partial<NewRunSn
 }
 
 export interface PlanStoriesUpdate {
+  title: string
   planV1: string
   planFinal: string
   planIterations: number
@@ -46,6 +47,7 @@ export interface PlanStoriesUpdate {
 
 export function buildPlanStoriesUpdate(plan: PlanPhaseResult): PlanStoriesUpdate {
   return {
+    title: plan.titleSuggested,
     planV1: plan.planV1,
     planFinal: plan.planFinal,
     planIterations: plan.planIterationsCount,

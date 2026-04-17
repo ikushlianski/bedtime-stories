@@ -13,6 +13,7 @@ const statusConfig: Record<AgentStatus, { tone: string; label: string; dot: stri
 }
 
 const agentDisplayName: Record<AgentName, string> = {
+  Questions: 'Уточняющие вопросы',
   Plotter: 'Сюжетник',
   Psychologist: 'Психолог',
   PlotCritic: 'Критик плана',

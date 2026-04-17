@@ -74,7 +74,7 @@ function AnnotationToolbar({ onAnnotate, selectedText }: AnnotationToolbarProps)
       {REACTION_BUTTONS.map(({ type, label }) => (
         <button
           key={type}
-          className="btn btn-secondary btn-xs"
+          className="btn btn-ghost btn-xs"
           onClick={() => onAnnotate(type, selectedText)}
         >
           {label}

@@ -98,13 +98,15 @@ export function PlanConversationPanel({ storyId }: { storyId: number }) {
             }}
           />
 
-          <button
-            className="btn btn-primary self-end"
-            onClick={handleSend}
-            disabled={!input.trim() || thinking}
-          >
-            Отправить
-          </button>
+          <div className="self-end">
+            <button
+              className="btn btn-primary"
+              onClick={handleSend}
+              disabled={!input.trim() || thinking}
+            >
+              Отправить
+            </button>
+          </div>
         </div>
       </div>
     </section>

@@ -4,6 +4,7 @@ import { runPlotCritic } from './stages/plot-critic'
 import { runWriter, WRITER_SYSTEM_PROMPT_DEFAULT } from './stages/writer'
 import { runWriterCritic } from './stages/writer-critic'
 import { runPlotterQuestions, type PlotterQuestionItem } from './stages/plotter-questions'
+import { generateStoryTitle } from './stages/title-generator'
 import { resolvePrompt, type ResolvedPrompt } from './prompt-resolver'
 import type { PsychologistOutput, CriticOutput } from './schemas'
 
@@ -30,6 +31,7 @@ export interface PlanPhaseResult {
   planV1: string
   planFinal: string
   planIterationsCount: number
+  titleSuggested: string
   psychologistPlanOutput: PsychologistOutput
   plotCriticOutput: CriticOutput
   models: PipelineModels
@@ -166,10 +168,19 @@ export async function runPlanPhase(options: {
     throw new Error('Plan phase completed without psychologist or critic output')
   }
 
+  notify('TitleGenerator')
+  const titleSuggested = await generateStoryTitle({
+    plan: currentPlan,
+    seed,
+    model: models.plotter,
+    ...cwdArg,
+  })
+
   return {
     planV1,
     planFinal: currentPlan,
     planIterationsCount: iterationsCount,
+    titleSuggested,
     psychologistPlanOutput,
     plotCriticOutput,
     models,
