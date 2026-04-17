@@ -35,6 +35,7 @@ export const stories = pgTable('stories', {
   discussionQuestions: jsonb('discussion_questions').default([]),
   seed: text('seed'),
   groupId: integer('group_id').references(() => storyGroups.id),
+  planChangeSummary: text('plan_change_summary'),
 })
 
 export const feedback = pgTable('feedback', {

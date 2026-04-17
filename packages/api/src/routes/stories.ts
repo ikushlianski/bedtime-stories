@@ -43,6 +43,7 @@ function toSnakeCase(row: Story) {
     discussion_questions: row.discussionQuestions,
     seed: row.seed,
     group_id: row.groupId,
+    plan_change_summary: row.planChangeSummary ?? null,
   }
 }
 
@@ -279,7 +280,7 @@ router.post('/:id/redo-plan', async (req, res) => {
       }
     }
 
-    triggerPlanRedo(storyId, existing.seed, universeSystemPrompt, universeContext)
+    triggerPlanRedo(storyId, existing.seed, existing.planFinal ?? '', universeSystemPrompt, universeContext)
 
     res.json({ started: true, storyId })
   } catch (err) {

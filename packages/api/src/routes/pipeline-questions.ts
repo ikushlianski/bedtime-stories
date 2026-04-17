@@ -122,6 +122,59 @@ router.post('/questions/:storyId/submit', validate(submitAnswersSchema), async (
   }
 })
 
+router.post('/questions/:storyId/retry-plan', async (req, res) => {
+  try {
+    const storyIdRaw = parseStoryId(req.params['storyId'])
+
+    if (isNaN(storyIdRaw)) {
+      res.status(400).json({ error: 'Invalid storyId' })
+      return
+    }
+
+    const [storyRow] = await db.select().from(stories).where(eq(stories.id, storyIdRaw))
+
+    if (!storyRow) {
+      res.status(404).json({ error: 'Story not found' })
+      return
+    }
+
+    const answeredQuestions = await db
+      .select()
+      .from(planQuestions)
+      .where(eq(planQuestions.storyId, storyIdRaw))
+
+    const qaArray = answeredQuestions
+      .filter((q) => q.answerText !== null && q.answerText !== undefined)
+      .map((q) => ({ question: q.questionText, answer: q.answerText ?? '' }))
+
+    if (qaArray.length === 0) {
+      res.status(422).json({ error: 'No answered questions found — cannot retry plan phase' })
+      return
+    }
+
+    const seed = storyRow.seed ?? ''
+
+    let universeSystemPrompt: string | undefined
+    let universeContext: string | undefined
+
+    if (storyRow.groupId !== null && storyRow.groupId !== undefined) {
+      const [group] = await db.select().from(storyGroups).where(eq(storyGroups.id, storyRow.groupId))
+
+      if (group) {
+        universeSystemPrompt = group.systemPrompt
+        universeContext = group.universeContext ?? undefined
+      }
+    }
+
+    triggerPlanPhaseFromAnswers(storyIdRaw, seed, qaArray, universeSystemPrompt, universeContext)
+
+    res.json({ ok: true, storyId: storyIdRaw })
+  } catch (err) {
+    console.error('POST /pipeline/questions/:storyId/retry-plan failed:', err)
+    res.status(500).json({ error: 'Failed to retry plan phase' })
+  }
+})
+
 router.get('/conversations/:storyId', async (req, res) => {
   try {
     const storyIdRaw = parseStoryId(req.params['storyId'])

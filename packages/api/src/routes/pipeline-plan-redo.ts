@@ -1,6 +1,7 @@
 import { eq, and } from 'drizzle-orm'
 import { runPlanPhase } from '@bedtime/core/pipeline/orchestrator'
 import { synthesizeSashaContext } from '@bedtime/core/pipeline/feedback-synthesizer'
+import { generatePlanChangeSummary } from '@bedtime/core/pipeline/plan-change-summarizer'
 import { db } from '@bedtime/core/db/client'
 import { annotations, runSnapshots, stories } from '@bedtime/core/db/schema'
 import { buildPlanSnapshotInsert, buildPlanStoriesUpdate } from './pipeline-persistence'
@@ -14,7 +15,7 @@ function formatAnnotationsAsFeedback(items: Array<{ selectedText: string; noteTe
     .join('\n\n')
 }
 
-export function triggerPlanRedo(storyId: number, seed: string, universeSystemPrompt?: string, universeContext?: string): void {
+export function triggerPlanRedo(storyId: number, seed: string, previousPlan: string, universeSystemPrompt?: string, universeContext?: string): void {
   setPipelineStatus(storyId, 'plan_running')
 
   db.select({ selectedText: annotations.selectedText, noteText: annotations.noteText })
@@ -35,13 +36,25 @@ export function triggerPlanRedo(storyId: number, seed: string, universeSystemPro
           ...(sashaContext !== null ? { sashaContext } : {}),
           ...(userFeedback ? { userFeedback } : {}),
           onStepChange: (step) => setCurrentStep(storyId, step),
-        })
+        }).then(async (plan) => ({ plan, userFeedback }))
       )
     })
-    .then(async (plan) => {
+    .then(async ({ plan, userFeedback }) => {
       try {
+        const changeSummary = await generatePlanChangeSummary({
+          previousPlan,
+          newPlan: plan.planFinal,
+          userFeedback,
+          model: defaultModels.plotter,
+        })
+
         await db.insert(runSnapshots).values(buildPlanSnapshotInsert(storyId, plan))
-        await db.update(stories).set(buildPlanStoriesUpdate(plan)).where(eq(stories.id, storyId))
+
+        await db
+          .update(stories)
+          .set({ ...buildPlanStoriesUpdate(plan), planChangeSummary: changeSummary })
+          .where(eq(stories.id, storyId))
+
         setPipelineStatus(storyId, 'plan_ready')
       } catch (dbError) {
         console.error(`Failed to persist plan redo for storyId=${storyId}:`, dbError)
