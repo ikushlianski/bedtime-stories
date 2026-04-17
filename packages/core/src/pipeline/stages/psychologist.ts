@@ -8,6 +8,7 @@ export async function runPsychologist(options: {
   iterationNumber: number
   model: string
   universeSystemPrompt?: string
+  universeContext?: string
   sashaContext?: string | null
   cwd?: string
 }): Promise<PsychologistOutput> {
@@ -20,6 +21,10 @@ export async function runPsychologist(options: {
     ? `\n\n---\nКОНТЕКСТ САШИ (используй для вдохновения, не копируй буквально):\n${options.sashaContext}\n---`
     : ''
 
+  const universeContextBlock = options.universeContext
+    ? `\n\n---\nКОНТЕКСТ ВСЕЛЕННОЙ:\n${options.universeContext}\n---`
+    : ''
+
   const parts = [
     `Content type: ${contentType}`,
     `${label}:\n${content}`,
@@ -27,7 +32,7 @@ export async function runPsychologist(options: {
     `Iteration number: ${iterationNumber}`,
   ]
 
-  const basePrompt = parts.join('\n\n') + sashaContextBlock
+  const basePrompt = parts.join('\n\n') + universeContextBlock + sashaContextBlock
 
   const prompt = options.universeSystemPrompt
     ? `${options.universeSystemPrompt}\n\n---\n\n${basePrompt}`

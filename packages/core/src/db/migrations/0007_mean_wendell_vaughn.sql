@@ -1,0 +1,1 @@
+ALTER TABLE "story_groups" ADD COLUMN "universe_context" text;

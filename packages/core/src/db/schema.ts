@@ -5,6 +5,7 @@ export const storyGroups = pgTable('story_groups', {
   name: text('name').notNull(),
   description: text('description').notNull().default(''),
   systemPrompt: text('system_prompt').notNull(),
+  universeContext: text('universe_context'),
   agentOverrides: jsonb('agent_overrides').default({}),
   createdAt: timestamp('created_at').defaultNow(),
 })

@@ -56,6 +56,7 @@ export async function runPlanPhase(options: {
   models: PipelineModels
   promptVersions: PipelinePromptVersions
   universeSystemPrompt?: string
+  universeContext?: string
   sashaContext?: string | null
   userFeedback?: string
   cwd?: string
@@ -66,6 +67,9 @@ export async function runPlanPhase(options: {
   const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
   const universeArg = options.universeSystemPrompt !== undefined
     ? { universeSystemPrompt: options.universeSystemPrompt }
+    : {}
+  const universeContextArg = options.universeContext !== undefined
+    ? { universeContext: options.universeContext }
     : {}
   const sashaContextArg = options.sashaContext !== undefined && options.sashaContext !== null
     ? { sashaContext: options.sashaContext }
@@ -87,6 +91,7 @@ export async function runPlanPhase(options: {
     resolvedPrompt: plotterPrompt,
     ...cwdArg,
     ...universeArg,
+    ...universeContextArg,
     ...sashaContextArg,
     ...userFeedbackArg,
   })
@@ -113,6 +118,7 @@ export async function runPlanPhase(options: {
         model: models.psychologist,
         ...cwdArg,
         ...universeArg,
+        ...universeContextArg,
         ...sashaContextArg,
       })
 
@@ -126,6 +132,7 @@ export async function runPlanPhase(options: {
         model: models.plotCritic,
         ...cwdArg,
         ...universeArg,
+        ...universeContextArg,
         ...sashaContextArg,
       })
     } else {
@@ -141,6 +148,7 @@ export async function runPlanPhase(options: {
         model: models.plotCritic,
         ...cwdArg,
         ...universeArg,
+        ...universeContextArg,
         ...sashaContextArg,
       })
     }
@@ -159,6 +167,7 @@ export async function runPlanPhase(options: {
         resolvedPrompt: plotterPrompt,
         ...cwdArg,
         ...universeArg,
+        ...universeContextArg,
         ...sashaContextArg,
       })
     }
@@ -196,6 +205,7 @@ export async function runTextPhase(options: {
   models: PipelineModels
   promptVersions: PipelinePromptVersions
   universeSystemPrompt?: string
+  universeContext?: string
   sashaContext?: string | null
   cwd?: string
   onStepChange?: (step: string) => void
@@ -205,6 +215,9 @@ export async function runTextPhase(options: {
   const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
   const universeArg = options.universeSystemPrompt !== undefined
     ? { universeSystemPrompt: options.universeSystemPrompt }
+    : {}
+  const universeContextArg = options.universeContext !== undefined
+    ? { universeContext: options.universeContext }
     : {}
   const sashaContextArg = options.sashaContext !== undefined && options.sashaContext !== null
     ? { sashaContext: options.sashaContext }
@@ -228,6 +241,7 @@ export async function runTextPhase(options: {
     resolvedPrompt: writerPrompt,
     ...cwdArg,
     ...universeArg,
+    ...universeContextArg,
     ...sashaContextArg,
   })
 
@@ -240,6 +254,7 @@ export async function runTextPhase(options: {
     model: models.psychologist,
     ...cwdArg,
     ...universeArg,
+    ...universeContextArg,
     ...sashaContextArg,
   })
 
@@ -251,6 +266,7 @@ export async function runTextPhase(options: {
     model: models.writerCritic,
     ...cwdArg,
     ...universeArg,
+    ...universeContextArg,
     ...sashaContextArg,
   })
 
@@ -262,6 +278,7 @@ export async function runTextPhase(options: {
     resolvedPrompt: writerPrompt,
     ...cwdArg,
     ...universeArg,
+    ...universeContextArg,
     ...sashaContextArg,
   })
 
@@ -280,6 +297,7 @@ export async function runQuestionsPhase(options: {
   storyId: number
   models: PipelineModels
   universeSystemPrompt?: string
+  universeContext?: string
   sashaContext?: string | null
   cwd?: string
 }): Promise<PlotterQuestionItem[]> {
@@ -287,6 +305,9 @@ export async function runQuestionsPhase(options: {
   const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
   const universeArg = options.universeSystemPrompt !== undefined
     ? { universeSystemPrompt: options.universeSystemPrompt }
+    : {}
+  const universeContextArg = options.universeContext !== undefined
+    ? { universeContext: options.universeContext }
     : {}
   const sashaContextArg = options.sashaContext !== undefined && options.sashaContext !== null
     ? { sashaContext: options.sashaContext }
@@ -297,6 +318,7 @@ export async function runQuestionsPhase(options: {
     model: models.plotter,
     ...cwdArg,
     ...universeArg,
+    ...universeContextArg,
     ...sashaContextArg,
   })
 }

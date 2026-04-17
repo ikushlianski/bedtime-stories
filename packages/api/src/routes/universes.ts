@@ -24,6 +24,7 @@ const updateGroupSchema = z.object({
   name: z.string().min(1).optional(),
   systemPrompt: z.string().min(1).optional(),
   description: z.string().optional(),
+  universeContext: z.string().optional(),
   agentOverrides: z.record(z.string(), z.string()).optional(),
 })
 
@@ -33,6 +34,7 @@ function toPublic(row: StoryGroup) {
     name: row.name,
     description: row.description,
     systemPrompt: row.systemPrompt,
+    universeContext: row.universeContext ?? null,
     agentOverrides: row.agentOverrides,
     createdAt: row.createdAt,
   }

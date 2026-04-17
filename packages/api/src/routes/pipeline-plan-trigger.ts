@@ -15,6 +15,7 @@ export function triggerPlanPhaseFromAnswers(
   seed: string,
   answers: Array<{ question: string; answer: string }>,
   universeSystemPrompt?: string,
+  universeContext?: string,
 ): void {
   setPipelineStatus(storyId, 'questions_answered')
 
@@ -32,6 +33,7 @@ export function triggerPlanPhaseFromAnswers(
         models: defaultModels,
         promptVersions: defaultPromptVersions,
         ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
+        ...(universeContext !== undefined ? { universeContext } : {}),
         ...(sashaContext !== null ? { sashaContext } : {}),
         onStepChange: (step) => setCurrentStep(storyId, step),
       })

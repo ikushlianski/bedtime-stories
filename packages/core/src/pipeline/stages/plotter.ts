@@ -24,6 +24,7 @@ export async function runPlotter(options: {
   model: string
   resolvedPrompt?: ResolvedPrompt
   universeSystemPrompt?: string
+  universeContext?: string
   sashaContext?: string | null
   cwd?: string
 }): Promise<string> {
@@ -40,8 +41,12 @@ export async function runPlotter(options: {
     ? `\n\n---\nКОНТЕКСТ САШИ (используй для вдохновения, не копируй буквально):\n${options.sashaContext}\n---\n`
     : ''
 
+  const universeContextBlock = options.universeContext
+    ? `\n\n---\nКОНТЕКСТ ВСЕЛЕННОЙ (персонажи, события, темы этой вселенной):\n${options.universeContext}\n---\n`
+    : ''
+
   const parts: string[] = [
-    `${basePrompt}${sashaContextBlock}`,
+    `${basePrompt}${universeContextBlock}${sashaContextBlock}`,
     '',
     `SEED (real-life situation to base the story on):\n${seed}`,
   ]

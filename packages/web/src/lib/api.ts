@@ -47,6 +47,7 @@ export interface StoryGroup {
   name: string
   description: string
   systemPrompt: string
+  universeContext: string | null
   agentOverrides: Record<string, string> | null
   createdAt: string
 }
@@ -342,6 +343,7 @@ export const api = {
         name: string
         systemPrompt: string
         description: string
+        universeContext: string
         agentOverrides: Record<string, string>
       }>,
     ) =>

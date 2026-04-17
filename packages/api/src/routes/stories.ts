@@ -268,16 +268,18 @@ router.post('/:id/redo-plan', async (req, res) => {
     }
 
     let universeSystemPrompt: string | undefined
+    let universeContext: string | undefined
 
     if (existing.groupId !== null && existing.groupId !== undefined) {
       const [group] = await db.select().from(storyGroups).where(eq(storyGroups.id, existing.groupId))
 
-      if (group?.systemPrompt) {
+      if (group) {
         universeSystemPrompt = group.systemPrompt
+        universeContext = group.universeContext ?? undefined
       }
     }
 
-    triggerPlanRedo(storyId, existing.seed, universeSystemPrompt)
+    triggerPlanRedo(storyId, existing.seed, universeSystemPrompt, universeContext)
 
     res.json({ started: true, storyId })
   } catch (err) {

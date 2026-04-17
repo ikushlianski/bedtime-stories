@@ -7,6 +7,7 @@ export async function runPlotCritic(options: {
   iterationNumber: number
   model: string
   universeSystemPrompt?: string
+  universeContext?: string
   sashaContext?: string | null
   cwd?: string
 }): Promise<CriticOutput> {
@@ -17,11 +18,15 @@ export async function runPlotCritic(options: {
     ? `\n\n---\nКОНТЕКСТ САШИ (используй для вдохновения, не копируй буквально):\n${options.sashaContext}\n---\n`
     : ''
 
+  const universeContextBlock = options.universeContext
+    ? `\n\n---\nКОНТЕКСТ ВСЕЛЕННОЙ:\n${options.universeContext}\n---\n`
+    : ''
+
   const basePrompt = [
     `Current story plan:\n${plan}`,
     `Psychologist assessment:\n${JSON.stringify(psychologistOutput, null, 2)}`,
     `Iteration number: ${iterationNumber}`,
-  ].join('\n\n') + sashaContextBlock
+  ].join('\n\n') + universeContextBlock + sashaContextBlock
 
   const prompt = options.universeSystemPrompt
     ? `${options.universeSystemPrompt}\n\n---\n\n${basePrompt}`

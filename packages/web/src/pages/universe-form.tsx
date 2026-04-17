@@ -5,6 +5,7 @@ export interface UniverseFormValues {
   name: string
   description: string
   systemPrompt: string
+  universeContext: string
 }
 
 interface UniverseFormProps {
@@ -18,6 +19,7 @@ function UniverseForm({ initial, onSave, onCancel, saveLabel = 'Сохранит
   const [name, setName] = useState(initial?.name ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
   const [systemPrompt, setSystemPrompt] = useState(initial?.systemPrompt ?? '')
+  const [universeContext, setUniverseContext] = useState(initial?.universeContext ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -31,7 +33,12 @@ function UniverseForm({ initial, onSave, onCancel, saveLabel = 'Сохранит
     setError(null)
 
     try {
-      await onSave({ name: name.trim(), description: description.trim(), systemPrompt: systemPrompt.trim() })
+      await onSave({
+        name: name.trim(),
+        description: description.trim(),
+        systemPrompt: systemPrompt.trim(),
+        universeContext: universeContext.trim(),
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Не удалось сохранить')
     } finally {
@@ -61,6 +68,17 @@ function UniverseForm({ initial, onSave, onCancel, saveLabel = 'Сохранит
         value={systemPrompt}
         onChange={(e) => setSystemPrompt(e.target.value)}
       />
+      <div className="space-y-1">
+        <p className="text-xs text-base-content/50">
+          Живой контекст вселенной — AI поддерживает автоматически, но можно редактировать вручную
+        </p>
+        <textarea
+          className="textarea textarea-bordered min-h-48 w-full bg-base-100 font-mono text-xs"
+          placeholder="## Персонажи&#10;- ...&#10;&#10;## События&#10;- ...&#10;&#10;## Чувства и темы&#10;- ..."
+          value={universeContext}
+          onChange={(e) => setUniverseContext(e.target.value)}
+        />
+      </div>
       {error && <p className="text-sm text-error">{error}</p>}
       <div className="flex gap-2">
         <button
@@ -110,7 +128,12 @@ export function UniverseCard({ universe, onDelete, onUpdate }: UniverseCardProps
     return (
       <div className="card border border-base-300 bg-base-100 p-4">
         <UniverseForm
-          initial={{ name: universe.name, description: universe.description, systemPrompt: universe.systemPrompt }}
+          initial={{
+            name: universe.name,
+            description: universe.description,
+            systemPrompt: universe.systemPrompt,
+            universeContext: universe.universeContext ?? '',
+          }}
           onSave={async (values) => {
             await onUpdate(universe.id, values)
             setEditing(false)
@@ -134,6 +157,11 @@ export function UniverseCard({ universe, onDelete, onUpdate }: UniverseCardProps
             {universe.systemPrompt.slice(0, 100)}
             {universe.systemPrompt.length > 100 ? '…' : ''}
           </p>
+          {universe.universeContext && (
+            <p className="mt-2 text-xs text-base-content/40 italic">
+              Живой контекст: {universe.universeContext.slice(0, 80)}…
+            </p>
+          )}
         </div>
         <div className="flex shrink-0 gap-2">
           <button className="btn btn-ghost btn-sm" onClick={() => setEditing(true)}>

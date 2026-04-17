@@ -125,12 +125,14 @@ router.post('/run', validate(runPipelineSchema), async (req, res) => {
     }
 
     let universeSystemPrompt: string | undefined
+    let universeContext: string | undefined
 
     if (storyRow.groupId !== null && storyRow.groupId !== undefined) {
       const [group] = await db.select().from(storyGroups).where(eq(storyGroups.id, storyRow.groupId))
 
       if (group) {
         universeSystemPrompt = group.systemPrompt
+        universeContext = group.universeContext ?? undefined
       }
     }
 
@@ -141,6 +143,7 @@ router.post('/run', validate(runPipelineSchema), async (req, res) => {
       storyId,
       models: defaultModels,
       ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
+      ...(universeContext !== undefined ? { universeContext } : {}),
       ...(sashaContext !== null ? { sashaContext } : {}),
     })
 

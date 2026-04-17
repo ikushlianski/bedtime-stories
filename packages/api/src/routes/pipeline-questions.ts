@@ -5,6 +5,7 @@ import { validate } from '../middleware/validate'
 import { db } from '@bedtime/core/db/client'
 import { planQuestions, planConversations, stories, storyGroups } from '@bedtime/core/db/schema'
 import { claudeCliRunner } from '@bedtime/core/ai'
+import { updateUniverseContext } from '@bedtime/core/pipeline/universe-context-updater'
 import { triggerPlanPhaseFromAnswers } from './pipeline-plan-trigger'
 
 const router = Router()
@@ -88,12 +89,14 @@ router.post('/questions/:storyId/submit', validate(submitAnswersSchema), async (
     const seed = storyRow.seed ?? ''
 
     let universeSystemPrompt: string | undefined
+    let universeContext: string | undefined
 
     if (storyRow.groupId !== null && storyRow.groupId !== undefined) {
       const [group] = await db.select().from(storyGroups).where(eq(storyGroups.id, storyRow.groupId))
 
       if (group) {
         universeSystemPrompt = group.systemPrompt
+        universeContext = group.universeContext ?? undefined
       }
     }
 
@@ -106,7 +109,11 @@ router.post('/questions/:storyId/submit', validate(submitAnswersSchema), async (
       .filter((q) => q.answerText !== null && q.answerText !== undefined)
       .map((q) => ({ question: q.questionText, answer: q.answerText ?? '' }))
 
-    triggerPlanPhaseFromAnswers(storyIdRaw, seed, qaArray, universeSystemPrompt)
+    triggerPlanPhaseFromAnswers(storyIdRaw, seed, qaArray, universeSystemPrompt, universeContext)
+
+    if (storyRow.groupId !== null && storyRow.groupId !== undefined) {
+      void updateUniverseContext(storyRow.groupId, qaArray, seed)
+    }
 
     res.json({ ok: true })
   } catch (err) {
