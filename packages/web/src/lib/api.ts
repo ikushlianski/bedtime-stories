@@ -76,6 +76,7 @@ export interface Story {
   is_legacy: boolean
   discussion_questions: string[] | null
   group_id: number | null
+  plan_change_summary: string | null
 }
 
 export interface RunSnapshot {

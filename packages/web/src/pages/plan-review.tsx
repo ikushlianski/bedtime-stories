@@ -190,6 +190,7 @@ export function PlanReviewPage() {
             planFinal={story.plan_final ?? ''}
             iterationsCount={story.plan_iterations ?? 0}
             psychologistOutput={snapshotState.psychOutput}
+            planChangeSummary={story.plan_change_summary}
             onApprove={approveHandler}
           />
 
@@ -228,6 +229,12 @@ export function PlanReviewPage() {
                     {line || '\u00A0'}
                   </p>
                 ))}
+              </div>
+
+              <div className="flex justify-end">
+                <button className="btn btn-primary" onClick={approveHandler} disabled={approving}>
+                  Одобрить план
+                </button>
               </div>
             </div>
           </section>

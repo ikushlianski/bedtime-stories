@@ -11,6 +11,7 @@ interface PlanReviewCardProps {
   planFinal: string
   iterationsCount: number
   psychologistOutput: PsychologistOutput
+  planChangeSummary?: string | null
   onApprove: () => void
 }
 
@@ -20,6 +21,7 @@ function PlanReviewCard({
   planFinal,
   iterationsCount,
   psychologistOutput,
+  planChangeSummary,
   onApprove,
 }: PlanReviewCardProps) {
   const { safety, therapeutic, recommended_changes } = psychologistOutput
@@ -50,6 +52,17 @@ function PlanReviewCard({
             </button>
           </div>
         </div>
+
+        {planChangeSummary && (
+          <div className="rounded-box border border-info/30 bg-info/10 p-4">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-info/70">
+              Что изменилось
+            </p>
+            <div className="text-sm text-base-content/80 leading-relaxed whitespace-pre-wrap">
+              {planChangeSummary}
+            </div>
+          </div>
+        )}
 
         {showDiff ? (
           <DiffViewer originalText={planV1} revisedText={planFinal} label="v1 → Финал" />
@@ -94,6 +107,12 @@ function PlanReviewCard({
             </div>
           )}
         </section>
+
+        <div className="flex justify-end">
+          <button className="btn btn-primary" onClick={onApprove}>
+            Одобрить план
+          </button>
+        </div>
       </div>
     </section>
   )
