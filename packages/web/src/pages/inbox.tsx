@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, type Story } from '../lib/api'
-import { PageHeader, StatusCallout } from '../components'
+import { PageHeader, StatusCallout, StoryCard } from '../components'
 import {
   buildInbox,
   groupInboxByAction,
@@ -32,26 +32,21 @@ function Section({
       <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
         {title} ({items.length})
       </h3>
-      <ul className="space-y-3">
+      <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {items.map((item) => (
-          <li
-            key={item.story.id}
-            className="rounded-box border border-base-300 bg-base-100 p-4 shadow-sm"
-          >
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="font-serif text-lg text-base-content">{item.story.title}</p>
-                <p className="mt-1 text-xs text-base-content/50">
-                  Создано {new Date(item.story.created_at).toLocaleString('ru-RU')}
-                </p>
-              </div>
-              <button
-                className={`btn btn-sm ${tone === 'primary' ? 'btn-primary' : 'btn-ghost'}`}
-                onClick={() => onPick(actionHref(item.action, item.story.id))}
-              >
-                {actionLabel(item.action)} →
-              </button>
-            </div>
+          <li key={item.story.id}>
+            <StoryCard
+              title={item.story.title}
+              status={item.story.status}
+              createdAt={item.story.created_at}
+              actions={[
+                {
+                  label: actionLabel(item.action),
+                  tone: tone === 'primary' ? 'primary' : 'secondary',
+                  onClick: () => onPick(actionHref(item.action, item.story.id)),
+                },
+              ]}
+            />
           </li>
         ))}
       </ul>

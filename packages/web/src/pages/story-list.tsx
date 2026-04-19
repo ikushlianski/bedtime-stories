@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { api, type Story, type CreateStoryInput } from '../lib/api'
-import { CreateStoryModal, PageHeader, StatusCallout, StoryCard, StoryFilterTabs } from '../components'
-
-type StatusFilter = 'all' | 'draft' | 'ready' | 'read' | 'archived'
+import { api, type Story, type CreateStoryInput, type StoryGroup } from '../lib/api'
+import { AddExampleStoryModal, CreateStoryModal, PageHeader, StatusCallout, StoryCard, StoryFilters } from '../components'
+import { DEFAULT_FILTERS, type StoryFilterState } from '../components/story-filters'
 
 export function StoryListPage() {
   const navigate = useNavigate()
@@ -13,15 +12,29 @@ export function StoryListPage() {
   const [stories, setStories] = useState<Story[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [filter, setFilter] = useState<StatusFilter>('all')
+  const [filters, setFilters] = useState<StoryFilterState>(DEFAULT_FILTERS)
+  const [universes, setUniverses] = useState<StoryGroup[]>([])
   const [showModal, setShowModal] = useState(seedFromUrl !== null)
+  const [showExampleModal, setShowExampleModal] = useState(false)
+
+  useEffect(() => {
+    api.universes.list().then(setUniverses).catch(() => undefined)
+  }, [])
+
+  const allTags = Array.from(
+    new Set(stories.flatMap((s) => (s.tags as string[] | null) ?? []))
+  ).sort()
 
   const fetchStories = useCallback(async () => {
     setLoading(true)
     setError(null)
 
     try {
-      const data = await api.stories.list(filter === 'all' ? undefined : filter)
+      const data = await api.stories.list({
+        status: filters.status === 'all' ? undefined : filters.status,
+        groupId: filters.groupId ?? undefined,
+        tag: filters.tag ?? undefined,
+      })
 
       setStories(data)
     } catch (fetchError) {
@@ -29,7 +42,7 @@ export function StoryListPage() {
     } finally {
       setLoading(false)
     }
-  }, [filter])
+  }, [filters])
 
   useEffect(() => {
     void fetchStories()
@@ -40,19 +53,25 @@ export function StoryListPage() {
 
     setShowModal(false)
 
-    if (created.source === 'user') {
-      navigate(`/stories/${created.id}`)
-      return
-    }
-
     if ('seed' in input) {
       void api.pipeline.run(created.id, input.seed)
-      navigate(`/stories/${created.id}/pipeline`)
-      return
     }
 
     navigate(`/stories/${created.id}/pipeline`)
   }
+
+  const handleDeleteStory = useCallback((story: Story) => {
+    if (!confirm('Удалить эту историю навсегда? Это действие нельзя отменить.')) {
+      return
+    }
+
+    api.stories
+      .delete(story.id)
+      .then(() => setStories((prev) => prev.filter((s) => s.id !== story.id)))
+      .catch((err) =>
+        setError(err instanceof Error ? err.message : 'Не удалось удалить историю'),
+      )
+  }, [])
 
   return (
     <div>
@@ -61,14 +80,30 @@ export function StoryListPage() {
         title="Истории"
         description="Следи за историями от черновика до прочтения и запускай новые идеи для сказок на ночь."
         action={
-          <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-            + Новая история
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button className="btn btn-secondary gap-2" onClick={() => setShowExampleModal(true)}>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M4 3a2 2 0 00-2 2v9.5A2.5 2.5 0 004.5 17H16a2 2 0 002-2V6a2 2 0 00-2-2h-5.5L9.3 2.4A1 1 0 008.5 2H4z" />
+              </svg>
+              Добавить пример
+            </button>
+            <button className="btn btn-primary gap-2" onClick={() => setShowModal(true)}>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" />
+              </svg>
+              Новая история
+            </button>
+          </div>
         }
       />
 
       <div className="mb-6">
-        <StoryFilterTabs value={filter} onChange={setFilter} />
+        <StoryFilters
+          value={filters}
+          onChange={setFilters}
+          universes={universes}
+          availableTags={allTags}
+        />
       </div>
 
       {loading && <StatusCallout title="Загрузка" message="Получаем истории из библиотеки." />}
@@ -81,39 +116,31 @@ export function StoryListPage() {
         <StatusCallout
           tone="warning"
           title="Историй пока нет"
-          message="Создай историю, чтобы запустить конвейер планирования и проверки."
+          message="Создай историю или смени фильтры."
         />
       )}
 
       {!loading && !error && stories.length > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {stories.map((story) => (
-            <div key={story.id} className="relative">
-              <button
-                className="w-full text-left"
-                onClick={() => navigate(`/stories/${story.id}`)}
-              >
-                <StoryCard title={story.title} status={story.status} createdAt={story.created_at} />
-              </button>
-
-              <button
-                className="btn btn-ghost btn-xs absolute bottom-3 right-3 text-error hover:bg-error/10"
-                onClick={(e) => {
-                  e.stopPropagation()
-
-                  if (confirm('Удалить эту историю навсегда? Это действие нельзя отменить.')) {
-                    api.stories
-                      .delete(story.id)
-                      .then(() => setStories((prev) => prev.filter((s) => s.id !== story.id)))
-                      .catch((err) =>
-                        setError(err instanceof Error ? err.message : 'Не удалось удалить историю'),
-                      )
-                  }
-                }}
-              >
-                Удалить
-              </button>
-            </div>
+            <StoryCard
+              key={story.id}
+              title={story.title}
+              status={story.status}
+              createdAt={story.created_at}
+              actions={[
+                {
+                  label: 'Открыть',
+                  tone: 'primary',
+                  onClick: () => navigate(`/stories/${story.id}`),
+                },
+                {
+                  label: 'Удалить',
+                  tone: 'destructive',
+                  onClick: () => handleDeleteStory(story),
+                },
+              ]}
+            />
           ))}
         </div>
       )}
@@ -133,6 +160,14 @@ export function StoryListPage() {
           }
         }}
         onSubmit={handleCreateStory}
+      />
+
+      <AddExampleStoryModal
+        open={showExampleModal}
+        onClose={() => {
+          setShowExampleModal(false)
+          void fetchStories()
+        }}
       />
     </div>
   )

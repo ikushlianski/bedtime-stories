@@ -48,6 +48,7 @@ export interface StoryGroup {
   description: string
   systemPrompt: string
   universeContext: string | null
+  styleGuide: string | null
   agentOverrides: Record<string, string> | null
   createdAt: string
 }
@@ -183,7 +184,7 @@ export interface ConversationMessage {
 
 export type CreateStoryInput =
   | { seed: string; groupId?: number }
-  | { title?: string; textFinal: string; groupId?: number }
+  | { title?: string; textFinal: string; groupId?: number; source?: 'user' | 'legacy'; addToReadingList?: boolean }
 
 export interface CreateAnnotationInput {
   type: AnnotationType
@@ -217,8 +218,14 @@ export interface PipelineStatus {
 
 export const api = {
   stories: {
-    list: (status?: string) => {
-      const query = status ? `?status=${status}` : ''
+    list: (filters?: { status?: string; groupId?: number; tag?: string }) => {
+      const params = new URLSearchParams()
+
+      if (filters?.status) params.set('status', filters.status)
+      if (filters?.groupId != null) params.set('groupId', String(filters.groupId))
+      if (filters?.tag) params.set('tag', filters.tag)
+
+      const query = params.toString() ? `?${params.toString()}` : ''
 
       return request<Story[]>(`/api/stories${query}`)
     },
@@ -253,6 +260,12 @@ export const api = {
       requestEmpty(`/api/stories/${id}`, {
         method: 'DELETE',
       }),
+
+    analyze: (id: number) =>
+      request<{ storyAnalysis: string; reactionsExtracted: number; styleGuideUpdated: boolean }>(
+        `/api/stories/${id}/analyze`,
+        { method: 'POST' },
+      ),
   },
 
   feedback: {
