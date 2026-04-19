@@ -15,11 +15,11 @@ const filterTabs: Array<{ label: string; value: StoryFilterValue }> = [
 
 function StoryFilterTabs({ value, onChange }: StoryFilterTabsProps) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="join flex max-w-full overflow-x-auto">
       {filterTabs.map((tab) => (
         <button
           key={tab.value}
-          className={`btn btn-sm sm:btn-md focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${value === tab.value ? 'btn-primary' : 'btn-outline'}`}
+          className={`btn join-item btn-sm whitespace-nowrap focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${value === tab.value ? 'btn-secondary' : 'btn-outline'}`}
           onClick={() => onChange(tab.value)}
         >
           {tab.label}
