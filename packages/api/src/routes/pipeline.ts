@@ -4,10 +4,8 @@ import { z } from 'zod'
 import { validate } from '../middleware/validate'
 import {
   runQuestionsPhase,
-  runTextPhase,
   type PipelineModels,
   type PipelinePromptVersions,
-  type TextPhaseResult,
 } from '@bedtime/core/pipeline/orchestrator'
 import { synthesizeSashaContext } from '@bedtime/core/pipeline/feedback-synthesizer'
 import { db } from '@bedtime/core/db/client'
@@ -17,74 +15,21 @@ import {
   type PipelineInternalStatus,
   type PublicPipelineStatus,
 } from './pipeline-status'
-import {
-  buildTextSnapshotUpdate,
-  buildTextStoriesUpdate,
-} from './pipeline-persistence'
-import { getPipelineStatus, setPipelineStatus, setCurrentStep, getCurrentStep } from './pipeline-state'
+import { getPipelineStatus, setPipelineStatus, getCurrentStep } from './pipeline-state'
 import { defaultModels, defaultPromptVersions } from './pipeline-defaults'
 import pipelineQuestionsRouter from './pipeline-questions'
+import { triggerAutoPipeline } from './pipeline-auto-trigger'
+import { triggerTextPhase } from './pipeline-text-trigger'
 
 export { toPublicStatus, type PipelineInternalStatus, type PublicPipelineStatus }
 export { getPipelineStatus, setPipelineStatus }
 export { defaultModels, defaultPromptVersions }
+export { triggerTextPhase }
 export type { PipelineModels, PipelinePromptVersions }
 
 const router = Router()
 
 router.use('/', pipelineQuestionsRouter)
-
-async function persistTextPhase(storyId: number, text: TextPhaseResult): Promise<void> {
-  const [existing] = await db
-    .select()
-    .from(runSnapshots)
-    .where(eq(runSnapshots.storyId, storyId))
-    .orderBy(desc(runSnapshots.createdAt))
-    .limit(1)
-
-  if (existing) {
-    await db
-      .update(runSnapshots)
-      .set(buildTextSnapshotUpdate(text))
-      .where(eq(runSnapshots.id, existing.id))
-  }
-
-  await db.update(stories).set(buildTextStoriesUpdate(text)).where(eq(stories.id, storyId))
-}
-
-export function triggerTextPhase(
-  storyId: number,
-  seed: string,
-  planFinal: string,
-  universeSystemPrompt?: string,
-  sashaContext?: string | null,
-): void {
-  setPipelineStatus(storyId, 'text_running')
-
-  runTextPhase({
-    seed,
-    planFinal,
-    storyId,
-    models: defaultModels,
-    promptVersions: defaultPromptVersions,
-    ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
-    ...(sashaContext !== undefined && sashaContext !== null ? { sashaContext } : {}),
-    onStepChange: (step) => setCurrentStep(storyId, step),
-  })
-    .then(async (text) => {
-      try {
-        await persistTextPhase(storyId, text)
-        setPipelineStatus(storyId, 'text_ready')
-      } catch (dbError) {
-        console.error(`Failed to persist text phase for storyId=${storyId}:`, dbError)
-        setPipelineStatus(storyId, 'text_failed')
-      }
-    })
-    .catch((textError) => {
-      setPipelineStatus(storyId, 'text_failed')
-      console.error(`Text phase failed for storyId=${storyId}:`, textError)
-    })
-}
 
 const runPipelineSchema = z.object({
   storyId: z.number().int().positive(),
@@ -126,6 +71,7 @@ router.post('/run', validate(runPipelineSchema), async (req, res) => {
 
     let universeSystemPrompt: string | undefined
     let universeContext: string | undefined
+    let styleGuide: string | undefined
 
     if (storyRow.groupId !== null && storyRow.groupId !== undefined) {
       const [group] = await db.select().from(storyGroups).where(eq(storyGroups.id, storyRow.groupId))
@@ -133,7 +79,16 @@ router.post('/run', validate(runPipelineSchema), async (req, res) => {
       if (group) {
         universeSystemPrompt = group.systemPrompt
         universeContext = group.universeContext ?? undefined
+        styleGuide = group.styleGuide ?? undefined
       }
+    }
+
+    const mode = storyRow.mode ?? 'auto'
+
+    if (mode === 'auto') {
+      triggerAutoPipeline(storyId, seed, universeSystemPrompt, universeContext, styleGuide)
+      res.json({ started: true, storyId, phase: 'auto' })
+      return
     }
 
     const sashaContext = await synthesizeSashaContext()
@@ -162,7 +117,7 @@ router.post('/run', validate(runPipelineSchema), async (req, res) => {
   }
 })
 
-const PIPELINE_STEP_NAMES = ['Plotter', 'Psychologist', 'PlotCritic', 'Writer', 'WriterCritic'] as const
+const PIPELINE_STEP_NAMES = ['Plotter', 'PlotCritic', 'Writer', 'WriterCritic'] as const
 
 async function inferStatusFromDb(storyId: number): Promise<PipelineInternalStatus | undefined> {
   const [row] = await db.select().from(stories).where(eq(stories.id, storyId))
@@ -211,7 +166,7 @@ router.get('/status/:storyId', async (req, res) => {
     const publicStatus = toPublicStatus(internal)
 
     const isRunning = publicStatus.status === 'plan_running' || publicStatus.status === 'text_running'
-    const isAllDone = publicStatus.status === 'plan_ready' || publicStatus.status === 'text_ready'
+    const isAllDone = publicStatus.status === 'plan_ready' || publicStatus.status === 'text_ready' || publicStatus.status === 'text_review'
     const isFailed = publicStatus.status === 'failed'
 
     const activeStep = isRunning

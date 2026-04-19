@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react'
 import { api, type CreateStoryInput, type StoryGroup } from '../lib/api'
 import {
-  INITIAL_CREATE_STORY_FORM,
   validateCreateStoryForm,
   type CreateStoryFormState,
-  type CreateStoryMode,
 } from './create-story-form'
 
 interface CreateStoryModalProps {
@@ -34,40 +32,45 @@ function saveLastUniverseId(id: number | null) {
       localStorage.setItem(LAST_UNIVERSE_KEY, String(id))
     }
   } catch {
-    /* ignore */
   }
 }
 
 function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '', initialGroupId = null }: CreateStoryModalProps) {
   const [form, setForm] = useState<CreateStoryFormState>({
-    ...INITIAL_CREATE_STORY_FORM,
     seed: initialSeed,
     groupId: initialGroupId ?? loadLastUniverseId(),
+    pipelineMode: 'auto',
   })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [universes, setUniverses] = useState<StoryGroup[]>([])
+  const [showCreateUniverse, setShowCreateUniverse] = useState(false)
+  const [newUniverseName, setNewUniverseName] = useState('')
+  const [creatingUniverse, setCreatingUniverse] = useState(false)
 
   useEffect(() => {
     if (open) {
       setForm({
-        ...INITIAL_CREATE_STORY_FORM,
         seed: initialSeed,
         groupId: initialGroupId ?? loadLastUniverseId(),
+        pipelineMode: 'auto',
       })
       setError(null)
+      setShowCreateUniverse(false)
+      setNewUniverseName('')
 
-      api.universes.list().then(setUniverses).catch(() => setUniverses([]))
+      api.universes.list().then((list) => {
+        setUniverses(list)
+
+        if (list.length === 0) {
+          setShowCreateUniverse(true)
+        }
+      }).catch(() => setUniverses([]))
     }
   }, [open, initialSeed, initialGroupId])
 
   if (!open) {
     return null
-  }
-
-  function setMode(mode: CreateStoryMode) {
-    setForm((prev) => ({ ...prev, mode }))
-    setError(null)
   }
 
   async function handleSubmit() {
@@ -83,11 +86,33 @@ function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '', initialGr
 
     try {
       await onSubmit(validation.input)
-      setForm({ ...INITIAL_CREATE_STORY_FORM })
+      setForm({ seed: '', groupId: null, pipelineMode: 'auto' })
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Не удалось создать историю')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  async function handleCreateUniverse() {
+    const name = newUniverseName.trim()
+
+    if (!name) return
+
+    setCreatingUniverse(true)
+
+    try {
+      const created = await api.universes.create({ name, systemPrompt: '.' })
+
+      setUniverses((prev) => [...prev, created])
+      saveLastUniverseId(created.id)
+      setForm((prev) => ({ ...prev, groupId: created.id }))
+      setShowCreateUniverse(false)
+      setNewUniverseName('')
+    } catch {
+      setError('Не удалось создать вселенную')
+    } finally {
+      setCreatingUniverse(false)
     }
   }
 
@@ -98,82 +123,121 @@ function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '', initialGr
       <div className="modal-box max-w-2xl border border-base-300 bg-base-100 shadow-2xl">
         <h2 className="font-serif text-3xl text-base-content">Новая история</h2>
 
-        <div role="tablist" className="tabs tabs-boxed mt-4 gap-2">
-          <button
-            role="tab"
-            className={`tab ${form.mode === 'generate' ? 'tab-active' : ''}`}
-            onClick={() => setMode('generate')}
-          >
-            Сгенерировать с ИИ
-          </button>
-          <button
-            role="tab"
-            className={`tab ${form.mode === 'paste' ? 'tab-active' : ''}`}
-            onClick={() => setMode('paste')}
-          >
-            Вставить готовую историю
-          </button>
+        <div className="mt-4">
+          <div className="flex items-center justify-between">
+            <label className="label">
+              <span className="label-text text-sm text-base-content/60">Вселенная</span>
+            </label>
+            {!showCreateUniverse && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-xs text-primary"
+                onClick={() => setShowCreateUniverse(true)}
+              >
+                + Новая вселенная
+              </button>
+            )}
+          </div>
+
+          {showCreateUniverse ? (
+            <div className="flex gap-2">
+              <input
+                type="text"
+                className="input input-bordered flex-1 bg-base-100"
+                placeholder="Название вселенной..."
+                value={newUniverseName}
+                onChange={(e) => setNewUniverseName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void handleCreateUniverse()
+                  if (e.key === 'Escape') {
+                    setShowCreateUniverse(false)
+                    setNewUniverseName('')
+                  }
+                }}
+                autoFocus
+              />
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                disabled={!newUniverseName.trim() || creatingUniverse}
+                onClick={() => void handleCreateUniverse()}
+              >
+                {creatingUniverse ? '...' : 'Создать'}
+              </button>
+              {universes.length > 0 && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => {
+                    setShowCreateUniverse(false)
+                    setNewUniverseName('')
+                  }}
+                >
+                  Отмена
+                </button>
+              )}
+            </div>
+          ) : (
+            <select
+              className="select select-bordered w-full bg-base-100"
+              value={form.groupId ?? ''}
+              onChange={(event) => {
+                const value = event.target.value
+                const groupId = value === '' ? null : parseInt(value, 10)
+
+                saveLastUniverseId(groupId)
+                setForm((prev) => ({ ...prev, groupId }))
+              }}
+            >
+              <option value="" disabled>Выбери вселенную...</option>
+              {universes.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         <div className="mt-4">
-          <label className="label">
-            <span className="label-text text-sm text-base-content/60">Вселенная (необязательно)</span>
-          </label>
-          <select
-            className="select select-bordered w-full bg-base-100"
-            value={form.groupId ?? ''}
-            onChange={(event) => {
-              const value = event.target.value
-              const groupId = value === '' ? null : parseInt(value, 10)
-
-              saveLastUniverseId(groupId)
-              setForm((prev) => ({ ...prev, groupId }))
-            }}
-          >
-            <option value="">Без вселенной</option>
-            {universes.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name}
-              </option>
-            ))}
-          </select>
+          <p className="text-sm text-base-content/60">
+            Задай затравку для следующей сказки — ситуацию, эмоцию или испытание, которое сейчас актуально для Саши.
+          </p>
+          <textarea
+            className="textarea textarea-bordered mt-4 min-h-40 w-full bg-base-100"
+            placeholder="Герой нервничает: первый раз ночевать не дома..."
+            value={form.seed}
+            onChange={(event) => setForm((prev) => ({ ...prev, seed: event.target.value }))}
+            autoFocus
+          />
+          <div className="mt-4">
+            <label className="label pb-1">
+              <span className="label-text text-sm text-base-content/60">Режим конвейера</span>
+            </label>
+            <div className="flex gap-4">
+              <label className="flex cursor-pointer items-center gap-2">
+                <input
+                  type="radio"
+                  name="pipelineMode"
+                  className="radio radio-sm"
+                  checked={form.pipelineMode === 'auto'}
+                  onChange={() => setForm((prev) => ({ ...prev, pipelineMode: 'auto' }))}
+                />
+                <span className="text-sm">Авто</span>
+              </label>
+              <label className="flex cursor-pointer items-center gap-2">
+                <input
+                  type="radio"
+                  name="pipelineMode"
+                  className="radio radio-sm"
+                  checked={form.pipelineMode === 'manual'}
+                  onChange={() => setForm((prev) => ({ ...prev, pipelineMode: 'manual' }))}
+                />
+                <span className="text-sm">Ручной</span>
+              </label>
+            </div>
+          </div>
         </div>
-
-        {form.mode === 'generate' && (
-          <div className="mt-4">
-            <p className="text-sm text-base-content/60">
-              Задай затравку для следующей сказки — ситуацию, эмоцию или испытание, которое сейчас актуально для Саши.
-            </p>
-            <textarea
-              className="textarea textarea-bordered mt-4 min-h-40 w-full bg-base-100"
-              placeholder="Герой нервничает: первый раз ночевать не дома..."
-              value={form.seed}
-              onChange={(event) => setForm((prev) => ({ ...prev, seed: event.target.value }))}
-              autoFocus
-            />
-          </div>
-        )}
-
-        {form.mode === 'paste' && (
-          <div className="mt-4">
-            <p className="text-sm text-base-content/60">
-              Вставь историю, которую ты уже написал (или создал в другом месте). Она сохранится как есть, без запуска конвейера генерации.
-            </p>
-            <input
-              type="text"
-              className="input input-bordered mt-4 w-full bg-base-100"
-              placeholder="Название (необязательно)"
-              value={form.title}
-              onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
-            />
-            <textarea
-              className="textarea textarea-bordered mt-3 min-h-60 w-full bg-base-100"
-              placeholder="Жили-были..."
-              value={form.textFinal}
-              onChange={(event) => setForm((prev) => ({ ...prev, textFinal: event.target.value }))}
-            />
-          </div>
-        )}
 
         {error && <p className="mt-3 text-sm text-error">{error}</p>}
 

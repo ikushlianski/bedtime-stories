@@ -22,6 +22,8 @@ export async function runWriter(options: {
   model: string
   resolvedPrompt?: ResolvedPrompt
   universeSystemPrompt?: string
+  universeContext?: string
+  styleGuide?: string
   sashaContext?: string | null
   cwd?: string
 }): Promise<string> {
@@ -34,12 +36,20 @@ export async function runWriter(options: {
     ? `${options.universeSystemPrompt}\n\n---\n\n${resolved.text}`
     : resolved.text
 
+  const universeContextBlock = options.universeContext
+    ? `\n\n---\nКОНТЕКСТ ВСЕЛЕННОЙ (персонажи, события, темы этой вселенной):\n${options.universeContext}\n---\n`
+    : ''
+
+  const styleGuideBlock = options.styleGuide
+    ? `\n\n---\nСТИЛЬ ИСТОРИЙ (чему учат примерные истории — пиши в этом духе):\n${options.styleGuide}\n---\n`
+    : ''
+
   const sashaContextBlock = options.sashaContext
     ? `\n\n---\nКОНТЕКСТ САШИ (используй для вдохновения, не копируй буквально):\n${options.sashaContext}\n---\n`
     : ''
 
   const parts: string[] = [
-    `${basePrompt}${sashaContextBlock}`,
+    `${basePrompt}${universeContextBlock}${styleGuideBlock}${sashaContextBlock}`,
     '',
     `STORY PLAN:\n${plan}`,
   ]

@@ -1,18 +1,16 @@
 import { runPlotter, PLOTTER_SYSTEM_PROMPT_DEFAULT } from './stages/plotter'
-import { runPsychologist } from './stages/psychologist'
 import { runPlotCritic } from './stages/plot-critic'
 import { runWriter, WRITER_SYSTEM_PROMPT_DEFAULT } from './stages/writer'
 import { runWriterCritic } from './stages/writer-critic'
 import { runPlotterQuestions, type PlotterQuestionItem } from './stages/plotter-questions'
 import { generateStoryTitle } from './stages/title-generator'
 import { resolvePrompt, type ResolvedPrompt } from './prompt-resolver'
-import type { PsychologistOutput, CriticOutput } from './schemas'
+import type { CriticOutput } from './schemas'
 
 const MAX_PLAN_ITERATIONS = 3
 
 export interface PipelineModels {
   plotter: string
-  psychologist: string
   plotCritic: string
   writer: string
   writerCritic: string
@@ -20,8 +18,6 @@ export interface PipelineModels {
 
 export interface PipelinePromptVersions {
   plotter: number
-  psychologistPlan: number
-  psychologistText: number
   plotCritic: number
   writer: number
   writerCritic: number
@@ -32,7 +28,6 @@ export interface PlanPhaseResult {
   planFinal: string
   planIterationsCount: number
   titleSuggested: string
-  psychologistPlanOutput: PsychologistOutput
   plotCriticOutput: CriticOutput
   models: PipelineModels
   promptVersions: PipelinePromptVersions
@@ -42,7 +37,6 @@ export interface PlanPhaseResult {
 export interface TextPhaseResult {
   textV1: string
   textV2: string
-  psychologistTextOutput: PsychologistOutput
   writerCriticOutput: CriticOutput
   models: PipelineModels
   promptVersions: PipelinePromptVersions
@@ -57,6 +51,7 @@ export async function runPlanPhase(options: {
   promptVersions: PipelinePromptVersions
   universeSystemPrompt?: string
   universeContext?: string
+  styleGuide?: string
   sashaContext?: string | null
   userFeedback?: string
   cwd?: string
@@ -70,6 +65,9 @@ export async function runPlanPhase(options: {
     : {}
   const universeContextArg = options.universeContext !== undefined
     ? { universeContext: options.universeContext }
+    : {}
+  const styleGuideArg = options.styleGuide !== undefined
+    ? { styleGuide: options.styleGuide }
     : {}
   const sashaContextArg = options.sashaContext !== undefined && options.sashaContext !== null
     ? { sashaContext: options.sashaContext }
@@ -92,66 +90,32 @@ export async function runPlanPhase(options: {
     ...cwdArg,
     ...universeArg,
     ...universeContextArg,
+    ...styleGuideArg,
     ...sashaContextArg,
     ...userFeedbackArg,
   })
 
   let currentPlan = planV1
   let iterationsCount = 0
-  let psychologistPlanOutput: PsychologistOutput | undefined
   let plotCriticOutput: CriticOutput | undefined
 
   for (let i = 0; i < MAX_PLAN_ITERATIONS; i++) {
     const iterationNumber = i + 1
     const isFinalIteration = i === MAX_PLAN_ITERATIONS - 1
-    const isFirstIteration = i === 0
 
     iterationsCount = iterationNumber
 
-    if (isFirstIteration || isFinalIteration) {
-      notify('Psychologist')
-      const psych = await runPsychologist({
-        content: currentPlan,
-        contentType: 'plan',
-        seed,
-        iterationNumber,
-        model: models.psychologist,
-        ...cwdArg,
-        ...universeArg,
-        ...universeContextArg,
-        ...sashaContextArg,
-      })
-
-      psychologistPlanOutput = psych
-
-      notify('PlotCritic')
-      plotCriticOutput = await runPlotCritic({
-        plan: currentPlan,
-        psychologistOutput: psych,
-        iterationNumber,
-        model: models.plotCritic,
-        ...cwdArg,
-        ...universeArg,
-        ...universeContextArg,
-        ...sashaContextArg,
-      })
-    } else {
-      if (psychologistPlanOutput === undefined) {
-        throw new Error('Invariant violated: psychologistPlanOutput missing on intermediate iteration')
-      }
-
-      notify('PlotCritic')
-      plotCriticOutput = await runPlotCritic({
-        plan: currentPlan,
-        psychologistOutput: psychologistPlanOutput,
-        iterationNumber,
-        model: models.plotCritic,
-        ...cwdArg,
-        ...universeArg,
-        ...universeContextArg,
-        ...sashaContextArg,
-      })
-    }
+    notify('PlotCritic')
+    plotCriticOutput = await runPlotCritic({
+      plan: currentPlan,
+      iterationNumber,
+      model: models.plotCritic,
+      ...cwdArg,
+      ...universeArg,
+      ...universeContextArg,
+      ...styleGuideArg,
+      ...sashaContextArg,
+    })
 
     if (!plotCriticOutput.improvement_needed) {
       break
@@ -168,13 +132,14 @@ export async function runPlanPhase(options: {
         ...cwdArg,
         ...universeArg,
         ...universeContextArg,
+        ...styleGuideArg,
         ...sashaContextArg,
       })
     }
   }
 
-  if (psychologistPlanOutput === undefined || plotCriticOutput === undefined) {
-    throw new Error('Plan phase completed without psychologist or critic output')
+  if (plotCriticOutput === undefined) {
+    throw new Error('Plan phase completed without critic output')
   }
 
   notify('TitleGenerator')
@@ -190,7 +155,6 @@ export async function runPlanPhase(options: {
     planFinal: currentPlan,
     planIterationsCount: iterationsCount,
     titleSuggested,
-    psychologistPlanOutput,
     plotCriticOutput,
     models,
     promptVersions: resolvedVersions,
@@ -206,6 +170,7 @@ export async function runTextPhase(options: {
   promptVersions: PipelinePromptVersions
   universeSystemPrompt?: string
   universeContext?: string
+  styleGuide?: string
   sashaContext?: string | null
   cwd?: string
   onStepChange?: (step: string) => void
@@ -218,6 +183,9 @@ export async function runTextPhase(options: {
     : {}
   const universeContextArg = options.universeContext !== undefined
     ? { universeContext: options.universeContext }
+    : {}
+  const styleGuideArg = options.styleGuide !== undefined
+    ? { styleGuide: options.styleGuide }
     : {}
   const sashaContextArg = options.sashaContext !== undefined && options.sashaContext !== null
     ? { sashaContext: options.sashaContext }
@@ -242,31 +210,19 @@ export async function runTextPhase(options: {
     ...cwdArg,
     ...universeArg,
     ...universeContextArg,
-    ...sashaContextArg,
-  })
-
-  notify('Psychologist')
-  const psychologistTextOutput = await runPsychologist({
-    content: textV1,
-    contentType: 'text',
-    seed,
-    iterationNumber: 1,
-    model: models.psychologist,
-    ...cwdArg,
-    ...universeArg,
-    ...universeContextArg,
+    ...styleGuideArg,
     ...sashaContextArg,
   })
 
   notify('WriterCritic')
   const writerCriticOutput = await runWriterCritic({
     textV1,
-    psychologistOutput: psychologistTextOutput,
     finalPlan: planFinal,
     model: models.writerCritic,
     ...cwdArg,
     ...universeArg,
     ...universeContextArg,
+    ...styleGuideArg,
     ...sashaContextArg,
   })
 
@@ -279,13 +235,13 @@ export async function runTextPhase(options: {
     ...cwdArg,
     ...universeArg,
     ...universeContextArg,
+    ...styleGuideArg,
     ...sashaContextArg,
   })
 
   return {
     textV1,
     textV2,
-    psychologistTextOutput,
     writerCriticOutput,
     models,
     promptVersions: resolvedVersions,
@@ -329,6 +285,8 @@ export async function runPipeline(options: {
   models: PipelineModels
   promptVersions: PipelinePromptVersions
   universeSystemPrompt?: string
+  universeContext?: string
+  styleGuide?: string
   sashaContext?: string | null
   cwd?: string
 }): Promise<PipelineResult> {
@@ -341,6 +299,8 @@ export async function runPipeline(options: {
     models: options.models,
     promptVersions: options.promptVersions,
     ...(options.universeSystemPrompt !== undefined ? { universeSystemPrompt: options.universeSystemPrompt } : {}),
+    ...(options.universeContext !== undefined ? { universeContext: options.universeContext } : {}),
+    ...(options.styleGuide !== undefined ? { styleGuide: options.styleGuide } : {}),
     ...(options.sashaContext !== undefined ? { sashaContext: options.sashaContext } : {}),
     ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
   })

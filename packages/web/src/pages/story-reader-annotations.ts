@@ -9,7 +9,7 @@ export function annotationTypeLabel(type: AnnotationType): string {
     case 'sasha_loved':
       return 'Саше понравилось'
     case 'sasha_disliked':
-      return 'Саше не понравилось'
+      return 'Слабое место'
     case 'my_note':
       return 'Моя заметка'
   }

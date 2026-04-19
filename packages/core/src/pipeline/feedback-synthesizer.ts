@@ -1,23 +1,39 @@
 import { desc } from 'drizzle-orm'
 import { db } from '../db/client'
-import { feedback, childDiary, stories } from '../db/schema'
+import { feedback, childDiary, childProfiles, stories } from '../db/schema'
 import { claudeCliRunner } from '../ai'
 
 const SYNTHESIZER_MODEL = 'claude-sonnet-4-6'
 
 export async function synthesizeSashaContext(): Promise<string | null> {
-  const [recentFeedback, recentDiary, recentStories] = await Promise.all([
+  const [recentFeedback, recentDiary, recentStories, [profile]] = await Promise.all([
     db.select().from(feedback).orderBy(desc(feedback.createdAt)).limit(5),
     db.select().from(childDiary).orderBy(desc(childDiary.createdAt)).limit(10),
     db.select({ title: stories.title }).from(stories).orderBy(desc(stories.createdAt)).limit(5),
+    db.select().from(childProfiles).limit(1),
   ])
 
   const hasFeedback = recentFeedback.length > 0
   const hasDiary = recentDiary.length > 0
+  const hasProfile = !!profile && (
+    profile.name || profile.activities || profile.interests || profile.dislikes || profile.favourites || profile.notes
+  )
 
-  if (!hasFeedback && !hasDiary) {
+  if (!hasFeedback && !hasDiary && !hasProfile) {
     return null
   }
+
+  const profileSection = hasProfile
+    ? [
+      'ПРОФИЛЬ РЕБЁНКА:',
+      ...(profile.name ? [`Имя: ${profile.name}${profile.age ? `, ${profile.age} лет` : ''}`] : []),
+      ...(profile.activities ? [`Кружки и занятия: ${profile.activities}`] : []),
+      ...(profile.interests ? [`Чем увлекается: ${profile.interests}`] : []),
+      ...(profile.dislikes ? [`Что не любит: ${profile.dislikes}`] : []),
+      ...(profile.favourites ? [`Любимые персонажи и истории: ${profile.favourites}`] : []),
+      ...(profile.notes ? [`Дополнительно: ${profile.notes}`] : []),
+    ].join('\n')
+    : null
 
   const feedbackSection = hasFeedback
     ? recentFeedback.map((f, i) => {
@@ -61,7 +77,7 @@ export async function synthesizeSashaContext(): Promise<string | null> {
     ? `Последние темы историй (избегать повторения):\n${recentTitles}`
     : 'Историй пока не было.'
 
-  const prompt = [
+  const promptParts = [
     'Ты — помощник, который анализирует данные о ребёнке и синтезирует контекст для создания персонализированных сказок.',
     '',
     'На основе данных ниже составь короткий контекст (~200 слов) на русском языке в следующем формате:',
@@ -69,7 +85,7 @@ export async function synthesizeSashaContext(): Promise<string | null> {
     'ПРИНЦИПЫ (что работает):',
     '- ...',
     '',
-    'ТЕКУЩАЯ ЖИЗНЬ САШИ (из дневника, для вдохновения — не копировать буквально):',
+    'ТЕКУЩАЯ ЖИЗНЬ РЕБЁНКА (из дневника, для вдохновения — не копировать буквально):',
     '- ...',
     '',
     'ИЗБЕГАТЬ (что не зашло или уже было недавно):',
@@ -79,14 +95,23 @@ export async function synthesizeSashaContext(): Promise<string | null> {
     '',
     '---',
     '',
+  ]
+
+  if (profileSection) {
+    promptParts.push(profileSection, '', '---', '')
+  }
+
+  promptParts.push(
     'ДАННЫЕ ОБ ОТЗЫВАХ:',
     feedbackSection,
     '',
-    'ДНЕВНИК САШИ:',
+    'ДНЕВНИКОВЫЕ ЗАПИСИ:',
     diarySection,
     '',
     titlesSection,
-  ].join('\n')
+  )
+
+  const prompt = promptParts.join('\n')
 
   return claudeCliRunner.runText({
     model: SYNTHESIZER_MODEL,

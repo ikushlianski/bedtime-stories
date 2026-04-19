@@ -100,6 +100,8 @@ function describeStatus(status: PipelineStatusValue): string {
       return 'Идёт фаза написания текста.'
     case 'text_ready':
       return 'Текст готов к проверке.'
+    case 'text_review':
+      return 'История готова к проверке.'
     case 'failed':
       return 'Конвейер завершился с ошибкой.'
     case 'pending':
@@ -234,6 +236,14 @@ export function PipelineStatusPage() {
             <div className="flex justify-end">
               <button className="btn btn-primary" onClick={() => navigate(`/stories/${storyId}/text-review`)}>
                 Проверить текст →
+              </button>
+            </div>
+          )}
+
+          {status.status === 'text_review' && (
+            <div className="flex justify-end">
+              <button className="btn btn-primary" onClick={() => navigate(`/stories/${storyId}`)}>
+                Читать историю →
               </button>
             </div>
           )}

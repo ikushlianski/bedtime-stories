@@ -1,17 +1,17 @@
 import { claudeCliRunner } from '../../ai'
-import { CriticOutputSchema, type CriticOutput, type PsychologistOutput } from '../schemas'
+import { CriticOutputSchema, type CriticOutput } from '../schemas'
 
 export async function runPlotCritic(options: {
   plan: string
-  psychologistOutput: PsychologistOutput
   iterationNumber: number
   model: string
   universeSystemPrompt?: string
   universeContext?: string
+  styleGuide?: string
   sashaContext?: string | null
   cwd?: string
 }): Promise<CriticOutput> {
-  const { plan, psychologistOutput, iterationNumber, model } = options
+  const { plan, iterationNumber, model } = options
   const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
 
   const sashaContextBlock = options.sashaContext
@@ -22,11 +22,14 @@ export async function runPlotCritic(options: {
     ? `\n\n---\nКОНТЕКСТ ВСЕЛЕННОЙ:\n${options.universeContext}\n---\n`
     : ''
 
+  const styleGuideBlock = options.styleGuide
+    ? `\n\n---\nСТИЛЬ ИСТОРИЙ (чему учат примерные истории — учитывай при оценке):\n${options.styleGuide}\n---\n`
+    : ''
+
   const basePrompt = [
     `Current story plan:\n${plan}`,
-    `Psychologist assessment:\n${JSON.stringify(psychologistOutput, null, 2)}`,
     `Iteration number: ${iterationNumber}`,
-  ].join('\n\n') + universeContextBlock + sashaContextBlock
+  ].join('\n\n') + universeContextBlock + styleGuideBlock + sashaContextBlock
 
   const prompt = options.universeSystemPrompt
     ? `${options.universeSystemPrompt}\n\n---\n\n${basePrompt}`

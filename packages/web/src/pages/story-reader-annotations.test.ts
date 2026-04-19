@@ -14,6 +14,7 @@ function mkAnnotation(partial: Partial<Annotation> & Pick<Annotation, 'id' | 'ty
     storyId: partial.storyId ?? 1,
     type: partial.type,
     selectedText: partial.selectedText ?? 'some text',
+    noteText: partial.noteText ?? null,
     positionStart: partial.positionStart,
     positionEnd: partial.positionEnd ?? (partial.positionStart ?? 0) + 10,
     createdAt: partial.createdAt ?? '2026-04-15T20:00:00Z',
@@ -38,7 +39,7 @@ describe('annotationTypeLabel', () => {
   })
 
   it('returns a human label for sasha_disliked', () => {
-    expect(annotationTypeLabel('sasha_disliked')).toBe('Саше не понравилось')
+    expect(annotationTypeLabel('sasha_disliked')).toBe('Слабое место')
   })
 })
 

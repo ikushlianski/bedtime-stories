@@ -1,14 +1,17 @@
 import { Router } from 'express'
 import { z } from 'zod'
-import { eq, desc, and } from 'drizzle-orm'
+import { eq, desc, and, sql } from 'drizzle-orm'
 import { db } from '@bedtime/core/db/client'
-import { stories, annotations, feedback, runSnapshots, storyGroups, planQuestions, planConversations } from '@bedtime/core/db/schema'
+import { stories, annotations, feedback, runSnapshots, storyGroups, planQuestions, planConversations, childDiary } from '@bedtime/core/db/schema'
 import type { Story, NewStory, NewAnnotation } from '@bedtime/core/db/types'
 import { validate } from '../middleware/validate'
 import { triggerTextPhase, getPipelineStatus } from './pipeline'
 import { triggerPlanRedo } from './pipeline-plan-redo'
+import { triggerTextRedoWithAnnotations } from './pipeline-text-redo'
 import { decideApprovePlan } from './approve-plan-decision'
 import { createStorySchema, resolveCreateStoryMode } from './create-story-schema'
+import { runStoryAnalyzer } from '@bedtime/core/pipeline/stages/story-analyzer'
+import { updateStyleGuide } from '@bedtime/core/pipeline/style-guide-updater'
 
 const router = Router()
 
@@ -44,6 +47,9 @@ function toSnakeCase(row: Story) {
     seed: row.seed,
     group_id: row.groupId,
     plan_change_summary: row.planChangeSummary ?? null,
+    mode: row.mode,
+    text_change_summary: row.textChangeSummary ?? null,
+    story_analysis: row.storyAnalysis ?? null,
   }
 }
 
@@ -73,6 +79,20 @@ router.post('/', validate(createStorySchema), async (req, res) => {
     const body = req.body as z.infer<typeof createStorySchema>
     const resolved = resolveCreateStoryMode(body)
 
+    if (resolved.mode === 'legacy') {
+      const legacyStory: NewStory = {
+        title: resolved.title,
+        textFinal: resolved.textFinal,
+        status: resolved.addToReadingList ? 'ready' : 'read',
+        source: 'legacy',
+        ...(resolved.groupId !== undefined ? { groupId: resolved.groupId } : {}),
+      }
+      const [created] = await db.insert(stories).values(legacyStory).returning()
+
+      res.status(201).json(toSnakeCase(created as Story))
+      return
+    }
+
     if (resolved.mode === 'user') {
       const userStory: NewStory = {
         title: resolved.title,
@@ -92,6 +112,7 @@ router.post('/', validate(createStorySchema), async (req, res) => {
       title: resolved.title,
       status: 'draft',
       source: 'agent',
+      mode: resolved.pipelineMode ?? 'auto',
       ...(resolved.groupId !== undefined ? { groupId: resolved.groupId } : {}),
     }
     const [story] = await db.insert(stories).values(newStory).returning()
@@ -105,19 +126,33 @@ router.post('/', validate(createStorySchema), async (req, res) => {
 
 router.get('/', async (req, res) => {
   try {
-    const { status } = req.query
+    const { status, groupId, tag } = req.query
 
     if (status !== undefined && typeof status !== 'string') {
       res.status(400).json({ error: 'Invalid status filter' })
       return
     }
 
-    const result = status
-      ? await db
-          .select()
-          .from(stories)
-          .where(eq(stories.status, status as 'draft' | 'ready' | 'read' | 'archived'))
-          .orderBy(desc(stories.createdAt))
+    const conditions = []
+
+    if (status) {
+      conditions.push(eq(stories.status, status as 'draft' | 'ready' | 'read' | 'archived'))
+    }
+
+    if (groupId !== undefined && typeof groupId === 'string') {
+      const gid = parseInt(groupId, 10)
+
+      if (!isNaN(gid)) {
+        conditions.push(eq(stories.groupId, gid))
+      }
+    }
+
+    if (tag !== undefined && typeof tag === 'string') {
+      conditions.push(sql`${stories.tags}::jsonb @> ${JSON.stringify([tag])}::jsonb`)
+    }
+
+    const result = conditions.length > 0
+      ? await db.select().from(stories).where(and(...conditions)).orderBy(desc(stories.createdAt))
       : await db.select().from(stories).orderBy(desc(stories.createdAt))
 
     res.json(result.map((row) => toSnakeCase(row as Story)))
@@ -178,6 +213,38 @@ router.patch('/:id/status', validate(updateStatusSchema), async (req, res) => {
   }
 })
 
+const updateTagsSchema = z.object({
+  tags: z.array(z.string()),
+})
+
+router.patch('/:id/tags', validate(updateTagsSchema), async (req, res) => {
+  try {
+    const storyId = parseIntParam(req.params['id'])
+
+    if (isNaN(storyId)) {
+      res.status(400).json({ error: 'Invalid story id' })
+      return
+    }
+
+    const { tags } = req.body as z.infer<typeof updateTagsSchema>
+    const [story] = await db
+      .update(stories)
+      .set({ tags })
+      .where(eq(stories.id, storyId))
+      .returning()
+
+    if (!story) {
+      res.status(404).json({ error: 'Story not found' })
+      return
+    }
+
+    res.json(toSnakeCase(story as Story))
+  } catch (err) {
+    console.error('PATCH /stories/:id/tags failed:', err)
+    res.status(500).json({ error: 'Failed to update tags' })
+  }
+})
+
 router.post('/:id/approve-plan', validate(approvePlanSchema), async (req, res) => {
   try {
     const storyId = parseIntParam(req.params['id'])
@@ -221,6 +288,8 @@ router.post('/:id/approve-plan', validate(approvePlanSchema), async (req, res) =
 
     if (decision.action === 'start_text_phase') {
       let universeSystemPrompt: string | undefined
+      let universeContext: string | undefined
+      let styleGuide: string | undefined
       let sashaContext: string | null = null
 
       if (existing.groupId !== null && existing.groupId !== undefined) {
@@ -228,6 +297,8 @@ router.post('/:id/approve-plan', validate(approvePlanSchema), async (req, res) =
 
         if (group) {
           universeSystemPrompt = group.systemPrompt
+          universeContext = group.universeContext ?? undefined
+          styleGuide = group.styleGuide ?? undefined
         }
       }
 
@@ -242,7 +313,7 @@ router.post('/:id/approve-plan', validate(approvePlanSchema), async (req, res) =
         sashaContext = snapshot.sashaContext
       }
 
-      triggerTextPhase(storyId, decision.seed, decision.planFinal, universeSystemPrompt, sashaContext)
+      triggerTextPhase(storyId, decision.seed, decision.planFinal, existing.mode ?? 'manual', universeSystemPrompt, sashaContext, universeContext, styleGuide)
     }
 
     res.json(toSnakeCase(existing as Story))
@@ -270,6 +341,7 @@ router.post('/:id/redo-plan', async (req, res) => {
 
     let universeSystemPrompt: string | undefined
     let universeContext: string | undefined
+    let styleGuide: string | undefined
 
     if (existing.groupId !== null && existing.groupId !== undefined) {
       const [group] = await db.select().from(storyGroups).where(eq(storyGroups.id, existing.groupId))
@@ -277,15 +349,89 @@ router.post('/:id/redo-plan', async (req, res) => {
       if (group) {
         universeSystemPrompt = group.systemPrompt
         universeContext = group.universeContext ?? undefined
+        styleGuide = group.styleGuide ?? undefined
       }
     }
 
-    triggerPlanRedo(storyId, existing.seed, existing.planFinal ?? '', universeSystemPrompt, universeContext)
+    triggerPlanRedo(storyId, existing.seed, existing.planFinal ?? '', universeSystemPrompt, universeContext, styleGuide)
 
     res.json({ started: true, storyId })
   } catch (err) {
     console.error('POST /stories/:id/redo-plan failed:', err)
     res.status(500).json({ error: 'Failed to start plan redo' })
+  }
+})
+
+router.post('/:id/redo-text', async (req, res) => {
+  try {
+    const storyId = parseIntParam(req.params['id'])
+
+    if (isNaN(storyId)) {
+      res.status(400).json({ error: 'Invalid story id' })
+      return
+    }
+
+    const [existing] = await db.select().from(stories).where(eq(stories.id, storyId))
+
+    if (!existing || !existing.seed) {
+      res.status(400).json({ error: 'Story not found or has no seed' })
+      return
+    }
+
+    const answeredQuestions = await db
+      .select()
+      .from(planQuestions)
+      .where(eq(planQuestions.storyId, storyId))
+
+    const qaBlock = answeredQuestions
+      .filter((q) => q.answerText)
+      .map((q) => `Q: ${q.questionText}\nA: ${q.answerText ?? ''}`)
+      .join('\n')
+
+    const textAnnotations = await db
+      .select()
+      .from(annotations)
+      .where(and(eq(annotations.storyId, storyId), eq(annotations.context, 'text')))
+
+    const annotationFeedback = textAnnotations
+      .filter((a) => a.noteText)
+      .map((a, i) => `${i + 1}. На отрывке "${a.selectedText}":\n   ${a.noteText}`)
+      .join('\n\n')
+
+    const seedWithContext = qaBlock
+      ? `SEED: ${existing.seed}\n\nCLARIFYING Q&A:\n${qaBlock}`
+      : existing.seed
+
+    let universeSystemPrompt: string | undefined
+    let universeContext: string | undefined
+    let styleGuide: string | undefined
+
+    if (existing.groupId !== null && existing.groupId !== undefined) {
+      const [group] = await db.select().from(storyGroups).where(eq(storyGroups.id, existing.groupId))
+
+      if (group) {
+        universeSystemPrompt = group.systemPrompt
+        universeContext = group.universeContext ?? undefined
+        styleGuide = group.styleGuide ?? undefined
+      }
+    }
+
+    const previousText = existing.textV2 ?? existing.textV1 ?? ''
+
+    triggerTextRedoWithAnnotations(
+      storyId,
+      seedWithContext,
+      previousText,
+      annotationFeedback,
+      universeSystemPrompt,
+      universeContext,
+      styleGuide,
+    )
+
+    res.json({ started: true, storyId })
+  } catch (err) {
+    console.error('POST /stories/:id/redo-text failed:', err)
+    res.status(500).json({ error: 'Failed to start text redo' })
   }
 })
 
@@ -394,6 +540,115 @@ router.get('/:id/annotations', async (req, res) => {
   } catch (err) {
     console.error('GET /stories/:id/annotations failed:', err)
     res.status(500).json({ error: 'Failed to fetch annotations' })
+  }
+})
+
+const updateAnalysisSchema = z.object({
+  storyAnalysis: z.string(),
+})
+
+router.post('/:id/analyze', async (req, res) => {
+  try {
+    const storyId = parseIntParam(req.params['id'])
+
+    if (isNaN(storyId)) {
+      res.status(400).json({ error: 'Invalid story id' })
+      return
+    }
+
+    const [story] = await db.select().from(stories).where(eq(stories.id, storyId))
+
+    if (!story) {
+      res.status(404).json({ error: 'Story not found' })
+      return
+    }
+
+    if (story.source !== 'legacy') {
+      res.status(422).json({ error: 'Only legacy stories can be analyzed' })
+      return
+    }
+
+    if (!story.textFinal) {
+      res.status(422).json({ error: 'Story has no text to analyze' })
+      return
+    }
+
+    let universeContext: string | undefined
+
+    if (story.groupId !== null && story.groupId !== undefined) {
+      const [group] = await db.select().from(storyGroups).where(eq(storyGroups.id, story.groupId))
+
+      if (group) {
+        universeContext = group.universeContext ?? undefined
+      }
+    }
+
+    console.log(`[analyze] story ${storyId} "${story.title}" — running analyzer`)
+
+    const output = await runStoryAnalyzer({
+      storyText: story.textFinal,
+      ...(universeContext !== undefined ? { universeContext } : {}),
+    })
+
+    console.log(`[analyze] story ${storyId} — reactions: ${output.extracted_reactions.length}, saving analysis`)
+
+    await db
+      .update(stories)
+      .set({ storyAnalysis: output.analysis_summary })
+      .where(eq(stories.id, storyId))
+
+    if (output.extracted_reactions.length > 0) {
+      await db.insert(childDiary).values(
+        output.extracted_reactions.map((r) => ({
+          content: `Из истории «${story.title}»: ${r.reaction_text} — «${r.surrounding_quote}»`,
+        })),
+      )
+    }
+
+    if (story.groupId !== null && story.groupId !== undefined) {
+      console.log(`[analyze] story ${storyId} — updating style guide for group ${story.groupId}`)
+      await updateStyleGuide(story.groupId, output, story.title)
+    }
+
+    console.log(`[analyze] story ${storyId} — done`)
+
+    res.json({
+      storyAnalysis: output.analysis_summary,
+      reactionsExtracted: output.extracted_reactions.length,
+      styleGuideUpdated: story.groupId !== null && story.groupId !== undefined,
+    })
+  } catch (err) {
+    console.error('POST /stories/:id/analyze failed:', err)
+    res.status(500).json({ error: 'Failed to analyze story' })
+  }
+})
+
+router.patch('/:id/analysis', validate(updateAnalysisSchema), async (req, res) => {
+  try {
+    const storyId = parseIntParam(req.params['id'])
+
+    if (isNaN(storyId)) {
+      res.status(400).json({ error: 'Invalid story id' })
+      return
+    }
+
+    const { storyAnalysis } = req.body as z.infer<typeof updateAnalysisSchema>
+
+    const [updated] = await db
+      .update(stories)
+      .set({ storyAnalysis })
+      .where(eq(stories.id, storyId))
+      .returning()
+
+    if (!updated) {
+      res.status(404).json({ error: 'Story not found' })
+      return
+    }
+
+    res.json(toSnakeCase(updated as Story))
+  } catch (err) {
+    console.error('PATCH /stories/:id/analysis failed:', err)
+    res.status(500).json({ error: 'Failed to update story analysis' })
   }
 })
 

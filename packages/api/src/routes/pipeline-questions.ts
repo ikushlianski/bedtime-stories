@@ -90,6 +90,7 @@ router.post('/questions/:storyId/submit', validate(submitAnswersSchema), async (
 
     let universeSystemPrompt: string | undefined
     let universeContext: string | undefined
+    let styleGuide: string | undefined
 
     if (storyRow.groupId !== null && storyRow.groupId !== undefined) {
       const [group] = await db.select().from(storyGroups).where(eq(storyGroups.id, storyRow.groupId))
@@ -97,6 +98,7 @@ router.post('/questions/:storyId/submit', validate(submitAnswersSchema), async (
       if (group) {
         universeSystemPrompt = group.systemPrompt
         universeContext = group.universeContext ?? undefined
+        styleGuide = group.styleGuide ?? undefined
       }
     }
 
@@ -109,7 +111,7 @@ router.post('/questions/:storyId/submit', validate(submitAnswersSchema), async (
       .filter((q) => q.answerText !== null && q.answerText !== undefined)
       .map((q) => ({ question: q.questionText, answer: q.answerText ?? '' }))
 
-    triggerPlanPhaseFromAnswers(storyIdRaw, seed, qaArray, universeSystemPrompt, universeContext)
+    triggerPlanPhaseFromAnswers(storyIdRaw, seed, qaArray, universeSystemPrompt, universeContext, styleGuide)
 
     if (storyRow.groupId !== null && storyRow.groupId !== undefined) {
       void updateUniverseContext(storyRow.groupId, qaArray, seed)
@@ -156,6 +158,7 @@ router.post('/questions/:storyId/retry-plan', async (req, res) => {
 
     let universeSystemPrompt: string | undefined
     let universeContext: string | undefined
+    let styleGuide: string | undefined
 
     if (storyRow.groupId !== null && storyRow.groupId !== undefined) {
       const [group] = await db.select().from(storyGroups).where(eq(storyGroups.id, storyRow.groupId))
@@ -163,10 +166,11 @@ router.post('/questions/:storyId/retry-plan', async (req, res) => {
       if (group) {
         universeSystemPrompt = group.systemPrompt
         universeContext = group.universeContext ?? undefined
+        styleGuide = group.styleGuide ?? undefined
       }
     }
 
-    triggerPlanPhaseFromAnswers(storyIdRaw, seed, qaArray, universeSystemPrompt, universeContext)
+    triggerPlanPhaseFromAnswers(storyIdRaw, seed, qaArray, universeSystemPrompt, universeContext, styleGuide)
 
     res.json({ ok: true, storyId: storyIdRaw })
   } catch (err) {

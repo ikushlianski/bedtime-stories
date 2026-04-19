@@ -8,6 +8,7 @@ import dashboardRouter from './routes/dashboard'
 import improverRouter from './routes/improver'
 import universesRouter from './routes/universes'
 import diaryRouter from './routes/diary'
+import childProfileRouter from './routes/child-profile'
 
 export const app = express()
 
@@ -22,6 +23,7 @@ app.use('/api/dashboard', dashboardRouter)
 app.use('/api/improver', improverRouter)
 app.use('/api/universes', universesRouter)
 app.use('/api/diary', diaryRouter)
+app.use('/api/child-profile', childProfileRouter)
 
 const PORT = process.env['PORT'] ?? 8020
 

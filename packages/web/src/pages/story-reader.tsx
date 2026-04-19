@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { api, isReactionAnnotation, type Story, type Annotation, type AnnotationType } from '../lib/api'
-import { AnnotationToolbar, FeedbackForm, PageHeader, StatusCallout } from '../components'
+import { api, isReactionAnnotation, type Story, type Annotation, type AnnotationType, type PipelineStatusValue } from '../lib/api'
+import { AnnotationToolbar, FeedbackForm, PageHeader, StatusCallout, Toast, StoryTagEditor } from '../components'
+import { useToast } from '../lib/use-toast'
 import type { FeedbackValues } from '../components/types'
 import {
   annotationTypeLabel,
@@ -106,12 +107,34 @@ export function StoryReaderPage() {
   const [annotationError, setAnnotationError] = useState<string | null>(null)
   const [markingRead, setMarkingRead] = useState(false)
   const [currentStatus, setCurrentStatus] = useState<string | null>(null)
+  const [pipelineStatus, setPipelineStatus] = useState<PipelineStatusValue | null>(null)
+  const [approvingText, setApprovingText] = useState(false)
+  const [redoingText, setRedoingText] = useState(false)
+  const [reviewActionError, setReviewActionError] = useState<string | null>(null)
+  const [analysisText, setAnalysisText] = useState('')
+  const [analyzing, setAnalyzing] = useState(false)
+  const [analysisSaving, setAnalysisSaving] = useState(false)
+  const [analysisError, setAnalysisError] = useState<string | null>(null)
+  const [analysisReactionsCount, setAnalysisReactionsCount] = useState<number | null>(null)
+  const { message: toastMessage, showToast } = useToast()
+  const [storyTags, setStoryTags] = useState<string[]>([])
 
   useEffect(() => {
     if (story) {
       setCurrentStatus(story.status)
+      setAnalysisText(story.story_analysis ?? '')
+      setStoryTags((story.tags as string[] | null) ?? [])
     }
   }, [story])
+
+  useEffect(() => {
+    if (isNaN(storyId)) return
+
+    api.pipeline
+      .status(storyId)
+      .then((s) => setPipelineStatus(s.status))
+      .catch(() => undefined)
+  }, [storyId])
 
   useEffect(() => {
     if (isNaN(storyId)) return
@@ -140,6 +163,7 @@ export function StoryReaderPage() {
         })
 
         setAnnotations((current) => appendAnnotation(current, created))
+        showToast('Заметка сохранена')
       } catch (err) {
         setAnnotationError(err instanceof Error ? err.message : 'Не удалось сохранить заметку')
       }
@@ -154,13 +178,15 @@ export function StoryReaderPage() {
     if (!story) return
 
     if (story.status === 'draft' && !story.text_final) {
-      api.pipeline.status(storyId).then((pipelineStatus) => {
-        if (pipelineStatus.status === 'questions_pending') {
+      api.pipeline.status(storyId).then((s) => {
+        setPipelineStatus(s.status)
+
+        if (s.status === 'questions_pending') {
           navigate(`/stories/${storyId}/questions`, { replace: true })
-        } else if (pipelineStatus.status === 'plan_ready') {
-          navigate(`/stories/${storyId}/plan-review`, { replace: true })
-        } else if (pipelineStatus.status === 'text_ready') {
+        } else if (s.status === 'text_ready') {
           navigate(`/stories/${storyId}/text-review`, { replace: true })
+        } else if (s.status === 'text_review') {
+          /* stay on story reader — review banner will appear */
         } else {
           navigate(`/stories/${storyId}/pipeline`, { replace: true })
         }
@@ -182,12 +208,70 @@ export function StoryReaderPage() {
     return <StatusCallout tone="warning" title="История не найдена" message="Запрошенная история не существует." />
   }
 
-  if (story.status === 'draft' && !story.text_final) {
+  if (story.status === 'draft' && !story.text_final && pipelineStatus !== 'text_review') {
     return <StatusCallout title="Перенаправление" message="Определяем статус конвейера..." />
   }
 
+  const textToDisplay = story.text_final ?? story.text_v2 ?? null
+
   return (
     <div>
+      <Toast message={toastMessage} />
+
+      {pipelineStatus === 'text_review' && (
+        <div className="mb-6 rounded-box border border-primary/30 bg-primary/10 p-4">
+          {story.text_change_summary && (
+            <div className="mb-4 rounded-box border border-info/30 bg-info/10 p-4">
+              <p className="mb-1 text-sm font-semibold text-info-content">Что изменилось</p>
+              <p className="text-sm text-base-content">{story.text_change_summary}</p>
+            </div>
+          )}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-base-content">История готова к проверке. Одобри или отправь на доработку.</p>
+            <div className="flex gap-2">
+              {reviewActionError && (
+                <span className="text-xs text-error">{reviewActionError}</span>
+              )}
+              <button
+                className="btn btn-sm btn-outline"
+                disabled={redoingText}
+                onClick={() => {
+                  setRedoingText(true)
+                  setReviewActionError(null)
+                  api.stories.redoText(storyId)
+                    .then(() => navigate(`/stories/${storyId}/pipeline`))
+                    .catch((err) => {
+                      setReviewActionError(err instanceof Error ? err.message : 'Не удалось запустить доработку')
+                      setRedoingText(false)
+                    })
+                }}
+              >
+                {redoingText ? 'Запускаем…' : 'Ещё один проход'}
+              </button>
+              <button
+                className="btn btn-sm btn-primary"
+                disabled={approvingText}
+                onClick={() => {
+                  setApprovingText(true)
+                  setReviewActionError(null)
+                  api.stories.approveText(storyId, true)
+                    .then(() => {
+                      setCurrentStatus('ready')
+                      setPipelineStatus('text_ready')
+                    })
+                    .catch((err) => {
+                      setReviewActionError(err instanceof Error ? err.message : 'Не удалось одобрить историю')
+                      setApprovingText(false)
+                    })
+                }}
+              >
+                {approvingText ? 'Сохраняем…' : 'Одобрить историю'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <PageHeader
         eyebrow="Чтение"
         title={story.title}
@@ -224,9 +308,21 @@ export function StoryReaderPage() {
         }
       />
 
+      <div className="mb-6 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm">
+        <p className="mb-3 text-xs font-medium uppercase tracking-wide text-base-content/50">Категории</p>
+        <StoryTagEditor
+          tags={storyTags}
+          onSave={async (tags) => {
+            const updated = await api.stories.updateTags(storyId, tags)
+            setStoryTags((updated.tags as string[] | null) ?? [])
+            showToast('Категории сохранены')
+          }}
+        />
+      </div>
+
       <div className="relative">
-        {story.text_final ? (
-          <StoryText text={story.text_final} onSelection={setSelection} />
+        {textToDisplay ? (
+          <StoryText text={textToDisplay} onSelection={setSelection} />
         ) : (
           <StatusCallout
             tone="warning"
@@ -248,7 +344,7 @@ export function StoryReaderPage() {
             <AnnotationToolbar
               selectedText={selection.text}
               onAnnotate={(type, text, noteText) => {
-                const storyText = story?.text_final ?? ''
+                const storyText = textToDisplay ?? ''
                 const globalOffset = findTextOffset(storyText, text)
                 const start = globalOffset?.start ?? selection.start
                 const end = globalOffset?.end ?? selection.end
@@ -315,6 +411,68 @@ export function StoryReaderPage() {
               <li key={i}>{question}</li>
             ))}
           </ol>
+        </section>
+      )}
+
+      {story.source === 'legacy' && (
+        <section className="mt-10">
+          <h3 className="mb-1 text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
+            Анализ примерной истории
+          </h3>
+          <p className="mb-3 text-sm text-base-content/50">
+            ИИ извлекает стилистические паттерны и реакции ребёнка. Эти данные используются при генерации новых историй.
+          </p>
+
+          <div className="flex gap-2 mb-3">
+            <button
+              className={`btn btn-sm btn-outline ${analyzing ? 'loading' : ''}`}
+              disabled={analyzing || analysisSaving}
+              onClick={() => {
+                setAnalyzing(true)
+                setAnalysisError(null)
+                api.stories.analyze(storyId)
+                  .then((result) => {
+                    setAnalysisText(result.storyAnalysis)
+                    setAnalysisReactionsCount(result.reactionsExtracted)
+                  })
+                  .catch((err) => setAnalysisError(err instanceof Error ? err.message : 'Ошибка анализа'))
+                  .finally(() => setAnalyzing(false))
+              }}
+            >
+              {analyzing ? 'Анализируем...' : analysisText ? 'Перезапустить анализ ИИ' : 'Проанализировать с ИИ'}
+            </button>
+          </div>
+
+          {analysisReactionsCount !== null && (
+            <p className="mb-2 text-xs text-success">
+              Извлечено реакций: {analysisReactionsCount}
+            </p>
+          )}
+
+          <textarea
+            className="textarea textarea-bordered min-h-40 w-full bg-base-100"
+            placeholder="Заметки об этой истории — добавь свои наблюдения..."
+            value={analysisText}
+            onChange={(e) => setAnalysisText(e.target.value)}
+            disabled={analyzing}
+          />
+
+          <div className="mt-2 flex items-center gap-3">
+            <button
+              className={`btn btn-sm btn-primary ${analysisSaving ? 'loading' : ''}`}
+              disabled={analysisSaving || analyzing}
+              onClick={() => {
+                setAnalysisSaving(true)
+                setAnalysisError(null)
+                api.stories.updateAnalysis(storyId, analysisText)
+                  .catch((err) => setAnalysisError(err instanceof Error ? err.message : 'Не удалось сохранить'))
+                  .finally(() => setAnalysisSaving(false))
+              }}
+            >
+              {analysisSaving ? 'Сохраняем...' : 'Сохранить заметки'}
+            </button>
+            {analysisError && <span className="text-sm text-error">{analysisError}</span>}
+          </div>
         </section>
       )}
 

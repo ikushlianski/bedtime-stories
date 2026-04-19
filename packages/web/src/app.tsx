@@ -10,13 +10,14 @@ import { IdeasPage } from './pages/ideas'
 import { InboxPage } from './pages/inbox'
 import { UniversesPage } from './pages/universes'
 import { DiaryPage } from './pages/diary'
+import { ChildProfilePage } from './pages/child-profile'
 import { useTheme } from './lib/use-theme'
 
 const NAV_LINKS = [
   { to: '/inbox', label: 'Входящие' },
   { to: '/', label: 'Истории' },
   { to: '/ideas', label: 'Идеи' },
-  { to: '/diary', label: 'Дневник' },
+  { to: '/child-profile', label: 'Мой ребёнок' },
   { to: '/dashboard', label: 'Панель' },
   { to: '/universes', label: 'Вселенные' },
 ]
@@ -103,6 +104,7 @@ function App() {
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/ideas" element={<IdeasPage />} />
                 <Route path="/diary" element={<DiaryPage />} />
+                <Route path="/child-profile" element={<ChildProfilePage />} />
                 <Route path="/inbox" element={<InboxPage />} />
                 <Route path="/universes" element={<UniversesPage />} />
               </Routes>

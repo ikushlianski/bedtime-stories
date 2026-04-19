@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { z } from 'zod'
 
 const structuredFeedbackSchema = z.object({
-  enjoyed: z.number().int().min(1).max(5),
+  enjoyed: z.number().int().min(0).max(5),
   was_funny: z.boolean(),
   was_scary: z.boolean(),
   too_long: z.boolean(),
@@ -14,7 +14,7 @@ const structuredFeedbackSchema = z.object({
 })
 
 const feedbackSchema = z.object({
-  rating: z.number().int().min(1).max(5),
+  rating: z.number().int().min(0).max(5),
   structured_feedback: structuredFeedbackSchema,
 })
 
@@ -148,9 +148,6 @@ function FeedbackForm({ storyId: _storyId, onSubmit }: FeedbackFormProps) {
         <div className="space-y-2">
           <span className="text-sm font-medium text-base-content/70">Общая оценка</span>
           <StarRating value={rating} onChange={setRating} />
-          {rating === 0 && (
-            <p className="text-xs text-base-content/50">Выберите оценку перед отправкой</p>
-          )}
         </div>
 
         <div className="space-y-4">
@@ -231,7 +228,8 @@ function FeedbackForm({ storyId: _storyId, onSubmit }: FeedbackFormProps) {
 
         <div className="card-actions justify-end">
           <button
-            className={`btn btn-primary ${loading || rating === 0 ? 'btn-disabled' : ''}`}
+            className="btn btn-primary"
+            disabled={loading}
             onClick={() => void handleSubmit()}
           >
             Отправить отзыв

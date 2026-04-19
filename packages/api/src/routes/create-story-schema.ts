@@ -6,6 +6,9 @@ export const createStorySchema = z
     title: z.string().min(1).max(200).optional(),
     textFinal: z.string().min(1).optional(),
     groupId: z.number().int().positive().optional(),
+    pipelineMode: z.enum(['auto', 'manual']).optional(),
+    source: z.enum(['user', 'legacy']).optional(),
+    addToReadingList: z.boolean().optional(),
   })
   .refine(
     (value) => {
@@ -23,12 +26,26 @@ export const createStorySchema = z
 export type CreateStoryInput = z.infer<typeof createStorySchema>
 
 export type CreateStoryMode =
-  | { mode: 'agent'; seed: string; title: string; groupId?: number }
+  | { mode: 'agent'; seed: string; title: string; groupId?: number; pipelineMode?: 'auto' | 'manual' }
   | { mode: 'user'; title: string; textFinal: string; groupId?: number }
+  | { mode: 'legacy'; title: string; textFinal: string; groupId?: number; addToReadingList?: boolean }
 
 export function resolveCreateStoryMode(input: CreateStoryInput): CreateStoryMode {
   if (input.textFinal !== undefined) {
     const title = (input.title ?? input.textFinal).trim().slice(0, 60)
+
+    if (input.source === 'legacy') {
+      const result: CreateStoryMode = {
+        mode: 'legacy',
+        title,
+        textFinal: input.textFinal,
+        ...(input.groupId !== undefined ? { groupId: input.groupId } : {}),
+        ...(input.addToReadingList !== undefined ? { addToReadingList: input.addToReadingList } : {}),
+      }
+
+      return result
+    }
+
     const result: CreateStoryMode = { mode: 'user', title, textFinal: input.textFinal }
 
     if (input.groupId !== undefined) {
@@ -44,6 +61,10 @@ export function resolveCreateStoryMode(input: CreateStoryInput): CreateStoryMode
 
   if (input.groupId !== undefined) {
     result.groupId = input.groupId
+  }
+
+  if (input.pipelineMode !== undefined) {
+    result.pipelineMode = input.pipelineMode
   }
 
   return result

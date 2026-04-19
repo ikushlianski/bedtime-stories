@@ -12,6 +12,7 @@ function mkStory(overrides: Partial<Story>): Story {
   return {
     id: 1,
     title: 'A tale',
+    seed: 'A tale seed',
     text_final: null,
     plan_v1: null,
     plan_final: null,
@@ -32,6 +33,11 @@ function mkStory(overrides: Partial<Story>): Story {
     source: 'agent',
     is_legacy: false,
     discussion_questions: null,
+    group_id: null,
+    plan_change_summary: null,
+    mode: 'auto',
+    text_change_summary: null,
+    story_analysis: null,
     ...overrides,
   }
 }

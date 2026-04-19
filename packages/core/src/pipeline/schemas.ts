@@ -42,6 +42,22 @@ export const ImproverOutputSchema = z.object({
   ),
 })
 
+export const StoryAnalysisOutputSchema = z.object({
+  extracted_reactions: z.array(
+    z.object({
+      reaction_text: z.string(),
+      surrounding_quote: z.string(),
+    }),
+  ),
+  style_patterns: z.object({
+    what_worked: z.array(z.string()),
+    what_didnt_work: z.array(z.string()),
+    structural_notes: z.string(),
+  }),
+  analysis_summary: z.string(),
+})
+
 export type PsychologistOutput = z.infer<typeof PsychologistOutputSchema>
 export type CriticOutput = z.infer<typeof CriticOutputSchema>
 export type ImproverOutput = z.infer<typeof ImproverOutputSchema>
+export type StoryAnalysisOutput = z.infer<typeof StoryAnalysisOutputSchema>

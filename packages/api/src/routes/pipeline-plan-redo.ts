@@ -15,7 +15,7 @@ function formatAnnotationsAsFeedback(items: Array<{ selectedText: string; noteTe
     .join('\n\n')
 }
 
-export function triggerPlanRedo(storyId: number, seed: string, previousPlan: string, universeSystemPrompt?: string, universeContext?: string): void {
+export function triggerPlanRedo(storyId: number, seed: string, previousPlan: string, universeSystemPrompt?: string, universeContext?: string, styleGuide?: string): void {
   setPipelineStatus(storyId, 'plan_running')
 
   db.select({ selectedText: annotations.selectedText, noteText: annotations.noteText })
@@ -33,6 +33,7 @@ export function triggerPlanRedo(storyId: number, seed: string, previousPlan: str
           promptVersions: defaultPromptVersions,
           ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
           ...(universeContext !== undefined ? { universeContext } : {}),
+          ...(styleGuide !== undefined ? { styleGuide } : {}),
           ...(sashaContext !== null ? { sashaContext } : {}),
           ...(userFeedback ? { userFeedback } : {}),
           onStepChange: (step) => setCurrentStep(storyId, step),

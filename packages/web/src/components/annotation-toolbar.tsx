@@ -9,7 +9,7 @@ interface AnnotationToolbarProps {
 const REACTION_BUTTONS: Array<{ type: AnnotationType; label: string }> = [
   { type: 'sasha_laughed', label: 'Смеялся' },
   { type: 'sasha_loved', label: 'Понравилось' },
-  { type: 'sasha_disliked', label: 'Не понравилось' },
+  { type: 'sasha_disliked', label: 'Слабо' },
 ]
 
 function AnnotationToolbar({ onAnnotate, selectedText }: AnnotationToolbarProps) {

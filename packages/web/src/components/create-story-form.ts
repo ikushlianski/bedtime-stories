@@ -1,21 +1,15 @@
 import type { CreateStoryInput } from '../lib/api'
 
-export type CreateStoryMode = 'generate' | 'paste'
-
 export interface CreateStoryFormState {
-  mode: CreateStoryMode
   seed: string
-  title: string
-  textFinal: string
   groupId: number | null
+  pipelineMode: 'auto' | 'manual'
 }
 
 export const INITIAL_CREATE_STORY_FORM: CreateStoryFormState = {
-  mode: 'generate',
   seed: '',
-  title: '',
-  textFinal: '',
   groupId: null,
+  pipelineMode: 'auto',
 }
 
 export type CreateStoryFormValidation =
@@ -23,37 +17,26 @@ export type CreateStoryFormValidation =
   | { valid: false; reason: string }
 
 export function validateCreateStoryForm(state: CreateStoryFormState): CreateStoryFormValidation {
-  const groupId = state.groupId ?? undefined
+  const seed = state.seed.trim()
 
-  if (state.mode === 'generate') {
-    const seed = state.seed.trim()
-
-    if (!seed) {
-      return { valid: false, reason: 'Seed is required' }
-    }
-
-    if (seed.length > 5000) {
-      return { valid: false, reason: 'Seed is too long' }
-    }
-
-    return { valid: true, input: { seed, ...(groupId !== undefined ? { groupId } : {}) } }
+  if (!seed) {
+    return { valid: false, reason: 'Seed is required' }
   }
 
-  const textFinal = state.textFinal.trim()
-
-  if (!textFinal) {
-    return { valid: false, reason: 'Story text is required' }
+  if (seed.length > 5000) {
+    return { valid: false, reason: 'Seed is too long' }
   }
 
-  const title = state.title.trim()
-
-  if (title.length > 200) {
-    return { valid: false, reason: 'Title is too long' }
+  if (state.groupId === null) {
+    return { valid: false, reason: 'Universe is required' }
   }
 
-  if (title.length === 0) {
-    return { valid: true, input: { textFinal, ...(groupId !== undefined ? { groupId } : {}) } }
+  return {
+    valid: true,
+    input: {
+      seed,
+      pipelineMode: state.pipelineMode,
+      groupId: state.groupId,
+    },
   }
-
-  return { valid: true, input: { title, textFinal, ...(groupId !== undefined ? { groupId } : {}) } }
 }

@@ -6,10 +6,11 @@ export type PipelineInternalStatus =
   | 'plan_failed'
   | 'text_running'
   | 'text_ready'
+  | 'text_review'
   | 'text_failed'
 
 export interface PublicPipelineStatus {
-  status: 'questions_pending' | 'plan_running' | 'plan_ready' | 'text_running' | 'text_ready' | 'failed' | 'pending'
+  status: 'questions_pending' | 'plan_running' | 'plan_ready' | 'text_running' | 'text_ready' | 'text_review' | 'failed' | 'pending'
   phase: 'plan' | 'text' | null
 }
 
@@ -29,6 +30,8 @@ export function toPublicStatus(internal: PipelineInternalStatus | undefined): Pu
       return { status: 'text_running', phase: 'text' }
     case 'text_ready':
       return { status: 'text_ready', phase: 'text' }
+    case 'text_review':
+      return { status: 'text_review', phase: 'text' }
     case 'text_failed':
       return { status: 'failed', phase: 'text' }
     default:

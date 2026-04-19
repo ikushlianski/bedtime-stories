@@ -6,6 +6,7 @@ export const storyGroups = pgTable('story_groups', {
   description: text('description').notNull().default(''),
   systemPrompt: text('system_prompt').notNull(),
   universeContext: text('universe_context'),
+  styleGuide: text('style_guide'),
   agentOverrides: jsonb('agent_overrides').default({}),
   createdAt: timestamp('created_at').defaultNow(),
 })
@@ -36,6 +37,9 @@ export const stories = pgTable('stories', {
   seed: text('seed'),
   groupId: integer('group_id').references(() => storyGroups.id),
   planChangeSummary: text('plan_change_summary'),
+  mode: text('mode').$type<'auto' | 'manual'>().notNull().default('auto'),
+  textChangeSummary: text('text_change_summary'),
+  storyAnalysis: text('story_analysis'),
 })
 
 export const feedback = pgTable('feedback', {
@@ -86,6 +90,18 @@ export const childDiary = pgTable('child_diary', {
   id: serial('id').primaryKey(),
   content: text('content').notNull(),
   createdAt: timestamp('created_at').defaultNow(),
+})
+
+export const childProfiles = pgTable('child_profiles', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull().default(''),
+  age: integer('age'),
+  activities: text('activities'),
+  interests: text('interests'),
+  dislikes: text('dislikes'),
+  favourites: text('favourites'),
+  notes: text('notes'),
+  updatedAt: timestamp('updated_at').defaultNow(),
 })
 
 export const runSnapshots = pgTable('run_snapshots', {

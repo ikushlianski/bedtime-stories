@@ -6,19 +6,7 @@ import {
   buildTextStoriesUpdate,
 } from './pipeline-persistence'
 import type { PlanPhaseResult, TextPhaseResult } from '@bedtime/core/pipeline/orchestrator'
-import type { PsychologistOutput, CriticOutput } from '@bedtime/core/pipeline/schemas'
-
-const psychologistPlanOutput: PsychologistOutput = {
-  safety: { verdict: 'safe', issues: [] },
-  therapeutic: { score: 4, strengths: ['warmth'], gaps: [] },
-  recommended_changes: [],
-}
-
-const psychologistTextOutput: PsychologistOutput = {
-  safety: { verdict: 'safe', issues: [] },
-  therapeutic: { score: 5, strengths: ['resolution'], gaps: [] },
-  recommended_changes: [],
-}
+import type { CriticOutput } from '@bedtime/core/pipeline/schemas'
 
 const plotCriticOutput: CriticOutput = { issues: [], improvement_needed: false }
 const writerCriticOutput: CriticOutput = { issues: [], improvement_needed: false }
@@ -29,19 +17,15 @@ const basePlan: PlanPhaseResult = {
   planIterationsCount: 2,
   titleSuggested: 'Волшебный лес',
   sashaContext: null,
-  psychologistPlanOutput,
   plotCriticOutput,
   models: {
     plotter: 'claude-sonnet-4-6',
-    psychologist: 'claude-sonnet-4-6',
     plotCritic: 'claude-haiku-4-5-20251001',
     writer: 'claude-sonnet-4-6',
     writerCritic: 'claude-haiku-4-5-20251001',
   },
   promptVersions: {
     plotter: 3,
-    psychologistPlan: 1,
-    psychologistText: 1,
     plotCritic: 2,
     writer: 4,
     writerCritic: 1,
@@ -51,19 +35,15 @@ const basePlan: PlanPhaseResult = {
 const baseText: TextPhaseResult = {
   textV1: 'text draft one',
   textV2: 'text final version',
-  psychologistTextOutput,
   writerCriticOutput,
   models: {
     plotter: 'claude-sonnet-4-6',
-    psychologist: 'claude-sonnet-4-6',
     plotCritic: 'claude-haiku-4-5-20251001',
     writer: 'claude-sonnet-4-6',
     writerCritic: 'claude-haiku-4-5-20251001',
   },
   promptVersions: {
     plotter: 3,
-    psychologistPlan: 1,
-    psychologistText: 1,
     plotCritic: 2,
     writer: 5,
     writerCritic: 2,
@@ -71,52 +51,49 @@ const baseText: TextPhaseResult = {
 }
 
 describe('buildPlanSnapshotInsert', () => {
-  it('writes only plan-related columns and leaves writer/critic/psychologist-text fields unset', () => {
+  it('writes plan-related columns and sets psychologist fields to null', () => {
     const row = buildPlanSnapshotInsert(42, basePlan)
 
     expect(row.storyId).toBe(42)
     expect(row.plotterModel).toBe('claude-sonnet-4-6')
     expect(row.plotterPromptVersion).toBe(3)
-    expect(row.psychologistPlanModel).toBe('claude-sonnet-4-6')
-    expect(row.psychologistPlanPromptVersion).toBe(1)
+    expect(row.psychologistPlanModel).toBeNull()
+    expect(row.psychologistPlanPromptVersion).toBeNull()
     expect(row.plotCriticModel).toBe('claude-haiku-4-5-20251001')
     expect(row.plotCriticPromptVersion).toBe(2)
     expect(row.planV1).toBe('plan draft one')
     expect(row.planFinal).toBe('plan final version')
     expect(row.planIterationsCount).toBe(2)
-    expect(row.psychologistPlanOutput).toBe(psychologistPlanOutput)
+    expect(row.psychologistPlanOutput).toBeNull()
     expect(row.plotCriticOutput).toBe(plotCriticOutput)
   })
 
-  it('does not leak writer/critic/psychologist-text model or version (they must not be written until text phase runs)', () => {
+  it('does not leak writer/critic/psychologist-text model or version', () => {
     const row = buildPlanSnapshotInsert(42, basePlan)
 
     expect(row.writerModel).toBeUndefined()
     expect(row.writerPromptVersion).toBeUndefined()
-    expect(row.psychologistTextModel).toBeUndefined()
-    expect(row.psychologistTextPromptVersion).toBeUndefined()
     expect(row.writerCriticModel).toBeUndefined()
     expect(row.writerCriticPromptVersion).toBeUndefined()
     expect(row.textV1).toBeUndefined()
     expect(row.textV2).toBeUndefined()
-    expect(row.psychologistTextOutput).toBeUndefined()
     expect(row.writerCriticOutput).toBeUndefined()
   })
 })
 
 describe('buildTextSnapshotUpdate', () => {
-  it('writes only text-related columns for the persistence update', () => {
+  it('writes text-related columns and sets psychologist fields to null', () => {
     const update = buildTextSnapshotUpdate(baseText)
 
     expect(update.writerModel).toBe('claude-sonnet-4-6')
     expect(update.writerPromptVersion).toBe(5)
-    expect(update.psychologistTextModel).toBe('claude-sonnet-4-6')
-    expect(update.psychologistTextPromptVersion).toBe(1)
+    expect(update.psychologistTextModel).toBeNull()
+    expect(update.psychologistTextPromptVersion).toBeNull()
     expect(update.writerCriticModel).toBe('claude-haiku-4-5-20251001')
     expect(update.writerCriticPromptVersion).toBe(2)
     expect(update.textV1).toBe('text draft one')
     expect(update.textV2).toBe('text final version')
-    expect(update.psychologistTextOutput).toBe(psychologistTextOutput)
+    expect(update.psychologistTextOutput).toBeNull()
     expect(update.writerCriticOutput).toBe(writerCriticOutput)
   })
 

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { annotations, childDiary, feedback, planConversations, planQuestions, prompts, runSnapshots, stories, storyGroups } from './schema.js'
+import { annotations, childDiary, childProfiles, feedback, planConversations, planQuestions, prompts, runSnapshots, stories, storyGroups } from './schema.js'
 
 export type StoryGroup = typeof storyGroups.$inferSelect
 export type NewStoryGroup = typeof storyGroups.$inferInsert
@@ -22,6 +22,21 @@ export type NewAnnotation = typeof annotations.$inferInsert
 export type ChildDiary = typeof childDiary.$inferSelect
 export type NewChildDiary = typeof childDiary.$inferInsert
 
+export type ChildProfile = typeof childProfiles.$inferSelect
+export type NewChildProfile = typeof childProfiles.$inferInsert
+
+export const childProfileSchema = z.object({
+  id: z.number().int(),
+  name: z.string(),
+  age: z.number().int().nullable(),
+  activities: z.string().nullable(),
+  interests: z.string().nullable(),
+  dislikes: z.string().nullable(),
+  favourites: z.string().nullable(),
+  notes: z.string().nullable(),
+  updatedAt: z.date().nullable(),
+})
+
 export const storyGroupSchema = z.object({
   id: z.number().int(),
   name: z.string(),
@@ -29,6 +44,7 @@ export const storyGroupSchema = z.object({
   systemPrompt: z.string(),
   agentOverrides: z.record(z.string(), z.string()).nullable(),
   createdAt: z.date().nullable(),
+  styleGuide: z.string().nullable(),
 })
 
 export const newStoryGroupSchema = z.object({
@@ -63,6 +79,9 @@ export const storySchema = z.object({
   discussionQuestions: z.unknown().nullable(),
   seed: z.string().nullable(),
   groupId: z.number().int().nullable(),
+  mode: z.enum(['auto', 'manual']),
+  textChangeSummary: z.string().nullable(),
+  storyAnalysis: z.string().nullable(),
 })
 
 export const newStorySchema = z.object({
@@ -88,6 +107,9 @@ export const newStorySchema = z.object({
   discussionQuestions: z.unknown().optional(),
   seed: z.string().optional(),
   groupId: z.number().int().optional(),
+  mode: z.enum(['auto', 'manual']).optional(),
+  textChangeSummary: z.string().optional(),
+  storyAnalysis: z.string().optional(),
 })
 
 const structuredFeedbackSchema = z.object({

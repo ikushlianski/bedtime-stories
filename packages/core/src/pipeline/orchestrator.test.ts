@@ -1,18 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { runPlanPhase, runTextPhase, runPipeline } from './orchestrator'
 import * as plotterStage from './stages/plotter'
-import * as psychologistStage from './stages/psychologist'
 import * as plotCriticStage from './stages/plot-critic'
 import * as writerStage from './stages/writer'
 import * as writerCriticStage from './stages/writer-critic'
-import type { PsychologistOutput, CriticOutput } from './schemas'
+import type { CriticOutput } from './schemas'
 
 vi.mock('./stages/plotter', async () => {
   const actual = await vi.importActual<typeof import('./stages/plotter')>('./stages/plotter')
   return { ...actual, runPlotter: vi.fn() }
 })
-vi.mock('./stages/psychologist')
 vi.mock('./stages/plot-critic')
+vi.mock('./stages/title-generator', () => ({
+  generateStoryTitle: vi.fn().mockResolvedValue('Mocked Title'),
+}))
 vi.mock('./stages/writer', async () => {
   const actual = await vi.importActual<typeof import('./stages/writer')>('./stages/writer')
   return { ...actual, runWriter: vi.fn() }
@@ -24,7 +25,6 @@ vi.mock('./prompt-resolver', () => ({
 
 const baseModels = {
   plotter: 'claude-sonnet-4-6',
-  psychologist: 'claude-sonnet-4-6',
   plotCritic: 'claude-haiku-4-5-20251001',
   writer: 'claude-sonnet-4-6',
   writerCritic: 'claude-haiku-4-5-20251001',
@@ -32,17 +32,9 @@ const baseModels = {
 
 const baseVersions = {
   plotter: 1,
-  psychologistPlan: 1,
-  psychologistText: 1,
   plotCritic: 1,
   writer: 1,
   writerCritic: 1,
-}
-
-const safePsychologistOutput: PsychologistOutput = {
-  safety: { verdict: 'safe', issues: [] },
-  therapeutic: { score: 4, strengths: ['warmth'], gaps: [] },
-  recommended_changes: [],
 }
 
 const acceptedCriticOutput: CriticOutput = {
@@ -61,9 +53,8 @@ describe('runPlanPhase', () => {
   })
 
   describe('when the first plan is already accepted by the critic', () => {
-    it('runs plotter once, psychologist once, critic once, and returns immediately', async () => {
+    it('runs plotter once, critic once, and returns immediately', async () => {
       vi.mocked(plotterStage.runPlotter).mockResolvedValue('plan-v1')
-      vi.mocked(psychologistStage.runPsychologist).mockResolvedValue(safePsychologistOutput)
       vi.mocked(plotCriticStage.runPlotCritic).mockResolvedValue(acceptedCriticOutput)
 
       const result = await runPlanPhase({
@@ -74,7 +65,6 @@ describe('runPlanPhase', () => {
       })
 
       expect(plotterStage.runPlotter).toHaveBeenCalledTimes(1)
-      expect(psychologistStage.runPsychologist).toHaveBeenCalledTimes(1)
       expect(plotCriticStage.runPlotCritic).toHaveBeenCalledTimes(1)
       expect(result.planV1).toBe('plan-v1')
       expect(result.planFinal).toBe('plan-v1')
@@ -83,12 +73,11 @@ describe('runPlanPhase', () => {
   })
 
   describe('when the critic requests revisions twice before accepting', () => {
-    it('runs up to 3 plotter calls, psychologist only on iterations 1 and 3', async () => {
+    it('runs up to 3 plotter calls and 3 critic calls', async () => {
       vi.mocked(plotterStage.runPlotter)
         .mockResolvedValueOnce('plan-v1')
         .mockResolvedValueOnce('plan-v2')
         .mockResolvedValueOnce('plan-v3')
-      vi.mocked(psychologistStage.runPsychologist).mockResolvedValue(safePsychologistOutput)
       vi.mocked(plotCriticStage.runPlotCritic)
         .mockResolvedValueOnce(needsRevisionCriticOutput)
         .mockResolvedValueOnce(needsRevisionCriticOutput)
@@ -102,7 +91,6 @@ describe('runPlanPhase', () => {
       })
 
       expect(plotterStage.runPlotter).toHaveBeenCalledTimes(3)
-      expect(psychologistStage.runPsychologist).toHaveBeenCalledTimes(2)
       expect(plotCriticStage.runPlotCritic).toHaveBeenCalledTimes(3)
       expect(result.planIterationsCount).toBe(3)
       expect(result.planFinal).toBe('plan-v3')
@@ -115,7 +103,6 @@ describe('runPlanPhase', () => {
         .mockResolvedValueOnce('plan-v1')
         .mockResolvedValueOnce('plan-v2')
         .mockResolvedValueOnce('plan-v3')
-      vi.mocked(psychologistStage.runPsychologist).mockResolvedValue(safePsychologistOutput)
       vi.mocked(plotCriticStage.runPlotCritic).mockResolvedValue(needsRevisionCriticOutput)
 
       const result = await runPlanPhase({
@@ -130,45 +117,9 @@ describe('runPlanPhase', () => {
     })
   })
 
-  describe('psychologist invocation pattern', () => {
-    it('calls psychologist only on first and final iteration, not intermediate ones', async () => {
-      vi.mocked(plotterStage.runPlotter)
-        .mockResolvedValue('plan')
-      vi.mocked(psychologistStage.runPsychologist).mockResolvedValue(safePsychologistOutput)
-      vi.mocked(plotCriticStage.runPlotCritic).mockResolvedValue(needsRevisionCriticOutput)
-
-      await runPlanPhase({
-        seed: 'seed',
-        storyId: 1,
-        models: baseModels,
-        promptVersions: baseVersions,
-      })
-
-      expect(psychologistStage.runPsychologist).toHaveBeenCalledTimes(2)
-    })
-
-    it('always passes contentType "plan" during plan phase', async () => {
-      vi.mocked(plotterStage.runPlotter).mockResolvedValue('plan-v1')
-      vi.mocked(psychologistStage.runPsychologist).mockResolvedValue(safePsychologistOutput)
-      vi.mocked(plotCriticStage.runPlotCritic).mockResolvedValue(acceptedCriticOutput)
-
-      await runPlanPhase({
-        seed: 'seed',
-        storyId: 1,
-        models: baseModels,
-        promptVersions: baseVersions,
-      })
-
-      expect(psychologistStage.runPsychologist).toHaveBeenCalledWith(
-        expect.objectContaining({ contentType: 'plan' }),
-      )
-    })
-  })
-
   describe('text phase separation', () => {
     it('never calls the writer during the plan phase', async () => {
       vi.mocked(plotterStage.runPlotter).mockResolvedValue('plan-v1')
-      vi.mocked(psychologistStage.runPsychologist).mockResolvedValue(safePsychologistOutput)
       vi.mocked(plotCriticStage.runPlotCritic).mockResolvedValue(acceptedCriticOutput)
 
       await runPlanPhase({
@@ -190,11 +141,10 @@ describe('runTextPhase', () => {
   })
 
   describe('when given an already-approved plan', () => {
-    it('runs writer twice, critic once, psychologist once on text content', async () => {
+    it('runs writer twice and critic once', async () => {
       vi.mocked(writerStage.runWriter)
         .mockResolvedValueOnce('text-v1')
         .mockResolvedValueOnce('text-v2')
-      vi.mocked(psychologistStage.runPsychologist).mockResolvedValue(safePsychologistOutput)
       vi.mocked(writerCriticStage.runWriterCritic).mockResolvedValue(acceptedCriticOutput)
 
       const result = await runTextPhase({
@@ -206,37 +156,15 @@ describe('runTextPhase', () => {
       })
 
       expect(writerStage.runWriter).toHaveBeenCalledTimes(2)
-      expect(psychologistStage.runPsychologist).toHaveBeenCalledTimes(1)
       expect(writerCriticStage.runWriterCritic).toHaveBeenCalledTimes(1)
       expect(result.textV1).toBe('text-v1')
       expect(result.textV2).toBe('text-v2')
-    })
-
-    it('passes contentType "text" to the psychologist during text phase', async () => {
-      vi.mocked(writerStage.runWriter)
-        .mockResolvedValueOnce('text-v1')
-        .mockResolvedValueOnce('text-v2')
-      vi.mocked(psychologistStage.runPsychologist).mockResolvedValue(safePsychologistOutput)
-      vi.mocked(writerCriticStage.runWriterCritic).mockResolvedValue(acceptedCriticOutput)
-
-      await runTextPhase({
-        seed: 'seed',
-        planFinal: 'approved-plan',
-        storyId: 1,
-        models: baseModels,
-        promptVersions: baseVersions,
-      })
-
-      expect(psychologistStage.runPsychologist).toHaveBeenCalledWith(
-        expect.objectContaining({ contentType: 'text' }),
-      )
     })
 
     it('never calls plotter or plot-critic during the text phase', async () => {
       vi.mocked(writerStage.runWriter)
         .mockResolvedValueOnce('text-v1')
         .mockResolvedValueOnce('text-v2')
-      vi.mocked(psychologistStage.runPsychologist).mockResolvedValue(safePsychologistOutput)
       vi.mocked(writerCriticStage.runWriterCritic).mockResolvedValue(acceptedCriticOutput)
 
       await runTextPhase({
@@ -260,7 +188,6 @@ describe('runPipeline (legacy one-shot, plan + text)', () => {
 
   it('composes runPlanPhase then runTextPhase and returns the merged result', async () => {
     vi.mocked(plotterStage.runPlotter).mockResolvedValue('plan-v1')
-    vi.mocked(psychologistStage.runPsychologist).mockResolvedValue(safePsychologistOutput)
     vi.mocked(plotCriticStage.runPlotCritic).mockResolvedValue(acceptedCriticOutput)
     vi.mocked(writerStage.runWriter)
       .mockResolvedValueOnce('text-v1')

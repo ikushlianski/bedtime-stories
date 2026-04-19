@@ -6,6 +6,7 @@ export interface UniverseFormValues {
   description: string
   systemPrompt: string
   universeContext: string
+  styleGuide: string
 }
 
 interface UniverseFormProps {
@@ -20,6 +21,7 @@ function UniverseForm({ initial, onSave, onCancel, saveLabel = 'Сохранит
   const [description, setDescription] = useState(initial?.description ?? '')
   const [systemPrompt, setSystemPrompt] = useState(initial?.systemPrompt ?? '')
   const [universeContext, setUniverseContext] = useState(initial?.universeContext ?? '')
+  const [styleGuide, setStyleGuide] = useState(initial?.styleGuide ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -38,6 +40,7 @@ function UniverseForm({ initial, onSave, onCancel, saveLabel = 'Сохранит
         description: description.trim(),
         systemPrompt: systemPrompt.trim(),
         universeContext: universeContext.trim(),
+        styleGuide: styleGuide.trim(),
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Не удалось сохранить')
@@ -77,6 +80,17 @@ function UniverseForm({ initial, onSave, onCancel, saveLabel = 'Сохранит
           placeholder="## Персонажи&#10;- ...&#10;&#10;## События&#10;- ...&#10;&#10;## Чувства и темы&#10;- ..."
           value={universeContext}
           onChange={(e) => setUniverseContext(e.target.value)}
+        />
+      </div>
+      <div className="space-y-1">
+        <p className="text-xs text-base-content/50">
+          Гайд по стилю — накапливается при анализе примерных историй. Можно редактировать вручную
+        </p>
+        <textarea
+          className="textarea textarea-bordered min-h-36 w-full bg-base-100 font-mono text-xs"
+          placeholder="## Что работает&#10;- ...&#10;&#10;## Что не работает&#10;- ..."
+          value={styleGuide}
+          onChange={(e) => setStyleGuide(e.target.value)}
         />
       </div>
       {error && <p className="text-sm text-error">{error}</p>}
@@ -133,6 +147,7 @@ export function UniverseCard({ universe, onDelete, onUpdate }: UniverseCardProps
             description: universe.description,
             systemPrompt: universe.systemPrompt,
             universeContext: universe.universeContext ?? '',
+            styleGuide: universe.styleGuide ?? '',
           }}
           onSave={async (values) => {
             await onUpdate(universe.id, values)
@@ -160,6 +175,11 @@ export function UniverseCard({ universe, onDelete, onUpdate }: UniverseCardProps
           {universe.universeContext && (
             <p className="mt-2 text-xs text-base-content/40 italic">
               Живой контекст: {universe.universeContext.slice(0, 80)}…
+            </p>
+          )}
+          {universe.styleGuide && (
+            <p className="mt-1 text-xs text-base-content/40 italic">
+              Гайд по стилю: {universe.styleGuide.slice(0, 80)}…
             </p>
           )}
         </div>

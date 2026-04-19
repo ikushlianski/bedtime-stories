@@ -56,6 +56,7 @@ export interface StoryGroup {
 export interface Story {
   id: number
   title: string
+  seed: string | null
   text_final: string | null
   plan_v1: string | null
   plan_final: string | null
@@ -78,6 +79,9 @@ export interface Story {
   discussion_questions: string[] | null
   group_id: number | null
   plan_change_summary: string | null
+  mode: 'auto' | 'manual'
+  text_change_summary: string | null
+  story_analysis: string | null
 }
 
 export interface RunSnapshot {
@@ -136,6 +140,18 @@ export interface DiaryEntry {
   createdAt: string
 }
 
+export interface ChildProfile {
+  id: number
+  name: string
+  age: number | null
+  activities: string | null
+  interests: string | null
+  dislikes: string | null
+  favourites: string | null
+  notes: string | null
+  updatedAt: string | null
+}
+
 export type AnnotationType =
   | 'sasha_reaction'
   | 'my_note'
@@ -183,7 +199,7 @@ export interface ConversationMessage {
 }
 
 export type CreateStoryInput =
-  | { seed: string; groupId?: number }
+  | { seed: string; groupId?: number; pipelineMode?: 'auto' | 'manual' }
   | { title?: string; textFinal: string; groupId?: number; source?: 'user' | 'legacy'; addToReadingList?: boolean }
 
 export interface CreateAnnotationInput {
@@ -201,6 +217,7 @@ export type PipelineStatusValue =
   | 'plan_ready'
   | 'text_running'
   | 'text_ready'
+  | 'text_review'
   | 'failed'
   | 'pending'
 
@@ -256,6 +273,9 @@ export const api = {
         body: JSON.stringify({ status }),
       }),
 
+    redoText: (id: number) =>
+      request<{ started: boolean; storyId: number }>(`/api/stories/${id}/redo-text`, { method: 'POST' }),
+
     delete: (id: number) =>
       requestEmpty(`/api/stories/${id}`, {
         method: 'DELETE',
@@ -266,6 +286,18 @@ export const api = {
         `/api/stories/${id}/analyze`,
         { method: 'POST' },
       ),
+
+    updateAnalysis: (id: number, storyAnalysis: string) =>
+      request<Story>(`/api/stories/${id}/analysis`, {
+        method: 'PATCH',
+        body: JSON.stringify({ storyAnalysis }),
+      }),
+
+    updateTags: (id: number, tags: string[]) =>
+      request<Story>(`/api/stories/${id}/tags`, {
+        method: 'PATCH',
+        body: JSON.stringify({ tags }),
+      }),
   },
 
   feedback: {
@@ -335,6 +367,15 @@ export const api = {
     delete: (id: number) => requestEmpty(`/api/diary/${id}`, { method: 'DELETE' }),
   },
 
+  childProfile: {
+    get: () => request<ChildProfile | null>('/api/child-profile'),
+    update: (data: Partial<Omit<ChildProfile, 'id' | 'updatedAt'>>) =>
+      request<ChildProfile>('/api/child-profile', {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+  },
+
   universes: {
     list: () => request<StoryGroup[]>('/api/universes'),
 
@@ -358,6 +399,7 @@ export const api = {
         systemPrompt: string
         description: string
         universeContext: string
+        styleGuide: string
         agentOverrides: Record<string, string>
       }>,
     ) =>
