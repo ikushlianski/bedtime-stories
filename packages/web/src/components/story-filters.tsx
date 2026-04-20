@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { z } from 'zod'
 import type { StoryGroup } from '../lib/api'
 import StoryFilterTabs from './story-filter-tabs'
 
@@ -14,6 +15,35 @@ export const DEFAULT_FILTERS: StoryFilterState = {
   status: 'ready',
   groupId: null,
   tag: null,
+}
+
+const STORED_FILTERS_KEY = 'story-list-filters-v1'
+
+const storedFiltersSchema = z.object({
+  status: z.enum(['all', 'draft', 'ready', 'read', 'archived']),
+  groupId: z.number().int().nullable(),
+  tag: z.string().nullable(),
+})
+
+export function loadStoredFilters(): StoryFilterState {
+  try {
+    const raw = localStorage.getItem(STORED_FILTERS_KEY)
+
+    if (!raw) return DEFAULT_FILTERS
+
+    const parsed = storedFiltersSchema.safeParse(JSON.parse(raw))
+
+    return parsed.success ? parsed.data : DEFAULT_FILTERS
+  } catch {
+    return DEFAULT_FILTERS
+  }
+}
+
+export function saveStoredFilters(value: StoryFilterState) {
+  try {
+    localStorage.setItem(STORED_FILTERS_KEY, JSON.stringify(value))
+  } catch {
+  }
 }
 
 interface StoryFiltersProps {

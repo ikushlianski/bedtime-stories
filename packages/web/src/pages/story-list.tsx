@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api, type Story, type CreateStoryInput, type StoryGroup } from '../lib/api'
 import { AddExampleStoryModal, CreateStoryModal, PageHeader, StatusCallout, StoryCard, StoryFilters } from '../components'
-import { DEFAULT_FILTERS, type StoryFilterState } from '../components/story-filters'
+import { DEFAULT_FILTERS, loadStoredFilters, saveStoredFilters, type StoryFilterState } from '../components/story-filters'
 
 export function StoryListPage() {
   const navigate = useNavigate()
@@ -12,7 +12,11 @@ export function StoryListPage() {
   const [stories, setStories] = useState<Story[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [filters, setFilters] = useState<StoryFilterState>(DEFAULT_FILTERS)
+  const [filters, setFilters] = useState<StoryFilterState>(() => loadStoredFilters())
+
+  useEffect(() => {
+    saveStoredFilters(filters)
+  }, [filters])
   const [universes, setUniverses] = useState<StoryGroup[]>([])
   const [showModal, setShowModal] = useState(seedFromUrl !== null)
   const [showExampleModal, setShowExampleModal] = useState(false)
