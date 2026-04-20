@@ -1,4 +1,4 @@
-import type { PlanPhaseResult, TextPhaseResult, PlotterOnlyResult, WriterOnlyResult, TextCritiqueResult } from '@bedtime/core/pipeline/orchestrator'
+import type { PlanPhaseResult, TextPhaseResult, PlotterOnlyResult, WriterOnlyResult, TextCritiqueResult, AnnotatedRewriteResult } from '@bedtime/core/pipeline/orchestrator'
 import type { NewRunSnapshot } from '@bedtime/core/db/types'
 
 export function buildPlanSnapshotInsert(storyId: number, plan: PlanPhaseResult): NewRunSnapshot {
@@ -146,5 +146,27 @@ export function buildTextCritiqueSnapshotUpdate(result: TextCritiqueResult): Par
     writerCriticPromptVersion: result.promptVersions.writerCritic,
     textV2: result.textV2,
     writerCriticOutput: result.writerCriticOutput,
+  }
+}
+
+export interface AnnotatedRewriteStoriesUpdate {
+  textV2: string
+  writerModel: string
+  writerPromptVersion: number
+}
+
+export function buildAnnotatedRewriteStoriesUpdate(result: AnnotatedRewriteResult): AnnotatedRewriteStoriesUpdate {
+  return {
+    textV2: result.textV2,
+    writerModel: result.models.writer,
+    writerPromptVersion: result.promptVersions.writer,
+  }
+}
+
+export function buildAnnotatedRewriteSnapshotUpdate(result: AnnotatedRewriteResult): Partial<NewRunSnapshot> {
+  return {
+    writerModel: result.models.writer,
+    writerPromptVersion: result.promptVersions.writer,
+    textV2: result.textV2,
   }
 }

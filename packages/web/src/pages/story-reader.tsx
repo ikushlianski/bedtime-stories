@@ -212,7 +212,7 @@ export function StoryReaderPage() {
     return <StatusCallout title="Перенаправление" message="Определяем статус конвейера..." />
   }
 
-  const textToDisplay = story.text_final ?? story.text_v2 ?? null
+  const textToDisplay = story.text_final ?? story.text_v2 ?? story.text_v1 ?? null
 
   return (
     <div>

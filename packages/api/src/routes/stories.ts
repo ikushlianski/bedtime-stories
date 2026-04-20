@@ -7,8 +7,7 @@ import type { Story, NewStory, NewAnnotation } from '@bedtime/core/db/types'
 import { validate } from '../middleware/validate'
 import { triggerTextPhase, getPipelineStatus } from './pipeline'
 import { triggerPlanRedo } from './pipeline-plan-redo'
-import { triggerTextRedoWithAnnotations } from './pipeline-text-redo'
-import { triggerTextCritique } from './pipeline-text-critique'
+import { triggerTextCritique, triggerTextRewrite } from './pipeline-text-critique'
 import { decideApprovePlan } from './approve-plan-decision'
 import { createStorySchema, resolveCreateStoryMode } from './create-story-schema'
 import { runStoryAnalyzer } from '@bedtime/core/pipeline/stages/story-analyzer'
@@ -377,38 +376,27 @@ router.post('/:id/redo-text', async (req, res) => {
 
     const [existing] = await db.select().from(stories).where(eq(stories.id, storyId))
 
-    if (!existing || !existing.seed) {
-      res.status(400).json({ error: 'Story not found or has no seed' })
+    if (!existing) {
+      res.status(404).json({ error: 'Story not found' })
       return
     }
 
-    const answeredQuestions = await db
-      .select()
-      .from(planQuestions)
-      .where(eq(planQuestions.storyId, storyId))
+    const currentText = existing.textV2 ?? existing.textV1
 
-    const qaBlock = answeredQuestions
-      .filter((q) => q.answerText)
-      .map((q) => `Q: ${q.questionText}\nA: ${q.answerText ?? ''}`)
-      .join('\n')
+    if (!currentText) {
+      res.status(409).json({ error: 'No text has been generated yet' })
+      return
+    }
 
-    const textAnnotations = await db
-      .select()
-      .from(annotations)
-      .where(and(eq(annotations.storyId, storyId), eq(annotations.context, 'text')))
-
-    const annotationFeedback = textAnnotations
-      .filter((a) => a.noteText)
-      .map((a, i) => `${i + 1}. На отрывке "${a.selectedText}":\n   ${a.noteText}`)
-      .join('\n\n')
-
-    const seedWithContext = qaBlock
-      ? `SEED: ${existing.seed}\n\nCLARIFYING Q&A:\n${qaBlock}`
-      : existing.seed
+    if (!existing.planFinal) {
+      res.status(409).json({ error: 'Plan has not been approved yet' })
+      return
+    }
 
     let universeSystemPrompt: string | undefined
     let universeContext: string | undefined
     let styleGuide: string | undefined
+    let sashaContext: string | null = null
 
     if (existing.groupId !== null && existing.groupId !== undefined) {
       const [group] = await db.select().from(storyGroups).where(eq(storyGroups.id, existing.groupId))
@@ -420,17 +408,30 @@ router.post('/:id/redo-text', async (req, res) => {
       }
     }
 
-    const previousText = existing.textV2 ?? existing.textV1 ?? ''
+    const annotationRows = await db
+      .select({ noteText: annotations.noteText })
+      .from(annotations)
+      .where(and(eq(annotations.storyId, storyId), eq(annotations.context, 'text')))
 
-    triggerTextRedoWithAnnotations(
-      storyId,
-      seedWithContext,
-      previousText,
-      annotationFeedback,
-      universeSystemPrompt,
-      universeContext,
-      styleGuide,
-    )
+    const hasNotes = annotationRows.some((r) => r.noteText)
+
+    if (!hasNotes) {
+      res.status(409).json({ error: 'No editor notes found — add annotations with notes before redoing the text' })
+      return
+    }
+
+    const [snapshot] = await db
+      .select()
+      .from(runSnapshots)
+      .where(eq(runSnapshots.storyId, storyId))
+      .orderBy(desc(runSnapshots.createdAt))
+      .limit(1)
+
+    if (snapshot?.sashaContext) {
+      sashaContext = snapshot.sashaContext
+    }
+
+    triggerTextRewrite(storyId, currentText, existing.planFinal, universeSystemPrompt, universeContext, styleGuide, sashaContext)
 
     res.json({ started: true, storyId })
   } catch (err) {
@@ -491,7 +492,8 @@ router.post('/:id/critique-text', async (req, res) => {
       sashaContext = snapshot.sashaContext
     }
 
-    triggerTextCritique(storyId, existing.textV1, existing.planFinal, universeSystemPrompt, universeContext, styleGuide, sashaContext)
+    const textToReview = existing.textV2 ?? existing.textV1
+    triggerTextCritique(storyId, textToReview, existing.planFinal, universeSystemPrompt, universeContext, styleGuide, sashaContext)
 
     res.json({ started: true, storyId })
   } catch (err) {

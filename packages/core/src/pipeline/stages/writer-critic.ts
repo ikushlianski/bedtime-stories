@@ -15,6 +15,12 @@ export async function runWriterCritic(options: {
   const { textV1, finalPlan, model } = options
   const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
 
+  if (options.userAnnotations) {
+    console.log(`[WRITER-CRITIC] received ${options.userAnnotations.split('\n\n').filter(Boolean).length} annotation(s) from editor — will include in critique`)
+  } else {
+    console.log('[WRITER-CRITIC] no editor annotations — running standard critique')
+  }
+
   const universeContextBlock = options.universeContext
     ? `\n\n---\nКОНТЕКСТ ВСЕЛЕННОЙ:\n${options.universeContext}\n---\n`
     : ''

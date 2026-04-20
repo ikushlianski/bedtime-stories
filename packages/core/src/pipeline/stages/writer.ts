@@ -18,6 +18,7 @@ Return only the story text in Russian, no commentary or meta-discussion.`
 
 export async function runWriter(options: {
   plan: string
+  previousText?: string
   criticNotes?: CriticOutput
   model: string
   resolvedPrompt?: ResolvedPrompt
@@ -25,10 +26,14 @@ export async function runWriter(options: {
   universeContext?: string
   styleGuide?: string
   sashaContext?: string | null
+  userAnnotations?: string
+  onChunk?: (chunk: string) => void
+  onChunkReset?: () => void
   cwd?: string
 }): Promise<string> {
   const { plan, criticNotes, model } = options
   const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
+  const isRevision = options.previousText !== undefined
 
   const resolved = options.resolvedPrompt ?? (await resolvePrompt('writer', WRITER_SYSTEM_PROMPT_DEFAULT))
 
@@ -54,6 +59,14 @@ export async function runWriter(options: {
     `STORY PLAN:\n${plan}`,
   ]
 
+  if (isRevision) {
+    parts.push(`\nPREVIOUS VERSION OF THE STORY (revise this — do not write from scratch):\n${options.previousText}`)
+  }
+
+  if (options.userAnnotations) {
+    parts.push(`\nEDITOR NOTES — apply ALL of these without exception; preserve everything else in the story unchanged:\n${options.userAnnotations}`)
+  }
+
   if (criticNotes !== undefined) {
     const mustIssues = criticNotes.issues
       .filter((i) => i.prio === 'must')
@@ -66,17 +79,31 @@ export async function runWriter(options: {
       .join('\n')
 
     const critiqueSection = [
-      'REVISION NOTES (from critic — address these in the rewrite):',
+      isRevision
+        ? 'REVISION NOTES (apply these changes to the previous version above):'
+        : 'REVISION NOTES (from critic — address these in the rewrite):',
       mustIssues.length > 0 ? `Must fix:\n${mustIssues}` : '',
       niceIssues.length > 0 ? `Nice to fix:\n${niceIssues}` : '',
     ]
       .filter(Boolean)
       .join('\n')
 
+    console.log(`[WRITER] revision mode — ${criticNotes.issues.length} issue(s) from critic (${criticNotes.issues.filter((i) => i.prio === 'must').length} must-fix, ${criticNotes.issues.filter((i) => i.prio === 'nice').length} nice-to-fix)`)
+    criticNotes.issues.forEach((issue, i) => {
+      console.log(`  [${i + 1}] [${issue.prio.toUpperCase()}] ${issue.description}${issue.quote ? ` — «${issue.quote}»` : ''}`)
+    })
+
     parts.push(`\n${critiqueSection}`)
+  } else if (isRevision && options.userAnnotations) {
+    console.log('[WRITER] annotation rewrite — applying editor notes directly')
+  } else {
+    console.log('[WRITER] first pass — writing story from plan')
   }
 
   const prompt = parts.join('\n')
 
-  return claudeCliRunner.runText({ model, prompt, label: `writer:v${resolved.version}`, ...cwdArg })
+  const onChunkArg = options.onChunk !== undefined ? { onChunk: options.onChunk } : {}
+  const onChunkResetArg = options.onChunkReset !== undefined ? { onChunkReset: options.onChunkReset } : {}
+
+  return claudeCliRunner.runText({ model, prompt, label: `writer:v${resolved.version}`, ...cwdArg, ...onChunkArg, ...onChunkResetArg })
 }
