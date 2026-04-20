@@ -2,21 +2,22 @@ import { describe, it, expect } from 'vitest'
 import { decideApprovePlan, type ApprovePlanStoryState } from './approve-plan-decision'
 
 const baseStory: ApprovePlanStoryState = {
-  planFinal: 'final plan text',
+  planV1: 'raw plotter output',
+  planFinal: null,
   seed: 'a brave bunny',
   textV2: null,
 }
 
 describe('decideApprovePlan', () => {
   describe('when the plan has not been generated yet', () => {
-    it('rejects with 409 plan_missing', () => {
-      const decision = decideApprovePlan({ ...baseStory, planFinal: null }, undefined)
+    it('rejects with 409 plan_missing when both planV1 and planFinal are null', () => {
+      const decision = decideApprovePlan({ ...baseStory, planV1: null, planFinal: null }, undefined)
 
       expect(decision).toEqual({ action: 'reject', httpStatus: 409, reason: 'plan_missing' })
     })
 
-    it('treats an empty plan string as missing', () => {
-      const decision = decideApprovePlan({ ...baseStory, planFinal: '' }, undefined)
+    it('treats an empty planV1 as missing when planFinal is also empty', () => {
+      const decision = decideApprovePlan({ ...baseStory, planV1: '', planFinal: '' }, undefined)
 
       expect(decision.action).toBe('reject')
     })
@@ -72,14 +73,14 @@ describe('decideApprovePlan', () => {
     })
   })
 
-  describe('when the plan is ready and no text phase has run yet', () => {
-    it('starts the text phase with the existing plan and seed', () => {
+  describe('when planV1 is set (new manual flow)', () => {
+    it('starts the text phase using planV1 when planFinal is null', () => {
       const decision = decideApprovePlan(baseStory, 'plan_ready')
 
       expect(decision).toEqual({
         action: 'start_text_phase',
         seed: 'a brave bunny',
-        planFinal: 'final plan text',
+        planV1: 'raw plotter output',
       })
     })
 
@@ -87,6 +88,21 @@ describe('decideApprovePlan', () => {
       const decision = decideApprovePlan(baseStory, undefined)
 
       expect(decision.action).toBe('start_text_phase')
+    })
+  })
+
+  describe('when planFinal is set as fallback (legacy stories)', () => {
+    it('uses planFinal when planV1 is null', () => {
+      const decision = decideApprovePlan(
+        { ...baseStory, planV1: null, planFinal: 'legacy final plan' },
+        undefined,
+      )
+
+      expect(decision).toEqual({
+        action: 'start_text_phase',
+        seed: 'a brave bunny',
+        planV1: 'legacy final plan',
+      })
     })
   })
 })

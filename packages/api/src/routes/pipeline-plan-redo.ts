@@ -1,10 +1,13 @@
 import { eq, and } from 'drizzle-orm'
-import { runPlanPhase } from '@bedtime/core/pipeline/orchestrator'
+import { runPlotterOnly } from '@bedtime/core/pipeline/orchestrator'
 import { synthesizeSashaContext } from '@bedtime/core/pipeline/feedback-synthesizer'
 import { generatePlanChangeSummary } from '@bedtime/core/pipeline/plan-change-summarizer'
 import { db } from '@bedtime/core/db/client'
 import { annotations, runSnapshots, stories } from '@bedtime/core/db/schema'
-import { buildPlanSnapshotInsert, buildPlanStoriesUpdate } from './pipeline-persistence'
+import {
+  buildPlotterOnlySnapshotInsert,
+  buildPlotterOnlyStoriesUpdate,
+} from './pipeline-persistence'
 import { setPipelineStatus, setCurrentStep } from './pipeline-state'
 import { defaultModels, defaultPromptVersions } from './pipeline-defaults'
 
@@ -26,7 +29,7 @@ export function triggerPlanRedo(storyId: number, seed: string, previousPlan: str
       const userFeedback = formatAnnotationsAsFeedback(planRows)
 
       return synthesizeSashaContext().then((sashaContext) =>
-        runPlanPhase({
+        runPlotterOnly({
           seed,
           storyId,
           models: defaultModels,
@@ -37,23 +40,23 @@ export function triggerPlanRedo(storyId: number, seed: string, previousPlan: str
           ...(sashaContext !== null ? { sashaContext } : {}),
           ...(userFeedback ? { userFeedback } : {}),
           onStepChange: (step) => setCurrentStep(storyId, step),
-        }).then(async (plan) => ({ plan, userFeedback }))
+        }).then(async (result) => ({ result, userFeedback }))
       )
     })
-    .then(async ({ plan, userFeedback }) => {
+    .then(async ({ result, userFeedback }) => {
       try {
         const changeSummary = await generatePlanChangeSummary({
           previousPlan,
-          newPlan: plan.planFinal,
+          newPlan: result.planV1,
           userFeedback,
           model: defaultModels.plotter,
         })
 
-        await db.insert(runSnapshots).values(buildPlanSnapshotInsert(storyId, plan))
+        await db.insert(runSnapshots).values(buildPlotterOnlySnapshotInsert(storyId, result))
 
         await db
           .update(stories)
-          .set({ ...buildPlanStoriesUpdate(plan), planChangeSummary: changeSummary })
+          .set({ ...buildPlotterOnlyStoriesUpdate(result), planChangeSummary: changeSummary })
           .where(eq(stories.id, storyId))
 
         setPipelineStatus(storyId, 'plan_ready')

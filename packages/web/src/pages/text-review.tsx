@@ -1,48 +1,228 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { api, type Story, type RunSnapshot } from '../lib/api'
-import { PageHeader, StatusCallout, TextReviewCard } from '../components'
-import DiffViewer from '../components/diff-viewer'
-import { deriveReviewSnapshotState } from './review-snapshot-state'
+import { api, type Story, type Annotation } from '../lib/api'
+import { PageHeader, StatusCallout } from '../components'
 
 function useTextReviewStory(id: number) {
   const [story, setStory] = useState<Story | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
+  const reload = useCallback(() => {
     setLoading(true)
     setError(null)
 
     api.stories
       .get(id)
       .then(setStory)
-      .catch((fetchError) => setError(fetchError instanceof Error ? fetchError.message : 'Не удалось загрузить историю'))
+      .catch((err) => setError(err instanceof Error ? err.message : 'Не удалось загрузить историю'))
       .finally(() => setLoading(false))
   }, [id])
-
-  return { story, loading, error }
-}
-
-function useRunSnapshot(id: number) {
-  const [snapshot, setSnapshot] = useState<RunSnapshot | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
 
   useEffect(() => {
-    setLoading(true)
-    setError(null)
+    reload()
+  }, [reload])
 
-    api.pipeline
-      .snapshot(id)
-      .then((data) => setSnapshot(data))
-      .catch((err: unknown) => {
-        setError(err instanceof Error ? err : new Error('Не удалось загрузить снимок конвейера'))
+  return { story, loading, error, reload }
+}
+
+interface SelectionPopover {
+  text: string
+  x: number
+  y: number
+  start: number
+  end: number
+}
+
+function TextAnnotationPanel({ storyId, text, onCritiqueStarted }: { storyId: number; text: string; onCritiqueStarted: () => void }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [popover, setPopover] = useState<SelectionPopover | null>(null)
+  const [comment, setComment] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [annotations, setAnnotations] = useState<Annotation[]>([])
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [critiquing, setCritiquing] = useState(false)
+  const [critiqueError, setCritiqueError] = useState<string | null>(null)
+
+  useEffect(() => {
+    api.annotations.list(storyId, 'text').then(setAnnotations).catch(() => undefined)
+  }, [storyId])
+
+  const handleMouseUp = useCallback(() => {
+    const selection = window.getSelection()
+
+    if (!selection || selection.isCollapsed || !containerRef.current) return
+
+    const selectedText = selection.toString().trim()
+
+    if (!selectedText) return
+
+    const range = selection.getRangeAt(0)
+    const rect = range.getBoundingClientRect()
+    const containerRect = containerRef.current.getBoundingClientRect()
+
+    setPopover({
+      text: selectedText,
+      x: rect.left - containerRect.left + rect.width / 2,
+      y: rect.top - containerRect.top - 8,
+      start: range.startOffset,
+      end: range.endOffset,
+    })
+
+    setComment('')
+    setSaveError(null)
+  }, [])
+
+  const handleDismiss = useCallback(() => {
+    setPopover(null)
+    setComment('')
+    window.getSelection()?.removeAllRanges()
+  }, [])
+
+  const handleSave = async () => {
+    if (!popover || !comment.trim()) return
+
+    setSaving(true)
+    setSaveError(null)
+
+    try {
+      const created = await api.annotations.create(storyId, {
+        type: 'my_note',
+        selectedText: popover.text,
+        noteText: comment.trim(),
+        positionStart: popover.start,
+        positionEnd: popover.end,
+        context: 'text',
       })
-      .finally(() => setLoading(false))
-  }, [id])
 
-  return { snapshot, loading, error }
+      setAnnotations((prev) => [...prev, created])
+      handleDismiss()
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Не удалось сохранить')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleCritique = async () => {
+    setCritiquing(true)
+    setCritiqueError(null)
+
+    try {
+      await api.stories.critiqueText(storyId)
+      onCritiqueStarted()
+    } catch (err) {
+      setCritiqueError(err instanceof Error ? err.message : 'Не удалось запустить критика')
+      setCritiquing(false)
+    }
+  }
+
+  const hasAnnotations = annotations.length > 0
+
+  return (
+    <div className="space-y-4">
+      {hasAnnotations && (
+        <div className="flex justify-end">
+          <button
+            className="btn btn-sm btn-outline"
+            onClick={() => void handleCritique()}
+            disabled={critiquing}
+          >
+            {critiquing ? 'Запускаем...' : 'Запустить критика с учётом комментариев'}
+          </button>
+        </div>
+      )}
+
+      <div className="relative" ref={containerRef} onMouseUp={handleMouseUp}>
+        <div className="select-text cursor-text leading-relaxed text-base-content">
+          {text.split('\n').map((line, i) => (
+            <p key={i} className={line.trim() === '' ? 'mb-4' : 'mb-1'}>
+              {line || '\u00A0'}
+            </p>
+          ))}
+        </div>
+
+        {popover && (
+          <div
+            className="absolute z-20 w-72"
+            style={{ left: popover.x, top: popover.y, transform: 'translate(-50%, -100%)' }}
+          >
+            <div className="rounded-box border border-base-300 bg-base-100 p-3 shadow-xl">
+              <p className="mb-2 line-clamp-2 text-xs italic text-base-content/50">&ldquo;{popover.text}&rdquo;</p>
+
+              <textarea
+                autoFocus
+                className="textarea textarea-bordered w-full text-sm"
+                rows={2}
+                placeholder="Твой комментарий..."
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void handleSave()
+                  if (e.key === 'Escape') handleDismiss()
+                }}
+              />
+
+              {saveError && <p className="mt-1 text-xs text-error">{saveError}</p>}
+
+              <div className="mt-2 flex justify-end gap-2">
+                <button className="btn btn-ghost btn-xs" onClick={handleDismiss}>Отмена</button>
+                <button
+                  className="btn btn-primary btn-xs"
+                  onClick={() => void handleSave()}
+                  disabled={!comment.trim() || saving}
+                >
+                  {saving ? '...' : 'Сохранить'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {hasAnnotations && (
+        <div className="space-y-4">
+          <section>
+            <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">Заметки к тексту</h3>
+            <ul className="space-y-3">
+              {annotations.map((a) => (
+                <li key={a.id} className="rounded-box border border-base-300 bg-base-200/50 p-4">
+                  <p className="mb-1 text-xs italic text-base-content/50">&ldquo;{a.selectedText}&rdquo;</p>
+                  <p className="text-sm text-base-content">{a.noteText}</p>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          {critiqueError && (
+            <StatusCallout tone="error" title="Ошибка запуска критика" message={critiqueError} />
+          )}
+
+          <div className="flex justify-end">
+            <button
+              className="btn btn-outline"
+              onClick={() => void handleCritique()}
+              disabled={critiquing}
+            >
+              {critiquing ? 'Запускаем...' : 'Запустить критика с учётом комментариев'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!hasAnnotations && (
+        <div className="flex justify-end">
+          <button
+            className="btn btn-outline"
+            onClick={() => void handleCritique()}
+            disabled={critiquing}
+          >
+            {critiquing ? 'Запускаем...' : 'Запустить критика'}
+          </button>
+        </div>
+      )}
+    </div>
+  )
 }
 
 export function TextReviewPage() {
@@ -50,15 +230,10 @@ export function TextReviewPage() {
   const navigate = useNavigate()
   const storyId = Number(id)
   const { story, loading, error } = useTextReviewStory(storyId)
-  const snapshotFetch = useRunSnapshot(storyId)
-  const snapshotState = deriveReviewSnapshotState({
-    loading: snapshotFetch.loading,
-    error: snapshotFetch.error,
-    snapshot: snapshotFetch.snapshot,
-    phase: 'text',
-  })
   const [approving, setApproving] = useState(false)
   const [approveError, setApproveError] = useState<string | null>(null)
+  const [redoing, setRedoing] = useState(false)
+  const [redoError, setRedoError] = useState<string | null>(null)
 
   const handleApprove = async () => {
     setApproving(true)
@@ -74,6 +249,23 @@ export function TextReviewPage() {
     }
   }
 
+  const handleRedo = async () => {
+    setRedoing(true)
+    setRedoError(null)
+
+    try {
+      await api.stories.redoText(storyId)
+      navigate(`/stories/${storyId}/pipeline`)
+    } catch (redoErr) {
+      setRedoError(redoErr instanceof Error ? redoErr.message : 'Не удалось запустить доработку')
+      setRedoing(false)
+    }
+  }
+
+  const handleCritiqueStarted = useCallback(() => {
+    navigate(`/stories/${storyId}/pipeline`)
+  }, [navigate, storyId])
+
   if (loading) {
     return <StatusCallout title="Загрузка" message="Получаем данные для проверки текста." />
   }
@@ -86,22 +278,14 @@ export function TextReviewPage() {
     return <StatusCallout tone="warning" title="История не найдена" message="Запрошенная история не существует." />
   }
 
-  if (snapshotState.kind === 'loading') {
-    return <StatusCallout title="Загрузка оценки" message="Ожидаем результатов психолога." />
-  }
-
-  const approveHandler = () => {
-    if (!approving) {
-      void handleApprove()
-    }
-  }
+  const textToReview = story.text_v2 ?? story.text_v1 ?? ''
 
   return (
     <div>
       <PageHeader
         eyebrow="Проверка"
         title="Проверка текста"
-        description="Сравни два черновика текста и убедись, что финальная версия безопасна и терапевтически полезна."
+        description="Прочитай текст, оставь комментарии и одобри — или запусти доработку."
         backAction={
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>
             ← К историям
@@ -109,50 +293,54 @@ export function TextReviewPage() {
         }
       />
 
-      {approveError && (
-        <div className="mb-4">
-          <StatusCallout tone="error" title="Ошибка одобрения" message={approveError} />
+      {story.text_change_summary && (
+        <div className="mb-4 rounded-box border border-info/30 bg-info/10 p-4">
+          <p className="mb-1 text-sm font-semibold text-info-content">Что изменилось</p>
+          <p className="text-sm text-base-content">{story.text_change_summary}</p>
         </div>
       )}
 
-      {snapshotState.kind === 'ready' ? (
-        <TextReviewCard
-          textV1={story.text_v1 ?? ''}
-          textV2={story.text_v2 ?? ''}
-          psychologistOutput={snapshotState.psychOutput}
-          onApprove={approveHandler}
-        />
-      ) : (
-        <div className="space-y-4">
-          <StatusCallout
-            tone={snapshotState.reason === 'error' ? 'error' : 'warning'}
-            title={
-              snapshotState.reason === 'error'
-                ? 'Оценка психолога недоступна'
-                : 'Оценка психолога не записана'
-            }
-            message={snapshotState.message}
+      {(approveError || redoError) && (
+        <div className="mb-4">
+          <StatusCallout tone="error" title="Ошибка" message={approveError ?? redoError ?? ''} />
+        </div>
+      )}
+
+      <section className="card border border-base-300 bg-base-100 shadow-sm">
+        <div className="card-body gap-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="font-serif text-3xl text-base-content">Текст истории</h2>
+
+            <div className="flex gap-2">
+              <button className="btn btn-outline btn-sm" onClick={() => void handleRedo()} disabled={redoing || approving}>
+                {redoing ? 'Запускаем...' : 'Отправить на доработку'}
+              </button>
+              <button className="btn btn-primary btn-sm" onClick={() => void handleApprove()} disabled={approving || redoing}>
+                {approving ? 'Одобряем...' : 'Одобрить текст'}
+              </button>
+            </div>
+          </div>
+
+          <p className="text-sm text-base-content/60">
+            Выдели любой фрагмент текста, чтобы оставить комментарий. Когда будешь готов — запусти критика или одобри текст сразу.
+          </p>
+
+          <TextAnnotationPanel
+            storyId={storyId}
+            text={textToReview}
+            onCritiqueStarted={handleCritiqueStarted}
           />
 
-          <section className="card border border-base-300 bg-base-100 shadow-sm">
-            <div className="card-body gap-6">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="font-serif text-3xl text-base-content">Проверка текста</h2>
-
-                <button className="btn btn-primary" onClick={approveHandler} disabled={approving}>
-                  Одобрить текст
-                </button>
-              </div>
-
-              <DiffViewer
-                originalText={story.text_v1 ?? ''}
-                revisedText={story.text_v2 ?? ''}
-                label="Текст v1 → v2"
-              />
-            </div>
-          </section>
+          <div className="flex flex-wrap justify-end gap-2 border-t border-base-300 pt-4">
+            <button className="btn btn-outline btn-sm" onClick={() => void handleRedo()} disabled={redoing || approving}>
+              {redoing ? 'Запускаем...' : 'Отправить на доработку'}
+            </button>
+            <button className="btn btn-primary btn-sm" onClick={() => void handleApprove()} disabled={approving || redoing}>
+              {approving ? 'Одобряем...' : 'Одобрить текст'}
+            </button>
+          </div>
         </div>
-      )}
+      </section>
     </div>
   )
 }

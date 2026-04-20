@@ -281,6 +281,9 @@ export const api = {
         method: 'DELETE',
       }),
 
+    critiqueText: (id: number) =>
+      request<{ started: boolean; storyId: number }>(`/api/stories/${id}/critique-text`, { method: 'POST' }),
+
     analyze: (id: number) =>
       request<{ storyAnalysis: string; reactionsExtracted: number; styleGuideUpdated: boolean }>(
         `/api/stories/${id}/analyze`,

@@ -476,24 +476,26 @@ export function StoryReaderPage() {
         </section>
       )}
 
-      <section className="mt-12">
-        <PageHeader
-          eyebrow="Отзыв"
-          title="Впечатления от чтения"
-          description="Запиши общее впечатление после прочтения — это поможет улучшить следующие истории."
-        />
+      {story.status !== 'draft' && (
+        <section className="mt-12">
+          <PageHeader
+            eyebrow="Отзыв"
+            title="Впечатления от чтения"
+            description="Запиши общее впечатление после прочтения — это поможет улучшить следующие истории."
+          />
 
-        <FeedbackForm
-          storyId={String(storyId)}
-          onSubmit={(values: FeedbackValues) =>
-            api.feedback.submit(storyId, {
-              rating: values.rating,
-              structured_feedback: values.structured_feedback,
-              feedback_type: 'agent_run',
-            }).then(() => undefined)
-          }
-        />
-      </section>
+          <FeedbackForm
+            storyId={String(storyId)}
+            onSubmit={(values: FeedbackValues) =>
+              api.feedback.submit(storyId, {
+                rating: values.rating,
+                structured_feedback: values.structured_feedback,
+                feedback_type: 'agent_run',
+              }).then(() => undefined)
+            }
+          />
+        </section>
+      )}
     </div>
   )
 }

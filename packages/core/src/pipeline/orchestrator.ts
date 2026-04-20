@@ -34,6 +34,27 @@ export interface PlanPhaseResult {
   sashaContext: string | null
 }
 
+export interface PlotterOnlyResult {
+  planV1: string
+  titleSuggested: string
+  models: PipelineModels
+  promptVersions: PipelinePromptVersions
+  sashaContext: string | null
+}
+
+export interface WriterOnlyResult {
+  textV1: string
+  models: PipelineModels
+  promptVersions: PipelinePromptVersions
+}
+
+export interface TextCritiqueResult {
+  textV2: string
+  writerCriticOutput: CriticOutput
+  models: PipelineModels
+  promptVersions: PipelinePromptVersions
+}
+
 export interface TextPhaseResult {
   textV1: string
   textV2: string
@@ -246,6 +267,167 @@ export async function runTextPhase(options: {
     models,
     promptVersions: resolvedVersions,
   }
+}
+
+export async function runPlotterOnly(options: {
+  seed: string
+  storyId: number
+  models: PipelineModels
+  promptVersions: PipelinePromptVersions
+  universeSystemPrompt?: string
+  universeContext?: string
+  styleGuide?: string
+  sashaContext?: string | null
+  userFeedback?: string
+  cwd?: string
+  onStepChange?: (step: string) => void
+}): Promise<PlotterOnlyResult> {
+  const { seed, models } = options
+  const notify = options.onStepChange ?? (() => undefined)
+  const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
+  const universeArg = options.universeSystemPrompt !== undefined ? { universeSystemPrompt: options.universeSystemPrompt } : {}
+  const universeContextArg = options.universeContext !== undefined ? { universeContext: options.universeContext } : {}
+  const styleGuideArg = options.styleGuide !== undefined ? { styleGuide: options.styleGuide } : {}
+  const sashaContextArg = options.sashaContext !== undefined && options.sashaContext !== null ? { sashaContext: options.sashaContext } : {}
+  const userFeedbackArg = options.userFeedback ? { userFeedback: options.userFeedback } : {}
+
+  const plotterPrompt = await resolvePrompt('plotter', PLOTTER_SYSTEM_PROMPT_DEFAULT, options.promptVersions.plotter)
+
+  const resolvedVersions: PipelinePromptVersions = {
+    ...options.promptVersions,
+    plotter: plotterPrompt.version,
+  }
+
+  notify('Plotter')
+  const planV1 = await runPlotter({
+    seed,
+    model: models.plotter,
+    resolvedPrompt: plotterPrompt,
+    ...cwdArg,
+    ...universeArg,
+    ...universeContextArg,
+    ...styleGuideArg,
+    ...sashaContextArg,
+    ...userFeedbackArg,
+  })
+
+  notify('TitleGenerator')
+  const titleSuggested = await generateStoryTitle({
+    plan: planV1,
+    seed,
+    model: models.plotter,
+    ...cwdArg,
+  })
+
+  return {
+    planV1,
+    titleSuggested,
+    models,
+    promptVersions: resolvedVersions,
+    sashaContext: options.sashaContext ?? null,
+  }
+}
+
+export async function runWriterOnly(options: {
+  seed: string
+  planFinal: string
+  storyId: number
+  models: PipelineModels
+  promptVersions: PipelinePromptVersions
+  universeSystemPrompt?: string
+  universeContext?: string
+  styleGuide?: string
+  sashaContext?: string | null
+  cwd?: string
+  onStepChange?: (step: string) => void
+}): Promise<WriterOnlyResult> {
+  const { seed, planFinal, models } = options
+  const notify = options.onStepChange ?? (() => undefined)
+  const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
+  const universeArg = options.universeSystemPrompt !== undefined ? { universeSystemPrompt: options.universeSystemPrompt } : {}
+  const universeContextArg = options.universeContext !== undefined ? { universeContext: options.universeContext } : {}
+  const styleGuideArg = options.styleGuide !== undefined ? { styleGuide: options.styleGuide } : {}
+  const sashaContextArg = options.sashaContext !== undefined && options.sashaContext !== null ? { sashaContext: options.sashaContext } : {}
+
+  const writerPrompt: ResolvedPrompt = await resolvePrompt('writer', WRITER_SYSTEM_PROMPT_DEFAULT, options.promptVersions.writer)
+
+  const resolvedVersions: PipelinePromptVersions = {
+    ...options.promptVersions,
+    writer: writerPrompt.version,
+  }
+
+  notify('Writer')
+  const textV1 = await runWriter({
+    plan: planFinal,
+    model: models.writer,
+    resolvedPrompt: writerPrompt,
+    ...cwdArg,
+    ...universeArg,
+    ...universeContextArg,
+    ...styleGuideArg,
+    ...sashaContextArg,
+  })
+
+  return { textV1, models, promptVersions: resolvedVersions }
+}
+
+export async function runTextCritique(options: {
+  textV1: string
+  planFinal: string
+  storyId: number
+  models: PipelineModels
+  promptVersions: PipelinePromptVersions
+  universeSystemPrompt?: string
+  universeContext?: string
+  styleGuide?: string
+  sashaContext?: string | null
+  userAnnotations?: string
+  cwd?: string
+  onStepChange?: (step: string) => void
+}): Promise<TextCritiqueResult> {
+  const { textV1, planFinal, models } = options
+  const notify = options.onStepChange ?? (() => undefined)
+  const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
+  const universeArg = options.universeSystemPrompt !== undefined ? { universeSystemPrompt: options.universeSystemPrompt } : {}
+  const universeContextArg = options.universeContext !== undefined ? { universeContext: options.universeContext } : {}
+  const styleGuideArg = options.styleGuide !== undefined ? { styleGuide: options.styleGuide } : {}
+  const sashaContextArg = options.sashaContext !== undefined && options.sashaContext !== null ? { sashaContext: options.sashaContext } : {}
+  const userAnnotationsArg = options.userAnnotations ? { userAnnotations: options.userAnnotations } : {}
+
+  const writerPrompt: ResolvedPrompt = await resolvePrompt('writer', WRITER_SYSTEM_PROMPT_DEFAULT, options.promptVersions.writer)
+
+  const resolvedVersions: PipelinePromptVersions = {
+    ...options.promptVersions,
+    writer: writerPrompt.version,
+  }
+
+  notify('WriterCritic')
+  const writerCriticOutput = await runWriterCritic({
+    textV1,
+    finalPlan: planFinal,
+    model: models.writerCritic,
+    ...cwdArg,
+    ...universeArg,
+    ...universeContextArg,
+    ...styleGuideArg,
+    ...sashaContextArg,
+    ...userAnnotationsArg,
+  })
+
+  notify('Improver')
+  const textV2 = await runWriter({
+    plan: planFinal,
+    criticNotes: writerCriticOutput,
+    model: models.writer,
+    resolvedPrompt: writerPrompt,
+    ...cwdArg,
+    ...universeArg,
+    ...universeContextArg,
+    ...styleGuideArg,
+    ...sashaContextArg,
+  })
+
+  return { textV2, writerCriticOutput, models, promptVersions: resolvedVersions }
 }
 
 export async function runQuestionsPhase(options: {

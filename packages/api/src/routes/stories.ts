@@ -8,6 +8,7 @@ import { validate } from '../middleware/validate'
 import { triggerTextPhase, getPipelineStatus } from './pipeline'
 import { triggerPlanRedo } from './pipeline-plan-redo'
 import { triggerTextRedoWithAnnotations } from './pipeline-text-redo'
+import { triggerTextCritique } from './pipeline-text-critique'
 import { decideApprovePlan } from './approve-plan-decision'
 import { createStorySchema, resolveCreateStoryMode } from './create-story-schema'
 import { runStoryAnalyzer } from '@bedtime/core/pipeline/stages/story-analyzer'
@@ -270,6 +271,7 @@ router.post('/:id/approve-plan', validate(approvePlanSchema), async (req, res) =
 
     const decision = decideApprovePlan(
       {
+        planV1: existing.planV1 ?? null,
         planFinal: existing.planFinal ?? null,
         seed: existing.seed ?? null,
         textV2: existing.textV2 ?? null,
@@ -313,7 +315,9 @@ router.post('/:id/approve-plan', validate(approvePlanSchema), async (req, res) =
         sashaContext = snapshot.sashaContext
       }
 
-      triggerTextPhase(storyId, decision.seed, decision.planFinal, existing.mode ?? 'manual', universeSystemPrompt, sashaContext, universeContext, styleGuide)
+      await db.update(stories).set({ planFinal: decision.planV1 }).where(eq(stories.id, storyId))
+
+      triggerTextPhase(storyId, decision.seed, decision.planV1, existing.mode ?? 'manual', universeSystemPrompt, sashaContext, universeContext, styleGuide)
     }
 
     res.json(toSnakeCase(existing as Story))
@@ -432,6 +436,67 @@ router.post('/:id/redo-text', async (req, res) => {
   } catch (err) {
     console.error('POST /stories/:id/redo-text failed:', err)
     res.status(500).json({ error: 'Failed to start text redo' })
+  }
+})
+
+router.post('/:id/critique-text', async (req, res) => {
+  try {
+    const storyId = parseIntParam(req.params['id'])
+
+    if (isNaN(storyId)) {
+      res.status(400).json({ error: 'Invalid story id' })
+      return
+    }
+
+    const [existing] = await db.select().from(stories).where(eq(stories.id, storyId))
+
+    if (!existing) {
+      res.status(404).json({ error: 'Story not found' })
+      return
+    }
+
+    if (!existing.textV1) {
+      res.status(409).json({ error: 'Text v1 has not been generated yet' })
+      return
+    }
+
+    if (!existing.planFinal) {
+      res.status(409).json({ error: 'Plan has not been approved yet' })
+      return
+    }
+
+    let universeSystemPrompt: string | undefined
+    let universeContext: string | undefined
+    let styleGuide: string | undefined
+    let sashaContext: string | null = null
+
+    if (existing.groupId !== null && existing.groupId !== undefined) {
+      const [group] = await db.select().from(storyGroups).where(eq(storyGroups.id, existing.groupId))
+
+      if (group) {
+        universeSystemPrompt = group.systemPrompt
+        universeContext = group.universeContext ?? undefined
+        styleGuide = group.styleGuide ?? undefined
+      }
+    }
+
+    const [snapshot] = await db
+      .select()
+      .from(runSnapshots)
+      .where(eq(runSnapshots.storyId, storyId))
+      .orderBy(desc(runSnapshots.createdAt))
+      .limit(1)
+
+    if (snapshot?.sashaContext) {
+      sashaContext = snapshot.sashaContext
+    }
+
+    triggerTextCritique(storyId, existing.textV1, existing.planFinal, universeSystemPrompt, universeContext, styleGuide, sashaContext)
+
+    res.json({ started: true, storyId })
+  } catch (err) {
+    console.error('POST /stories/:id/critique-text failed:', err)
+    res.status(500).json({ error: 'Failed to start text critique' })
   }
 })
 

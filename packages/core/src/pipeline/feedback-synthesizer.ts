@@ -1,117 +1,120 @@
-import { desc } from 'drizzle-orm'
+import { desc, eq, and, inArray } from 'drizzle-orm'
 import { db } from '../db/client'
-import { feedback, childDiary, childProfiles, stories } from '../db/schema'
+import { feedback, childDiary, childProfiles, stories, annotations } from '../db/schema'
 import { claudeCliRunner } from '../ai'
+import { buildSynthesizerPrompt, SIGNAL_WEIGHTS } from './synthesizer-prompt-builder'
+
+export { SIGNAL_WEIGHTS }
 
 const SYNTHESIZER_MODEL = 'claude-sonnet-4-6'
 
 export async function synthesizeSashaContext(): Promise<string | null> {
-  const [recentFeedback, recentDiary, recentStories, [profile]] = await Promise.all([
+  const [recentFeedback, recentDiary, recentStories, [profile], recentAnnotations] = await Promise.all([
     db.select().from(feedback).orderBy(desc(feedback.createdAt)).limit(5),
     db.select().from(childDiary).orderBy(desc(childDiary.createdAt)).limit(10),
-    db.select({ title: stories.title }).from(stories).orderBy(desc(stories.createdAt)).limit(5),
+    db
+      .select({ id: stories.id, title: stories.title, storyAnalysis: stories.storyAnalysis })
+      .from(stories)
+      .where(inArray(stories.status, ['ready', 'read']))
+      .orderBy(desc(stories.createdAt))
+      .limit(15),
     db.select().from(childProfiles).limit(1),
+    db
+      .select({
+        type: annotations.type,
+        selectedText: annotations.selectedText,
+        noteText: annotations.noteText,
+        context: annotations.context,
+        storyTitle: stories.title,
+      })
+      .from(annotations)
+      .innerJoin(stories, eq(annotations.storyId, stories.id))
+      .where(
+        and(
+          inArray(stories.status, ['ready', 'read']),
+          inArray(annotations.type, ['sasha_laughed', 'sasha_loved', 'sasha_disliked', 'sasha_reaction', 'my_note']),
+        ),
+      )
+      .orderBy(desc(stories.createdAt))
+      .limit(80),
   ])
 
+  const hasProfile = !!profile && (profile.name || profile.activities || profile.interests || profile.dislikes || profile.favourites || profile.notes)
   const hasFeedback = recentFeedback.length > 0
   const hasDiary = recentDiary.length > 0
-  const hasProfile = !!profile && (
-    profile.name || profile.activities || profile.interests || profile.dislikes || profile.favourites || profile.notes
-  )
+  const hasAnnotations = recentAnnotations.length > 0
 
-  if (!hasFeedback && !hasDiary && !hasProfile) {
+  if (!hasProfile && !hasFeedback && !hasDiary && !hasAnnotations) {
     return null
   }
 
-  const profileSection = hasProfile
-    ? [
-      'ПРОФИЛЬ РЕБЁНКА:',
-      ...(profile.name ? [`Имя: ${profile.name}${profile.age ? `, ${profile.age} лет` : ''}`] : []),
-      ...(profile.activities ? [`Кружки и занятия: ${profile.activities}`] : []),
-      ...(profile.interests ? [`Чем увлекается: ${profile.interests}`] : []),
-      ...(profile.dislikes ? [`Что не любит: ${profile.dislikes}`] : []),
-      ...(profile.favourites ? [`Любимые персонажи и истории: ${profile.favourites}`] : []),
-      ...(profile.notes ? [`Дополнительно: ${profile.notes}`] : []),
-    ].join('\n')
-    : null
+  const parentNotesOnText = recentAnnotations
+    .filter((a) => a.type === 'my_note' && a.context === 'text')
+    .map((a) => ({ selectedText: a.selectedText, noteText: a.noteText, storyTitle: a.storyTitle }))
 
-  const feedbackSection = hasFeedback
-    ? recentFeedback.map((f, i) => {
-      const sf = f.structuredFeedback
+  const parentNotesOnPlan = recentAnnotations
+    .filter((a) => a.type === 'my_note' && a.context === 'plan')
+    .map((a) => ({ selectedText: a.selectedText, noteText: a.noteText, storyTitle: a.storyTitle }))
 
-      const lines = [`Отзыв ${i + 1} (оценка: ${f.rating ?? 'нет'})`]
+  const sashaLaughed = recentAnnotations
+    .filter((a) => a.type === 'sasha_laughed')
+    .map((a) => ({ selectedText: a.selectedText, noteText: a.noteText, storyTitle: a.storyTitle }))
 
-      if (f.comment) {
-        lines.push(`  Комментарий: ${f.comment}`)
+  const sashaLoved = recentAnnotations
+    .filter((a) => a.type === 'sasha_loved')
+    .map((a) => ({ selectedText: a.selectedText, noteText: a.noteText, storyTitle: a.storyTitle }))
+
+  const sashaDisliked = recentAnnotations
+    .filter((a) => a.type === 'sasha_disliked')
+    .map((a) => ({ selectedText: a.selectedText, noteText: a.noteText, storyTitle: a.storyTitle }))
+
+  const sashaReactions = recentAnnotations
+    .filter((a) => a.type === 'sasha_reaction')
+    .map((a) => ({ selectedText: a.selectedText, noteText: a.noteText, storyTitle: a.storyTitle }))
+
+  const storyAnalyses = recentStories
+    .filter((s) => s.storyAnalysis)
+    .map((s) => `«${s.title}»: ${s.storyAnalysis}`)
+    .slice(0, 5)
+
+  const structuredFeedback = recentFeedback.map((f) => {
+    const sf = f.structuredFeedback
+    return {
+      rating: f.rating ?? null,
+      comment: f.comment ?? null,
+      enjoyed: sf?.enjoyed ?? null,
+      was_funny: sf?.was_funny ?? null,
+      too_long: sf?.too_long ?? null,
+      favorite_moment: sf?.favorite_moment ?? null,
+      favorite_character: sf?.favorite_character ?? null,
+      want_again: sf?.want_again ?? null,
+      notes: sf?.notes ?? null,
+    }
+  })
+
+  const prompt = buildSynthesizerPrompt({
+    profile: hasProfile
+      ? {
+        name: profile.name ?? null,
+        age: profile.age ?? null,
+        activities: profile.activities ?? null,
+        interests: profile.interests ?? null,
+        dislikes: profile.dislikes ?? null,
+        favourites: profile.favourites ?? null,
+        notes: profile.notes ?? null,
       }
-
-      if (sf) {
-        lines.push(`  Понравилось: ${sf.enjoyed}/5`)
-        lines.push(`  Было смешно: ${sf.was_funny ? 'да' : 'нет'}`)
-        lines.push(`  Было страшно: ${sf.was_scary ? 'да' : 'нет'}`)
-        lines.push(`  Слишком длинно: ${sf.too_long ? 'да' : 'нет'}`)
-        lines.push(`  Любимый момент: ${sf.favorite_moment}`)
-        lines.push(`  Любимый персонаж: ${sf.favorite_character}`)
-        lines.push(`  Понял мораль: ${sf.understood_moral ? 'да' : 'нет'}`)
-        lines.push(`  Хочет снова: ${sf.want_again ? 'да' : 'нет'}`)
-
-        if (sf.notes) {
-          lines.push(`  Заметки: ${sf.notes}`)
-        }
-      }
-
-      return lines.join('\n')
-    }).join('\n\n')
-    : 'Отзывов пока нет.'
-
-  const diarySection = hasDiary
-    ? recentDiary.map((d, i) => `Запись ${i + 1}: ${d.content}`).join('\n')
-    : 'Дневниковых записей пока нет.'
-
-  const recentTitles = recentStories
-    .filter((s) => s.title)
-    .map((s) => `- ${s.title}`)
-    .join('\n')
-
-  const titlesSection = recentTitles.length > 0
-    ? `Последние темы историй (избегать повторения):\n${recentTitles}`
-    : 'Историй пока не было.'
-
-  const promptParts = [
-    'Ты — помощник, который анализирует данные о ребёнке и синтезирует контекст для создания персонализированных сказок.',
-    '',
-    'На основе данных ниже составь короткий контекст (~200 слов) на русском языке в следующем формате:',
-    '',
-    'ПРИНЦИПЫ (что работает):',
-    '- ...',
-    '',
-    'ТЕКУЩАЯ ЖИЗНЬ РЕБЁНКА (из дневника, для вдохновения — не копировать буквально):',
-    '- ...',
-    '',
-    'ИЗБЕГАТЬ (что не зашло или уже было недавно):',
-    '- ...',
-    '',
-    'Важно: не предлагай копировать конкретные моменты из дневника. Извлекай принципы и паттерны. Дневниковые записи — источник вдохновения, а не сценарий.',
-    '',
-    '---',
-    '',
-  ]
-
-  if (profileSection) {
-    promptParts.push(profileSection, '', '---', '')
-  }
-
-  promptParts.push(
-    'ДАННЫЕ ОБ ОТЗЫВАХ:',
-    feedbackSection,
-    '',
-    'ДНЕВНИКОВЫЕ ЗАПИСИ:',
-    diarySection,
-    '',
-    titlesSection,
-  )
-
-  const prompt = promptParts.join('\n')
+      : null,
+    parentNotesOnText,
+    parentNotesOnPlan,
+    sashaLaughed,
+    sashaLoved,
+    sashaDisliked,
+    structuredFeedback,
+    sashaReactions,
+    diaryEntries: recentDiary.map((d) => d.content),
+    storyAnalyses,
+    recentTitles: recentStories.filter((s) => s.title).map((s) => s.title),
+  })
 
   return claudeCliRunner.runText({
     model: SYNTHESIZER_MODEL,

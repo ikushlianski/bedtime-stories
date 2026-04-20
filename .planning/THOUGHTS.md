@@ -26,3 +26,27 @@ None — hierarchy is now complete.
 
 ## Items skipped
 None.
+
+---
+date: 2026-04-20 12:00
+skill: project-manager
+batch: followup-questions-feature
+---
+
+## What I processed
+User request: capture the multi-round clarifying-questions feature into Project #13. Not from a PRD file — direct discussion. Architecture agreed: no separate evaluator agent; Plotter returns discriminated-union output (plan OR follow-up questions) with a hard 2-round cap enforced in prompt + code.
+
+## Decisions made
+- Created single Story #284 `[Story] Follow-up clarifying questions when needed` under Epic #259 `[Epic] Story planning flow` (Initiative #249).
+- Priority: medium (label) / P1 (project field). Quality-of-output lift, not MVP blocker.
+- Size: M.
+- Labels: type:story, priority:medium, source:ai.
+- Did NOT create a separate Task for the routing/state invariant or the 2-round cap — they are how the Story manifests, codified in the acceptance criteria in the body.
+- Repo: ikushlianski/bedtime-stories (different from default football-score-simulator; used inline gh calls instead of scripts/create-issue.sh).
+- Project 13 uses P0/P1/P2 priority options, not Urgent/High/Medium/Low/Lowest — mapped medium → P1.
+
+## Open questions
+None.
+
+## Items skipped
+None — no existing duplicate for multi-round/follow-up questions in Project #13.

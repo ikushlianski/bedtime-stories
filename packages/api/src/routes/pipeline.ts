@@ -117,7 +117,7 @@ router.post('/run', validate(runPipelineSchema), async (req, res) => {
   }
 })
 
-const PIPELINE_STEP_NAMES = ['Plotter', 'PlotCritic', 'Writer', 'WriterCritic'] as const
+const PIPELINE_STEP_NAMES = ['Plotter', 'Writer', 'WriterCritic'] as const
 
 async function inferStatusFromDb(storyId: number): Promise<PipelineInternalStatus | undefined> {
   const [row] = await db.select().from(stories).where(eq(stories.id, storyId))
@@ -128,7 +128,11 @@ async function inferStatusFromDb(storyId: number): Promise<PipelineInternalStatu
     return 'text_ready'
   }
 
-  if (row.planFinal !== null && row.planFinal !== undefined) {
+  if (row.textV1 !== null && row.textV1 !== undefined) {
+    return 'text_review'
+  }
+
+  if (row.planV1 !== null && row.planV1 !== undefined) {
     return 'plan_ready'
   }
 

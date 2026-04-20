@@ -9,6 +9,7 @@ export async function runWriterCritic(options: {
   universeContext?: string
   styleGuide?: string
   sashaContext?: string | null
+  userAnnotations?: string
   cwd?: string
 }): Promise<CriticOutput> {
   const { textV1, finalPlan, model } = options
@@ -26,10 +27,14 @@ export async function runWriterCritic(options: {
     ? `\n\n---\nКОНТЕКСТ САШИ (используй для вдохновения, не копируй буквально):\n${options.sashaContext}\n---\n`
     : ''
 
+  const userAnnotationsBlock = options.userAnnotations
+    ? `\n\n---\nКОММЕНТАРИИ РЕДАКТОРА К ТЕКСТУ (учти при оценке):\n${options.userAnnotations}\n---\n`
+    : ''
+
   const basePrompt = [
     `Story text v1:\n${textV1}`,
     `Final approved plan (for checking story matches plan):\n${finalPlan}`,
-  ].join('\n\n') + universeContextBlock + styleGuideBlock + sashaContextBlock
+  ].join('\n\n') + universeContextBlock + styleGuideBlock + sashaContextBlock + userAnnotationsBlock
 
   const prompt = options.universeSystemPrompt
     ? `${options.universeSystemPrompt}\n\n---\n\n${basePrompt}`

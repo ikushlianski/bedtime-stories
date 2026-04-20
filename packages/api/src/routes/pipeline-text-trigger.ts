@@ -1,33 +1,14 @@
 import { eq, desc } from 'drizzle-orm'
-import { runTextPhase, type TextPhaseResult } from '@bedtime/core/pipeline/orchestrator'
+import { runWriterOnly } from '@bedtime/core/pipeline/orchestrator'
 import { db } from '@bedtime/core/db/client'
 import { runSnapshots, stories } from '@bedtime/core/db/schema'
 import {
-  buildTextSnapshotUpdate,
-  buildTextStoriesUpdate,
+  buildWriterOnlyStoriesUpdate,
 } from './pipeline-persistence'
 import { getPipelineStatus, setPipelineStatus, setCurrentStep } from './pipeline-state'
 import { defaultModels, defaultPromptVersions } from './pipeline-defaults'
 
 export { getPipelineStatus, setPipelineStatus }
-
-async function persistTextPhase(storyId: number, text: TextPhaseResult): Promise<void> {
-  const [existing] = await db
-    .select()
-    .from(runSnapshots)
-    .where(eq(runSnapshots.storyId, storyId))
-    .orderBy(desc(runSnapshots.createdAt))
-    .limit(1)
-
-  if (existing) {
-    await db
-      .update(runSnapshots)
-      .set(buildTextSnapshotUpdate(text))
-      .where(eq(runSnapshots.id, existing.id))
-  }
-
-  await db.update(stories).set(buildTextStoriesUpdate(text)).where(eq(stories.id, storyId))
-}
 
 export function triggerTextPhase(
   storyId: number,
@@ -41,7 +22,7 @@ export function triggerTextPhase(
 ): void {
   setPipelineStatus(storyId, 'text_running')
 
-  runTextPhase({
+  runWriterOnly({
     seed,
     planFinal,
     storyId,
@@ -53,9 +34,23 @@ export function triggerTextPhase(
     ...(sashaContext !== undefined && sashaContext !== null ? { sashaContext } : {}),
     onStepChange: (step) => setCurrentStep(storyId, step),
   })
-    .then(async (text) => {
+    .then(async (result) => {
       try {
-        await persistTextPhase(storyId, text)
+        const [existing] = await db
+          .select()
+          .from(runSnapshots)
+          .where(eq(runSnapshots.storyId, storyId))
+          .orderBy(desc(runSnapshots.createdAt))
+          .limit(1)
+
+        if (existing) {
+          await db
+            .update(runSnapshots)
+            .set({ textV1: result.textV1, writerModel: result.models.writer, writerPromptVersion: result.promptVersions.writer })
+            .where(eq(runSnapshots.id, existing.id))
+        }
+
+        await db.update(stories).set(buildWriterOnlyStoriesUpdate(result)).where(eq(stories.id, storyId))
 
         if (mode === 'auto') {
           await db.update(stories).set({ status: 'ready' }).where(eq(stories.id, storyId))

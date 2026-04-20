@@ -1,0 +1,8 @@
+{"ts":"2026-04-20T12:00:00Z","event":"item_created","number":284,"title":"[Story] Follow-up clarifying questions when needed","type":"story","priority":"medium","parent":259,"labels":["type:story","priority:medium","source:ai"]}
+{"ts":"2026-04-20T12:00:01Z","event":"dependency_recorded","from":284,"to":259,"relation":"sub_issue"}
+{"ts":"2026-04-20T12:00:02Z","event":"batch_complete","batch":"followup-questions-feature","created":1,"skipped":0}
+{"ts":"2026-04-20T12:30:00Z","event":"item_updated","number":104,"change":"priority","from":"low","to":"medium","reason":"user explicitly asked for delete during reading; #104 already covers edit+delete"}
+{"ts":"2026-04-20T12:30:01Z","event":"item_created","number":285,"title":"[Story] Split \"loved\" reaction into me vs Sasha","type":"story","priority":"medium","parent":260,"labels":["type:story","priority:medium","source:ai"]}
+{"ts":"2026-04-20T12:30:02Z","event":"dependency_recorded","from":285,"to":260,"relation":"sub_issue"}
+{"ts":"2026-04-20T12:30:03Z","event":"dependency_recorded","from":285,"to":104,"relation":"depends_on"}
+{"ts":"2026-04-20T12:30:04Z","event":"batch_complete","batch":"annotations-reviewer-sasha-split","created":1,"updated":1,"skipped":1}

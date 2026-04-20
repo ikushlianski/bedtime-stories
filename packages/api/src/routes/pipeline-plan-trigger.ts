@@ -1,15 +1,14 @@
 import { eq } from 'drizzle-orm'
-import { runPlanPhase } from '@bedtime/core/pipeline/orchestrator'
+import { runPlotterOnly } from '@bedtime/core/pipeline/orchestrator'
 import { synthesizeSashaContext } from '@bedtime/core/pipeline/feedback-synthesizer'
 import { db } from '@bedtime/core/db/client'
 import { runSnapshots, stories } from '@bedtime/core/db/schema'
 import {
-  buildPlanSnapshotInsert,
-  buildPlanStoriesUpdate,
+  buildPlotterOnlyStoriesUpdate,
+  buildPlotterOnlySnapshotInsert,
 } from './pipeline-persistence'
 import { setPipelineStatus, setCurrentStep } from './pipeline-state'
 import { defaultModels, defaultPromptVersions } from './pipeline-defaults'
-import { triggerTextPhase } from './pipeline-text-trigger'
 
 export function triggerPlanPhaseFromAnswers(
   storyId: number,
@@ -29,7 +28,7 @@ export function triggerPlanPhaseFromAnswers(
 
   synthesizeSashaContext()
     .then((sashaContext) =>
-      runPlanPhase({
+      runPlotterOnly({
         seed: seedWithAnswers,
         storyId,
         models: defaultModels,
@@ -39,24 +38,15 @@ export function triggerPlanPhaseFromAnswers(
         ...(styleGuide !== undefined ? { styleGuide } : {}),
         ...(sashaContext !== null ? { sashaContext } : {}),
         onStepChange: (step) => setCurrentStep(storyId, step),
-      }).then((plan) => ({ plan, sashaContext }))
+      }).then((result) => ({ result, sashaContext }))
     )
-    .then(async ({ plan, sashaContext }) => {
+    .then(async ({ result }) => {
       try {
-        await db.insert(runSnapshots).values(buildPlanSnapshotInsert(storyId, plan))
+        await db.insert(runSnapshots).values(buildPlotterOnlySnapshotInsert(storyId, result))
 
-        await db.update(stories).set(buildPlanStoriesUpdate(plan)).where(eq(stories.id, storyId))
+        await db.update(stories).set(buildPlotterOnlyStoriesUpdate(result)).where(eq(stories.id, storyId))
 
-        triggerTextPhase(
-          storyId,
-          seedWithAnswers,
-          plan.planFinal,
-          'manual',
-          universeSystemPrompt,
-          sashaContext,
-          universeContext,
-          styleGuide,
-        )
+        setPipelineStatus(storyId, 'plan_ready')
       } catch (dbError) {
         console.error(`Failed to persist plan phase for storyId=${storyId}:`, dbError)
         setPipelineStatus(storyId, 'plan_failed')

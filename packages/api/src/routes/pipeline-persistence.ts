@@ -1,4 +1,4 @@
-import type { PlanPhaseResult, TextPhaseResult } from '@bedtime/core/pipeline/orchestrator'
+import type { PlanPhaseResult, TextPhaseResult, PlotterOnlyResult, WriterOnlyResult, TextCritiqueResult } from '@bedtime/core/pipeline/orchestrator'
 import type { NewRunSnapshot } from '@bedtime/core/db/types'
 
 export function buildPlanSnapshotInsert(storyId: number, plan: PlanPhaseResult): NewRunSnapshot {
@@ -75,5 +75,76 @@ export function buildTextStoriesUpdate(text: TextPhaseResult): TextStoriesUpdate
     writerPromptVersion: text.promptVersions.writer,
     writerCriticModel: text.models.writerCritic,
     writerCriticPromptVersion: text.promptVersions.writerCritic,
+  }
+}
+
+export interface PlotterOnlyStoriesUpdate {
+  title: string
+  planV1: string
+  plotterModel: string
+  plotterPromptVersion: number
+}
+
+export function buildPlotterOnlyStoriesUpdate(result: PlotterOnlyResult): PlotterOnlyStoriesUpdate {
+  return {
+    title: result.titleSuggested,
+    planV1: result.planV1,
+    plotterModel: result.models.plotter,
+    plotterPromptVersion: result.promptVersions.plotter,
+  }
+}
+
+export function buildPlotterOnlySnapshotInsert(storyId: number, result: PlotterOnlyResult): NewRunSnapshot {
+  return {
+    storyId,
+    plotterModel: result.models.plotter,
+    plotterPromptVersion: result.promptVersions.plotter,
+    psychologistPlanModel: null,
+    psychologistPlanPromptVersion: null,
+    plotCriticModel: null,
+    plotCriticPromptVersion: null,
+    planIterationsCount: 1,
+    planV1: result.planV1,
+    planFinal: null,
+    psychologistPlanOutput: null,
+    plotCriticOutput: null,
+    sashaContext: result.sashaContext ?? undefined,
+  }
+}
+
+export interface WriterOnlyStoriesUpdate {
+  textV1: string
+  writerModel: string
+  writerPromptVersion: number
+}
+
+export function buildWriterOnlyStoriesUpdate(result: WriterOnlyResult): WriterOnlyStoriesUpdate {
+  return {
+    textV1: result.textV1,
+    writerModel: result.models.writer,
+    writerPromptVersion: result.promptVersions.writer,
+  }
+}
+
+export interface TextCritiqueStoriesUpdate {
+  textV2: string
+  writerCriticModel: string
+  writerCriticPromptVersion: number
+}
+
+export function buildTextCritiqueStoriesUpdate(result: TextCritiqueResult): TextCritiqueStoriesUpdate {
+  return {
+    textV2: result.textV2,
+    writerCriticModel: result.models.writerCritic,
+    writerCriticPromptVersion: result.promptVersions.writerCritic,
+  }
+}
+
+export function buildTextCritiqueSnapshotUpdate(result: TextCritiqueResult): Partial<NewRunSnapshot> {
+  return {
+    writerCriticModel: result.models.writerCritic,
+    writerCriticPromptVersion: result.promptVersions.writerCritic,
+    textV2: result.textV2,
+    writerCriticOutput: result.writerCriticOutput,
   }
 }
