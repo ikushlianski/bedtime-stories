@@ -1,5 +1,6 @@
 import express from 'express'
 import cors from 'cors'
+import dns from 'node:dns'
 import storiesRouter from './routes/stories'
 import feedbackRouter from './routes/feedback'
 import promptsRouter from './routes/prompts'
@@ -25,10 +26,13 @@ app.use('/api/universes', universesRouter)
 app.use('/api/diary', diaryRouter)
 app.use('/api/child-profile', childProfileRouter)
 
-const PORT = process.env['PORT'] ?? 8020
+dns.setDefaultResultOrder('ipv6first')
+
+const PORT = Number(process.env['PORT'] ?? 8020)
+const HOST = process.env['HOST'] ?? '::'
 
 export function startServer(): void {
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`)
+  app.listen(PORT, HOST, () => {
+    console.log(`Server running on [${HOST}]:${PORT}`)
   })
 }
