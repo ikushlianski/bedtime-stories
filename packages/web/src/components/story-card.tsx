@@ -57,7 +57,7 @@ function StoryCard({ title, status, createdAt, rating, actions = [], onTitleClic
 
   return (
     <article
-      className={`flex h-full flex-col rounded-lg border border-base-content/10 bg-base-100 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+      className={`flex min-h-52 flex-col rounded-lg border border-base-content/10 bg-base-100 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
         isArchived ? 'opacity-70' : ''
       }`}
     >
