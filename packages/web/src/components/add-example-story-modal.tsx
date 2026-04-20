@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, type StoryGroup } from '../lib/api'
+import FormField from './form-field'
 
 interface AddExampleStoryModalProps {
   open: boolean
@@ -75,61 +76,69 @@ function AddExampleStoryModal({ open, onClose }: AddExampleStoryModalProps) {
           например <span className="font-mono text-xs">(Гоша засмеялся)</span> — ИИ учтёт их при анализе.
         </p>
 
-        <div className="flex flex-col gap-3">
-          <input
-            type="text"
-            className="input input-bordered bg-base-200"
-            placeholder="Название (необязательно)"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            disabled={submitting}
-          />
+        <div className="flex flex-col gap-5">
+          <FormField label="Название">
+            <input
+              type="text"
+              className="input input-bordered w-full bg-base-200"
+              placeholder="Необязательно"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              disabled={submitting}
+            />
+          </FormField>
 
-          <textarea
-            className="textarea textarea-bordered min-h-64 bg-base-200"
-            placeholder="Текст истории..."
-            value={textFinal}
-            onChange={(e) => setTextFinal(e.target.value)}
-            disabled={submitting}
-          />
+          <FormField label="Текст истории" required>
+            <textarea
+              className="textarea textarea-bordered min-h-64 w-full bg-base-200"
+              placeholder="Текст истории..."
+              value={textFinal}
+              onChange={(e) => setTextFinal(e.target.value)}
+              disabled={submitting}
+            />
+          </FormField>
 
           {universes.length > 0 && (
-            <select
-              className="select select-bordered bg-base-200"
-              value={groupId ?? ''}
-              onChange={(e) => setGroupId(e.target.value ? Number(e.target.value) : null)}
-              disabled={submitting}
-            >
-              <option value="">Без вселенной</option>
-              {universes.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
-                </option>
-              ))}
-            </select>
+            <FormField label="Вселенная">
+              <select
+                className="select select-bordered w-full bg-base-200"
+                value={groupId ?? ''}
+                onChange={(e) => setGroupId(e.target.value ? Number(e.target.value) : null)}
+                disabled={submitting}
+              >
+                <option value="">Без вселенной</option>
+                {universes.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name}
+                  </option>
+                ))}
+              </select>
+            </FormField>
           )}
 
-          <label className="flex cursor-pointer items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              className="checkbox checkbox-sm"
-              checked={analyzeAfterCreate}
-              onChange={(e) => setAnalyzeAfterCreate(e.target.checked)}
-              disabled={submitting}
-            />
-            Проанализировать с ИИ сразу после добавления
-          </label>
+          <div className="flex flex-col gap-2">
+            <label className="flex cursor-pointer items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="checkbox checkbox-sm"
+                checked={analyzeAfterCreate}
+                onChange={(e) => setAnalyzeAfterCreate(e.target.checked)}
+                disabled={submitting}
+              />
+              Проанализировать с ИИ сразу после добавления
+            </label>
 
-          <label className="flex cursor-pointer items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              className="checkbox checkbox-sm"
-              checked={addToReadingList}
-              onChange={(e) => setAddToReadingList(e.target.checked)}
-              disabled={submitting}
-            />
-            Добавить в список для чтения
-          </label>
+            <label className="flex cursor-pointer items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="checkbox checkbox-sm"
+                checked={addToReadingList}
+                onChange={(e) => setAddToReadingList(e.target.checked)}
+                disabled={submitting}
+              />
+              Добавить в список для чтения
+            </label>
+          </div>
 
           {error && <p className="text-sm text-error">{error}</p>}
 

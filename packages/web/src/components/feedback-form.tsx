@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { z } from 'zod'
+import FormField from './form-field'
 
 const structuredFeedbackSchema = z.object({
   enjoyed: z.number().int().min(0).max(5),
@@ -188,8 +189,7 @@ function FeedbackForm({ storyId: _storyId, onSubmit }: FeedbackFormProps) {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1">
-              <label className="text-sm text-base-content/70">Любимый момент</label>
+            <FormField label="Любимый момент">
               <input
                 type="text"
                 className="input input-bordered w-full bg-base-200"
@@ -197,10 +197,9 @@ function FeedbackForm({ storyId: _storyId, onSubmit }: FeedbackFormProps) {
                 value={favoriteMoment}
                 onChange={(e) => setFavoriteMoment(e.target.value)}
               />
-            </div>
+            </FormField>
 
-            <div className="space-y-1">
-              <label className="text-sm text-base-content/70">Любимый персонаж</label>
+            <FormField label="Любимый персонаж">
               <input
                 type="text"
                 className="input input-bordered w-full bg-base-200"
@@ -208,7 +207,7 @@ function FeedbackForm({ storyId: _storyId, onSubmit }: FeedbackFormProps) {
                 value={favoriteCharacter}
                 onChange={(e) => setFavoriteCharacter(e.target.value)}
               />
-            </div>
+            </FormField>
           </div>
         </div>
 

@@ -4,6 +4,7 @@ import {
   validateCreateStoryForm,
   type CreateStoryFormState,
 } from './create-story-form'
+import FormField from './form-field'
 
 interface CreateStoryModalProps {
   open: boolean
@@ -123,97 +124,93 @@ function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '', initialGr
       <div className="modal-box max-w-2xl border border-base-300 bg-base-200 shadow-2xl">
         <h2 className="font-serif text-3xl text-base-content">Новая история</h2>
 
-        <div className="mt-4">
-          <div className="flex items-center justify-between">
-            <label className="label">
-              <span className="label-text text-sm text-base-content/60">Вселенная</span>
-            </label>
-            {!showCreateUniverse && (
-              <button
-                type="button"
-                className="btn btn-ghost btn-xs text-primary"
-                onClick={() => setShowCreateUniverse(true)}
-              >
-                + Новая вселенная
-              </button>
-            )}
-          </div>
+        <div className="mt-5 space-y-5">
+          <FormField label="Вселенная" required>
+            {showCreateUniverse ? (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  className="input input-bordered flex-1 bg-base-200"
+                  placeholder="Название вселенной..."
+                  value={newUniverseName}
+                  onChange={(e) => setNewUniverseName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') void handleCreateUniverse()
 
-          {showCreateUniverse ? (
-            <div className="flex gap-2">
-              <input
-                type="text"
-                className="input input-bordered flex-1 bg-base-200"
-                placeholder="Название вселенной..."
-                value={newUniverseName}
-                onChange={(e) => setNewUniverseName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') void handleCreateUniverse()
-                  if (e.key === 'Escape') {
-                    setShowCreateUniverse(false)
-                    setNewUniverseName('')
-                  }
-                }}
-                autoFocus
-              />
-              <button
-                type="button"
-                className="btn btn-primary btn-sm"
-                disabled={!newUniverseName.trim() || creatingUniverse}
-                onClick={() => void handleCreateUniverse()}
-              >
-                {creatingUniverse ? '...' : 'Создать'}
-              </button>
-              {universes.length > 0 && (
+                    if (e.key === 'Escape') {
+                      setShowCreateUniverse(false)
+                      setNewUniverseName('')
+                    }
+                  }}
+                  autoFocus
+                />
                 <button
                   type="button"
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => {
-                    setShowCreateUniverse(false)
-                    setNewUniverseName('')
+                  className="btn btn-primary btn-sm"
+                  disabled={!newUniverseName.trim() || creatingUniverse}
+                  onClick={() => void handleCreateUniverse()}
+                >
+                  {creatingUniverse ? '...' : 'Создать'}
+                </button>
+                {universes.length > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => {
+                      setShowCreateUniverse(false)
+                      setNewUniverseName('')
+                    }}
+                  >
+                    Отмена
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <select
+                  className="select select-bordered flex-1 bg-base-200"
+                  value={form.groupId ?? ''}
+                  onChange={(event) => {
+                    const value = event.target.value
+                    const groupId = value === '' ? null : parseInt(value, 10)
+
+                    saveLastUniverseId(groupId)
+                    setForm((prev) => ({ ...prev, groupId }))
                   }}
                 >
-                  Отмена
+                  <option value="" disabled>Выбери вселенную...</option>
+                  {universes.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm text-primary"
+                  onClick={() => setShowCreateUniverse(true)}
+                >
+                  + Новая
                 </button>
-              )}
-            </div>
-          ) : (
-            <select
-              className="select select-bordered w-full bg-base-200"
-              value={form.groupId ?? ''}
-              onChange={(event) => {
-                const value = event.target.value
-                const groupId = value === '' ? null : parseInt(value, 10)
+              </div>
+            )}
+          </FormField>
 
-                saveLastUniverseId(groupId)
-                setForm((prev) => ({ ...prev, groupId }))
-              }}
-            >
-              <option value="" disabled>Выбери вселенную...</option>
-              {universes.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
+          <FormField
+            label="Затравка"
+            hint="Ситуация, эмоция или испытание, которое сейчас актуально для Саши."
+            required
+          >
+            <textarea
+              className="textarea textarea-bordered min-h-40 w-full bg-base-200"
+              placeholder="Герой нервничает: первый раз ночевать не дома..."
+              value={form.seed}
+              onChange={(event) => setForm((prev) => ({ ...prev, seed: event.target.value }))}
+              autoFocus
+            />
+          </FormField>
 
-        <div className="mt-4">
-          <p className="text-sm text-base-content/60">
-            Задай затравку для следующей сказки — ситуацию, эмоцию или испытание, которое сейчас актуально для Саши.
-          </p>
-          <textarea
-            className="textarea textarea-bordered mt-4 min-h-40 w-full bg-base-200"
-            placeholder="Герой нервничает: первый раз ночевать не дома..."
-            value={form.seed}
-            onChange={(event) => setForm((prev) => ({ ...prev, seed: event.target.value }))}
-            autoFocus
-          />
-          <div className="mt-4">
-            <label className="label pb-1">
-              <span className="label-text text-sm text-base-content/60">Режим конвейера</span>
-            </label>
+          <FormField label="Режим конвейера">
             <div className="join" role="radiogroup" aria-label="Режим конвейера">
               <button
                 type="button"
@@ -234,7 +231,7 @@ function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '', initialGr
                 Ручной
               </button>
             </div>
-          </div>
+          </FormField>
         </div>
 
         {error && <p className="mt-3 text-sm text-error">{error}</p>}

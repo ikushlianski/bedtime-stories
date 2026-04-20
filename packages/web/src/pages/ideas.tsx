@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { PageHeader, StatusCallout } from '../components'
+import { FormField, PageHeader, StatusCallout } from '../components'
 import { api, type StoryGroup } from '../lib/api'
 import {
   EMPTY_STATE,
@@ -90,43 +90,44 @@ export function IdeasPage() {
       />
 
       <section className="mb-6 rounded-box border border-base-300 bg-base-100 p-6 shadow-sm">
-        <textarea
-          className="textarea textarea-bordered min-h-28 w-full bg-base-200"
-          placeholder="Маленький дракон, который боится огня..."
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-        />
+        <div className="flex flex-col gap-5">
+          <FormField label="Идея" hint="Ситуация, эмоция, персонаж — что угодно, что может стать историей." required>
+            <textarea
+              className="textarea textarea-bordered min-h-28 w-full bg-base-200"
+              placeholder="Маленький дракон, который боится огня..."
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+            />
+          </FormField>
 
-        {universes.length > 0 && (
-          <div className="mt-3">
-            <label className="label pb-1">
-              <span className="label-text text-sm text-base-content/60">Вселенная (необязательно)</span>
-            </label>
-            <select
-              className="select select-bordered w-full bg-base-200"
-              value={selectedUniverseId ?? ''}
-              onChange={(e) => {
-                const val = e.target.value
-                const id = val === '' ? null : parseInt(val, 10)
+          {universes.length > 0 && (
+            <FormField label="Вселенная">
+              <select
+                className="select select-bordered w-full bg-base-200"
+                value={selectedUniverseId ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value
+                  const id = val === '' ? null : parseInt(val, 10)
 
-                setSelectedUniverseId(id)
+                  setSelectedUniverseId(id)
 
-                if (id !== null) {
-                  localStorage.setItem(LAST_UNIVERSE_KEY, String(id))
-                } else {
-                  localStorage.removeItem(LAST_UNIVERSE_KEY)
-                }
-              }}
-            >
-              <option value="">Без вселенной</option>
-              {universes.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+                  if (id !== null) {
+                    localStorage.setItem(LAST_UNIVERSE_KEY, String(id))
+                  } else {
+                    localStorage.removeItem(LAST_UNIVERSE_KEY)
+                  }
+                }}
+              >
+                <option value="">Без вселенной</option>
+                {universes.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+          )}
+        </div>
 
         <div className="mt-3 flex justify-end">
           <button

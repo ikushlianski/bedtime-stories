@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { PageHeader, StatusCallout } from '../components'
+import { FormField, PageHeader, StatusCallout } from '../components'
 import { api, type ChildProfile } from '../lib/api'
 
 export function ChildProfilePage() {
@@ -95,23 +95,21 @@ export function ChildProfilePage() {
 
       <section className="rounded-box border border-base-300 bg-base-100 p-6 shadow-sm">
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium">Имя</label>
+          <FormField label="Имя" required>
             <input
               type="text"
-              className="input input-bordered bg-base-200"
+              className="input input-bordered w-full bg-base-200"
               placeholder="Саша"
               value={name}
               onChange={(e) => setName(e.target.value)}
               disabled={saving}
             />
-          </div>
+          </FormField>
 
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium">Возраст (лет)</label>
+          <FormField label="Возраст (лет)">
             <input
               type="number"
-              className="input input-bordered bg-base-200"
+              className="input input-bordered w-full bg-base-200"
               placeholder="5"
               min={0}
               max={18}
@@ -119,67 +117,59 @@ export function ChildProfilePage() {
               onChange={(e) => setAge(e.target.value)}
               disabled={saving}
             />
-          </div>
+          </FormField>
         </div>
 
-        <div className="mt-5 flex flex-col gap-1">
-          <label className="text-sm font-medium">Кружки и занятия</label>
-          <p className="text-xs text-base-content/50">Чем занимается ребёнок — спорт, творчество, музыка и т.д.</p>
-          <textarea
-            className="textarea textarea-bordered min-h-20 bg-base-200"
-            placeholder="Плавание, рисование, робототехника..."
-            value={activities}
-            onChange={(e) => setActivities(e.target.value)}
-            disabled={saving}
-          />
-        </div>
+        <div className="mt-5 space-y-5">
+          <FormField label="Кружки и занятия" hint="Чем занимается ребёнок — спорт, творчество, музыка и т.д.">
+            <textarea
+              className="textarea textarea-bordered min-h-20 w-full bg-base-200"
+              placeholder="Плавание, рисование, робототехника..."
+              value={activities}
+              onChange={(e) => setActivities(e.target.value)}
+              disabled={saving}
+            />
+          </FormField>
 
-        <div className="mt-5 flex flex-col gap-1">
-          <label className="text-sm font-medium">Чем увлекается</label>
-          <p className="text-xs text-base-content/50">Интересы, хобби, любимые темы для разговоров.</p>
-          <textarea
-            className="textarea textarea-bordered min-h-20 bg-base-200"
-            placeholder="Динозавры, космос, машинки, строительство..."
-            value={interests}
-            onChange={(e) => setInterests(e.target.value)}
-            disabled={saving}
-          />
-        </div>
+          <FormField label="Чем увлекается" hint="Интересы, хобби, любимые темы для разговоров.">
+            <textarea
+              className="textarea textarea-bordered min-h-20 w-full bg-base-200"
+              placeholder="Динозавры, космос, машинки, строительство..."
+              value={interests}
+              onChange={(e) => setInterests(e.target.value)}
+              disabled={saving}
+            />
+          </FormField>
 
-        <div className="mt-5 flex flex-col gap-1">
-          <label className="text-sm font-medium">Что не любит</label>
-          <p className="text-xs text-base-content/50">Темы, образы или ситуации, которых лучше избегать.</p>
-          <textarea
-            className="textarea textarea-bordered min-h-20 bg-base-200"
-            placeholder="Страшных персонажей, слишком длинные истории, грустные концовки..."
-            value={dislikes}
-            onChange={(e) => setDislikes(e.target.value)}
-            disabled={saving}
-          />
-        </div>
+          <FormField label="Что не любит" hint="Темы, образы или ситуации, которых лучше избегать.">
+            <textarea
+              className="textarea textarea-bordered min-h-20 w-full bg-base-200"
+              placeholder="Страшных персонажей, слишком длинные истории, грустные концовки..."
+              value={dislikes}
+              onChange={(e) => setDislikes(e.target.value)}
+              disabled={saving}
+            />
+          </FormField>
 
-        <div className="mt-5 flex flex-col gap-1">
-          <label className="text-sm font-medium">Любимые персонажи и истории</label>
-          <p className="text-xs text-base-content/50">Из каких книг, мультфильмов, игр — что особенно нравится.</p>
-          <textarea
-            className="textarea textarea-bordered min-h-20 bg-base-200"
-            placeholder="Фиксики, Лего Сити, истории про животных..."
-            value={favourites}
-            onChange={(e) => setFavourites(e.target.value)}
-            disabled={saving}
-          />
-        </div>
+          <FormField label="Любимые персонажи и истории" hint="Из каких книг, мультфильмов, игр — что особенно нравится.">
+            <textarea
+              className="textarea textarea-bordered min-h-20 w-full bg-base-200"
+              placeholder="Фиксики, Лего Сити, истории про животных..."
+              value={favourites}
+              onChange={(e) => setFavourites(e.target.value)}
+              disabled={saving}
+            />
+          </FormField>
 
-        <div className="mt-5 flex flex-col gap-1">
-          <label className="text-sm font-medium">Дополнительно</label>
-          <p className="text-xs text-base-content/50">Всё остальное, что может помочь сделать истории лучше.</p>
-          <textarea
-            className="textarea textarea-bordered min-h-20 bg-base-200"
-            placeholder="Боится темноты, лучший друг — Миша, любит когда в историях есть юмор..."
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            disabled={saving}
-          />
+          <FormField label="Дополнительно" hint="Всё остальное, что может помочь сделать истории лучше.">
+            <textarea
+              className="textarea textarea-bordered min-h-20 w-full bg-base-200"
+              placeholder="Боится темноты, лучший друг — Миша, любит когда в историях есть юмор..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              disabled={saving}
+            />
+          </FormField>
         </div>
 
         <div className="mt-6 flex items-center justify-end gap-3">

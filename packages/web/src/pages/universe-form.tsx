@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { StoryGroup } from '../lib/api'
+import FormField from '../components/form-field'
 
 export interface UniverseFormValues {
   name: string
@@ -50,49 +51,59 @@ function UniverseForm({ initial, onSave, onCancel, saveLabel = 'Сохранит
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <input
-        type="text"
-        className="input input-bordered bg-base-200"
-        placeholder="Название вселенной"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-      />
-      <input
-        type="text"
-        className="input input-bordered bg-base-200"
-        placeholder="Описание (необязательно)"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-      />
-      <textarea
-        className="textarea textarea-bordered min-h-40 bg-base-200"
-        placeholder="Системный промпт — персонажи, голос, тон, повторяющиеся места..."
-        value={systemPrompt}
-        onChange={(e) => setSystemPrompt(e.target.value)}
-      />
-      <div className="space-y-1">
-        <p className="text-xs text-base-content/50">
-          Живой контекст вселенной — AI поддерживает автоматически, но можно редактировать вручную
-        </p>
+    <div className="flex flex-col gap-5">
+      <FormField label="Название" required>
+        <input
+          type="text"
+          className="input input-bordered w-full bg-base-200"
+          placeholder="Название вселенной"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+      </FormField>
+
+      <FormField label="Описание">
+        <input
+          type="text"
+          className="input input-bordered w-full bg-base-200"
+          placeholder="Необязательно"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+        />
+      </FormField>
+
+      <FormField label="Системный промпт" required>
+        <textarea
+          className="textarea textarea-bordered min-h-40 w-full bg-base-200"
+          placeholder="Персонажи, голос, тон, повторяющиеся места..."
+          value={systemPrompt}
+          onChange={(e) => setSystemPrompt(e.target.value)}
+        />
+      </FormField>
+
+      <FormField
+        label="Живой контекст"
+        hint="AI поддерживает автоматически, но можно редактировать вручную."
+      >
         <textarea
           className="textarea textarea-bordered min-h-48 w-full bg-base-200 font-mono text-xs"
           placeholder="## Персонажи&#10;- ...&#10;&#10;## События&#10;- ...&#10;&#10;## Чувства и темы&#10;- ..."
           value={universeContext}
           onChange={(e) => setUniverseContext(e.target.value)}
         />
-      </div>
-      <div className="space-y-1">
-        <p className="text-xs text-base-content/50">
-          Гайд по стилю — накапливается при анализе примерных историй. Можно редактировать вручную
-        </p>
+      </FormField>
+
+      <FormField
+        label="Гайд по стилю"
+        hint="Накапливается при анализе примерных историй. Можно редактировать вручную."
+      >
         <textarea
           className="textarea textarea-bordered min-h-36 w-full bg-base-200 font-mono text-xs"
           placeholder="## Что работает&#10;- ...&#10;&#10;## Что не работает&#10;- ..."
           value={styleGuide}
           onChange={(e) => setStyleGuide(e.target.value)}
         />
-      </div>
+      </FormField>
       {error && <p className="text-sm text-error">{error}</p>}
       <div className="flex gap-2">
         <button
