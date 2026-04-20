@@ -60,7 +60,7 @@ export function DiaryPage() {
 
       <section className="mb-6 rounded-box border border-base-300 bg-base-100 p-6 shadow-sm">
         <textarea
-          className="textarea textarea-bordered min-h-28 w-full bg-base-100"
+          className="textarea textarea-bordered min-h-28 w-full bg-base-200"
           placeholder="Сегодня Саша заинтересовался..."
           value={draft}
           onChange={(e) => setDraft(e.target.value)}

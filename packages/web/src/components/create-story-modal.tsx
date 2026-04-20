@@ -120,7 +120,7 @@ function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '', initialGr
 
   return (
     <dialog className="modal modal-open">
-      <div className="modal-box max-w-2xl border border-base-300 bg-base-100 shadow-2xl">
+      <div className="modal-box max-w-2xl border border-base-300 bg-base-200 shadow-2xl">
         <h2 className="font-serif text-3xl text-base-content">Новая история</h2>
 
         <div className="mt-4">
@@ -143,7 +143,7 @@ function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '', initialGr
             <div className="flex gap-2">
               <input
                 type="text"
-                className="input input-bordered flex-1 bg-base-100"
+                className="input input-bordered flex-1 bg-base-200"
                 placeholder="Название вселенной..."
                 value={newUniverseName}
                 onChange={(e) => setNewUniverseName(e.target.value)}
@@ -179,7 +179,7 @@ function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '', initialGr
             </div>
           ) : (
             <select
-              className="select select-bordered w-full bg-base-100"
+              className="select select-bordered w-full bg-base-200"
               value={form.groupId ?? ''}
               onChange={(event) => {
                 const value = event.target.value
@@ -204,7 +204,7 @@ function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '', initialGr
             Задай затравку для следующей сказки — ситуацию, эмоцию или испытание, которое сейчас актуально для Саши.
           </p>
           <textarea
-            className="textarea textarea-bordered mt-4 min-h-40 w-full bg-base-100"
+            className="textarea textarea-bordered mt-4 min-h-40 w-full bg-base-200"
             placeholder="Герой нервничает: первый раз ночевать не дома..."
             value={form.seed}
             onChange={(event) => setForm((prev) => ({ ...prev, seed: event.target.value }))}

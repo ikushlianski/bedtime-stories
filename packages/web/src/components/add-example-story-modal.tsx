@@ -78,7 +78,7 @@ function AddExampleStoryModal({ open, onClose }: AddExampleStoryModalProps) {
         <div className="flex flex-col gap-3">
           <input
             type="text"
-            className="input input-bordered bg-base-100"
+            className="input input-bordered bg-base-200"
             placeholder="Название (необязательно)"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -86,7 +86,7 @@ function AddExampleStoryModal({ open, onClose }: AddExampleStoryModalProps) {
           />
 
           <textarea
-            className="textarea textarea-bordered min-h-64 bg-base-100"
+            className="textarea textarea-bordered min-h-64 bg-base-200"
             placeholder="Текст истории..."
             value={textFinal}
             onChange={(e) => setTextFinal(e.target.value)}
@@ -95,7 +95,7 @@ function AddExampleStoryModal({ open, onClose }: AddExampleStoryModalProps) {
 
           {universes.length > 0 && (
             <select
-              className="select select-bordered bg-base-100"
+              className="select select-bordered bg-base-200"
               value={groupId ?? ''}
               onChange={(e) => setGroupId(e.target.value ? Number(e.target.value) : null)}
               disabled={submitting}

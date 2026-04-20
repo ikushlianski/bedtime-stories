@@ -15,6 +15,7 @@ interface StoryCardProps {
   createdAt: string
   rating?: number
   actions?: StoryCardAction[]
+  onTitleClick?: () => void
 }
 
 const statusConfig: Record<StoryStatus, { label: string; tone: string }> = {
@@ -48,7 +49,7 @@ function actionClassName(tone: StoryCardActionTone = 'tertiary'): string {
   return `btn btn-sm ${toneClass[tone]}`
 }
 
-function StoryCard({ title, status, createdAt, rating, actions = [] }: StoryCardProps) {
+function StoryCard({ title, status, createdAt, rating, actions = [], onTitleClick }: StoryCardProps) {
   const config = statusConfig[status]
   const isArchived = status === 'archived'
   const regularActions = actions.filter((action) => action.tone !== 'destructive')
@@ -62,7 +63,17 @@ function StoryCard({ title, status, createdAt, rating, actions = [] }: StoryCard
     >
       <div className="flex flex-1 flex-col gap-4 p-5">
         <div className="flex items-start justify-between gap-3">
-          <h3 className="font-serif text-xl leading-tight text-base-content">{title}</h3>
+          {onTitleClick ? (
+            <button
+              type="button"
+              onClick={onTitleClick}
+              className="cursor-pointer text-left font-serif text-xl leading-tight text-base-content hover:underline"
+            >
+              {title}
+            </button>
+          ) : (
+            <h3 className="font-serif text-xl leading-tight text-base-content">{title}</h3>
+          )}
           <span className={`badge ${config.tone}`}>{config.label}</span>
         </div>
 

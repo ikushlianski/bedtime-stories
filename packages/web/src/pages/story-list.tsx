@@ -128,6 +128,7 @@ export function StoryListPage() {
               title={story.title}
               status={story.status}
               createdAt={story.created_at}
+              onTitleClick={() => navigate(`/stories/${story.id}`)}
               actions={[
                 {
                   label: 'Открыть',

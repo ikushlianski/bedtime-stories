@@ -91,7 +91,7 @@ export function IdeasPage() {
 
       <section className="mb-6 rounded-box border border-base-300 bg-base-100 p-6 shadow-sm">
         <textarea
-          className="textarea textarea-bordered min-h-28 w-full bg-base-100"
+          className="textarea textarea-bordered min-h-28 w-full bg-base-200"
           placeholder="Маленький дракон, который боится огня..."
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
@@ -103,7 +103,7 @@ export function IdeasPage() {
               <span className="label-text text-sm text-base-content/60">Вселенная (необязательно)</span>
             </label>
             <select
-              className="select select-bordered w-full bg-base-100"
+              className="select select-bordered w-full bg-base-200"
               value={selectedUniverseId ?? ''}
               onChange={(e) => {
                 const val = e.target.value

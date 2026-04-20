@@ -70,7 +70,7 @@ function StoryTagEditor({ tags, onSave }: StoryTagEditorProps) {
         <input
           ref={inputRef}
           type="text"
-          className="input input-bordered input-sm flex-1 bg-base-100"
+          className="input input-bordered input-sm flex-1 bg-base-200"
           placeholder="Добавить категорию..."
           value={input}
           onChange={(e) => setInput(e.target.value)}

@@ -75,16 +75,36 @@ function PrimitiveGallery() {
 
       <Section title="Inputs">
         <div className="grid gap-3 sm:grid-cols-3">
-          <input className="input input-bordered" placeholder="Название истории" />
-          <select className="select select-bordered" defaultValue="ready">
+          <input className="input input-bordered bg-base-200" placeholder="Название истории" />
+          <select className="select select-bordered bg-base-200" defaultValue="ready">
             <option value="ready">Готово к чтению</option>
             <option value="draft">Черновик</option>
             <option value="archived">Архив</option>
           </select>
-          <label className="flex min-h-10 items-center gap-3 rounded-lg border border-base-content/15 bg-base-100 px-3 text-sm font-semibold">
+          <label className="flex min-h-10 items-center gap-3 rounded-lg border border-base-content/15 bg-base-200 px-3 text-sm font-semibold">
             <input type="checkbox" className="checkbox checkbox-sm" defaultChecked />
             В списке чтения
           </label>
+        </div>
+      </Section>
+
+      <Section title="Form fields">
+        <div className="rounded-box border border-base-300 bg-base-100 p-6 shadow-sm">
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium">Имя</label>
+              <input className="input input-bordered bg-base-200" placeholder="Саша" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium">Возраст</label>
+              <input type="number" className="input input-bordered bg-base-200" placeholder="5" />
+            </div>
+          </div>
+          <div className="mt-5 flex flex-col gap-1">
+            <label className="text-sm font-medium">Интересы</label>
+            <p className="text-xs text-base-content/50">Хобби, любимые темы, увлечения ребёнка.</p>
+            <textarea className="textarea textarea-bordered min-h-20 bg-base-200" placeholder="Динозавры, космос, машинки..." />
+          </div>
         </div>
       </Section>
 

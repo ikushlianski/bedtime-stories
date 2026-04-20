@@ -99,7 +99,7 @@ export function ChildProfilePage() {
             <label className="text-sm font-medium">Имя</label>
             <input
               type="text"
-              className="input input-bordered bg-base-100"
+              className="input input-bordered bg-base-200"
               placeholder="Саша"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -111,7 +111,7 @@ export function ChildProfilePage() {
             <label className="text-sm font-medium">Возраст (лет)</label>
             <input
               type="number"
-              className="input input-bordered bg-base-100"
+              className="input input-bordered bg-base-200"
               placeholder="5"
               min={0}
               max={18}
@@ -126,7 +126,7 @@ export function ChildProfilePage() {
           <label className="text-sm font-medium">Кружки и занятия</label>
           <p className="text-xs text-base-content/50">Чем занимается ребёнок — спорт, творчество, музыка и т.д.</p>
           <textarea
-            className="textarea textarea-bordered min-h-20 bg-base-100"
+            className="textarea textarea-bordered min-h-20 bg-base-200"
             placeholder="Плавание, рисование, робототехника..."
             value={activities}
             onChange={(e) => setActivities(e.target.value)}
@@ -138,7 +138,7 @@ export function ChildProfilePage() {
           <label className="text-sm font-medium">Чем увлекается</label>
           <p className="text-xs text-base-content/50">Интересы, хобби, любимые темы для разговоров.</p>
           <textarea
-            className="textarea textarea-bordered min-h-20 bg-base-100"
+            className="textarea textarea-bordered min-h-20 bg-base-200"
             placeholder="Динозавры, космос, машинки, строительство..."
             value={interests}
             onChange={(e) => setInterests(e.target.value)}
@@ -150,7 +150,7 @@ export function ChildProfilePage() {
           <label className="text-sm font-medium">Что не любит</label>
           <p className="text-xs text-base-content/50">Темы, образы или ситуации, которых лучше избегать.</p>
           <textarea
-            className="textarea textarea-bordered min-h-20 bg-base-100"
+            className="textarea textarea-bordered min-h-20 bg-base-200"
             placeholder="Страшных персонажей, слишком длинные истории, грустные концовки..."
             value={dislikes}
             onChange={(e) => setDislikes(e.target.value)}
@@ -162,7 +162,7 @@ export function ChildProfilePage() {
           <label className="text-sm font-medium">Любимые персонажи и истории</label>
           <p className="text-xs text-base-content/50">Из каких книг, мультфильмов, игр — что особенно нравится.</p>
           <textarea
-            className="textarea textarea-bordered min-h-20 bg-base-100"
+            className="textarea textarea-bordered min-h-20 bg-base-200"
             placeholder="Фиксики, Лего Сити, истории про животных..."
             value={favourites}
             onChange={(e) => setFavourites(e.target.value)}
@@ -174,7 +174,7 @@ export function ChildProfilePage() {
           <label className="text-sm font-medium">Дополнительно</label>
           <p className="text-xs text-base-content/50">Всё остальное, что может помочь сделать истории лучше.</p>
           <textarea
-            className="textarea textarea-bordered min-h-20 bg-base-100"
+            className="textarea textarea-bordered min-h-20 bg-base-200"
             placeholder="Боится темноты, лучший друг — Миша, любит когда в историях есть юмор..."
             value={notes}
             onChange={(e) => setNotes(e.target.value)}

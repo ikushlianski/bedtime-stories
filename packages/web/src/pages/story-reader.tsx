@@ -450,7 +450,7 @@ export function StoryReaderPage() {
           )}
 
           <textarea
-            className="textarea textarea-bordered min-h-40 w-full bg-base-100"
+            className="textarea textarea-bordered min-h-40 w-full bg-base-200"
             placeholder="Заметки об этой истории — добавь свои наблюдения..."
             value={analysisText}
             onChange={(e) => setAnalysisText(e.target.value)}

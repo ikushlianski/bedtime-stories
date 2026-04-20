@@ -53,20 +53,20 @@ function UniverseForm({ initial, onSave, onCancel, saveLabel = 'Сохранит
     <div className="flex flex-col gap-3">
       <input
         type="text"
-        className="input input-bordered bg-base-100"
+        className="input input-bordered bg-base-200"
         placeholder="Название вселенной"
         value={name}
         onChange={(e) => setName(e.target.value)}
       />
       <input
         type="text"
-        className="input input-bordered bg-base-100"
+        className="input input-bordered bg-base-200"
         placeholder="Описание (необязательно)"
         value={description}
         onChange={(e) => setDescription(e.target.value)}
       />
       <textarea
-        className="textarea textarea-bordered min-h-40 bg-base-100"
+        className="textarea textarea-bordered min-h-40 bg-base-200"
         placeholder="Системный промпт — персонажи, голос, тон, повторяющиеся места..."
         value={systemPrompt}
         onChange={(e) => setSystemPrompt(e.target.value)}
@@ -76,7 +76,7 @@ function UniverseForm({ initial, onSave, onCancel, saveLabel = 'Сохранит
           Живой контекст вселенной — AI поддерживает автоматически, но можно редактировать вручную
         </p>
         <textarea
-          className="textarea textarea-bordered min-h-48 w-full bg-base-100 font-mono text-xs"
+          className="textarea textarea-bordered min-h-48 w-full bg-base-200 font-mono text-xs"
           placeholder="## Персонажи&#10;- ...&#10;&#10;## События&#10;- ...&#10;&#10;## Чувства и темы&#10;- ..."
           value={universeContext}
           onChange={(e) => setUniverseContext(e.target.value)}
@@ -87,7 +87,7 @@ function UniverseForm({ initial, onSave, onCancel, saveLabel = 'Сохранит
           Гайд по стилю — накапливается при анализе примерных историй. Можно редактировать вручную
         </p>
         <textarea
-          className="textarea textarea-bordered min-h-36 w-full bg-base-100 font-mono text-xs"
+          className="textarea textarea-bordered min-h-36 w-full bg-base-200 font-mono text-xs"
           placeholder="## Что работает&#10;- ...&#10;&#10;## Что не работает&#10;- ..."
           value={styleGuide}
           onChange={(e) => setStyleGuide(e.target.value)}
@@ -140,7 +140,7 @@ export function UniverseCard({ universe, onDelete, onUpdate }: UniverseCardProps
 
   if (editing) {
     return (
-      <div className="card border border-base-300 bg-base-100 p-4">
+      <div className="card border border-base-300 bg-base-200 p-4">
         <UniverseForm
           initial={{
             name: universe.name,
@@ -161,7 +161,7 @@ export function UniverseCard({ universe, onDelete, onUpdate }: UniverseCardProps
   }
 
   return (
-    <div className="card border border-base-300 bg-base-100 p-4">
+    <div className="card border border-base-300 bg-base-200 p-4">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
           <h3 className="text-lg font-semibold">{universe.name}</h3>

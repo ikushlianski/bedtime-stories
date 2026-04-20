@@ -136,7 +136,7 @@ function FeedbackForm({ storyId: _storyId, onSubmit }: FeedbackFormProps) {
   }
 
   return (
-    <section className="card border border-base-300 bg-base-100 shadow-sm">
+    <section className="card border border-base-300 bg-base-200 shadow-sm">
       <div className="card-body gap-6">
         <div>
           <h2 className="font-serif text-2xl text-base-content">Оставить отзыв</h2>
@@ -192,7 +192,7 @@ function FeedbackForm({ storyId: _storyId, onSubmit }: FeedbackFormProps) {
               <label className="text-sm text-base-content/70">Любимый момент</label>
               <input
                 type="text"
-                className="input input-bordered w-full bg-base-100"
+                className="input input-bordered w-full bg-base-200"
                 placeholder="Момент, который понравился больше всего..."
                 value={favoriteMoment}
                 onChange={(e) => setFavoriteMoment(e.target.value)}
@@ -203,7 +203,7 @@ function FeedbackForm({ storyId: _storyId, onSubmit }: FeedbackFormProps) {
               <label className="text-sm text-base-content/70">Любимый персонаж</label>
               <input
                 type="text"
-                className="input input-bordered w-full bg-base-100"
+                className="input input-bordered w-full bg-base-200"
                 placeholder="Любимый персонаж..."
                 value={favoriteCharacter}
                 onChange={(e) => setFavoriteCharacter(e.target.value)}
@@ -217,7 +217,7 @@ function FeedbackForm({ storyId: _storyId, onSubmit }: FeedbackFormProps) {
             Твои заметки
           </h3>
           <textarea
-            className="textarea textarea-bordered min-h-28 w-full bg-base-100"
+            className="textarea textarea-bordered min-h-28 w-full bg-base-200"
             placeholder="Твои общие впечатления..."
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
