@@ -202,6 +202,8 @@ export class ClaudeCliRunner implements AiRunner {
       console.log(`[ai:prompt] ${label}\n${'─'.repeat(80)}\n${prompt}\n${'─'.repeat(80)}`)
 
       let resultText = ''
+      let streamEventCount = 0
+      let chunkCount = 0
 
       try {
         const messages = query({
@@ -213,11 +215,26 @@ export class ClaudeCliRunner implements AiRunner {
             tools: [],
             permissionMode: 'dontAsk',
             persistSession: false,
+            ...(options.onChunk !== undefined ? { includePartialMessages: true } : {}),
             systemPrompt: 'You are an AI assistant following the instructions in the user message exactly. Do not introduce yourself, do not explain what you are about to do, and do not add trailing commentary. Produce only the output the user asked for.',
           },
         })
 
         for await (const msg of messages as AsyncIterable<SDKMessage>) {
+          if (msg.type === 'stream_event') {
+            streamEventCount++
+            const ev = msg.event as { type: string; delta?: { type: string; text?: string } }
+            if (streamEventCount === 1) {
+              console.log(`[runner:stream] ${label} — first stream_event type=${ev.type}`)
+            }
+
+            if (ev.type === 'content_block_delta' && ev.delta?.type === 'text_delta' && ev.delta.text) {
+              chunkCount++
+              options.onChunk?.(ev.delta.text)
+            }
+            continue
+          }
+
           if (msg.type === 'result') {
             if (msg.subtype !== 'success') {
               const errDetails = 'errors' in msg && Array.isArray(msg.errors) && msg.errors.length > 0
@@ -235,7 +252,7 @@ export class ClaudeCliRunner implements AiRunner {
         }
 
         const durationMs = Date.now() - startedAt
-        console.log(`[ai] ${label} done model=${model} durationMs=${durationMs} resultLen=${resultText.length} attempt=${attempt}`)
+        console.log(`[ai] ${label} done model=${model} durationMs=${durationMs} resultLen=${resultText.length} attempt=${attempt} streamEvents=${streamEventCount} textChunks=${chunkCount}`)
 
         return resultText
       } catch (err) {
@@ -245,6 +262,7 @@ export class ClaudeCliRunner implements AiRunner {
         if (retryable) {
           const backoffMs = RETRY_BASE_DELAY_MS * attempt
           console.warn(`[ai] ${label} transient failure model=${model} durationMs=${durationMs} attempt=${attempt}, retrying in ${backoffMs}ms:`, err)
+          options.onChunkReset?.()
           await sleep(backoffMs)
           continue
         }

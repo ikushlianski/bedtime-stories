@@ -39,4 +39,5 @@ export interface PipelineStep {
   agentName: AgentName;
   status: AgentStatus;
   iterationNumber?: number;
+  summary?: string;
 }

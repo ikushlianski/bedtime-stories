@@ -230,6 +230,7 @@ export interface PipelineStatus {
     name: string
     status: 'pending' | 'running' | 'completed' | 'failed'
     agent?: string
+    summary?: string
   }>
 }
 

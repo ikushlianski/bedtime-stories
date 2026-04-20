@@ -7,8 +7,21 @@ import {
   buildPlotterOnlyStoriesUpdate,
   buildPlotterOnlySnapshotInsert,
 } from './pipeline-persistence'
-import { setPipelineStatus, setCurrentStep } from './pipeline-state'
+import { setPipelineStatus, setCurrentStep, setStepSummary } from './pipeline-state'
 import { defaultModels, defaultPromptVersions } from './pipeline-defaults'
+
+function extractPlotterSummary(planText: string): string {
+  const lines = planText.split('\n')
+  const taskIdx = lines.findIndex((l) => l.includes('ЭМОЦИОНАЛЬНАЯ ЗАДАЧА'))
+
+  if (taskIdx === -1) return 'Сюжетник составил план истории.'
+
+  const taskLine = lines.slice(taskIdx + 1).find((l) => l.trim().length > 0)
+
+  if (!taskLine) return 'Сюжетник составил план истории.'
+
+  return `Сюжетник составил план. Эмоциональная задача: ${taskLine.trim()}`
+}
 
 export function triggerPlanPhaseFromAnswers(
   storyId: number,
@@ -41,6 +54,9 @@ export function triggerPlanPhaseFromAnswers(
       }).then((result) => ({ result, sashaContext }))
     )
     .then(async ({ result }) => {
+      const plotterSummary = extractPlotterSummary(result.planV1)
+      setStepSummary(storyId, 'Plotter', plotterSummary)
+
       try {
         await db.insert(runSnapshots).values(buildPlotterOnlySnapshotInsert(storyId, result))
 

@@ -5,7 +5,7 @@ import { runSnapshots, stories } from '@bedtime/core/db/schema'
 import {
   buildWriterOnlyStoriesUpdate,
 } from './pipeline-persistence'
-import { getPipelineStatus, setPipelineStatus, setCurrentStep } from './pipeline-state'
+import { getPipelineStatus, setPipelineStatus, setCurrentStep, emitPipelineEvent } from './pipeline-state'
 import { defaultModels, defaultPromptVersions } from './pipeline-defaults'
 
 export { getPipelineStatus, setPipelineStatus }
@@ -33,6 +33,8 @@ export function triggerTextPhase(
     ...(styleGuide !== undefined ? { styleGuide } : {}),
     ...(sashaContext !== undefined && sashaContext !== null ? { sashaContext } : {}),
     onStepChange: (step) => setCurrentStep(storyId, step),
+    onChunk: (chunk) => emitPipelineEvent(storyId, { type: 'chunk', text: chunk }),
+    onChunkReset: () => emitPipelineEvent(storyId, { type: 'chunk_reset' }),
   })
     .then(async (result) => {
       try {

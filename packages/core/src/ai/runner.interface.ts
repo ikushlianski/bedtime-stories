@@ -11,6 +11,8 @@ export interface RunTextOptions {
   cwd?: string
   label?: string
   thinking?: ThinkingConfig
+  onChunk?: (chunk: string) => void
+  onChunkReset?: () => void
 }
 
 export interface RunStructuredOptions<T> {

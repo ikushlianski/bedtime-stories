@@ -27,17 +27,42 @@ function PipelineProgress({ steps }: PipelineProgressProps) {
                 {i < steps.length - 1 && <div className="mt-1 h-10 w-0.5 bg-base-300" />}
               </div>
 
-              <div className={`flex flex-wrap items-center gap-2 pb-4 transition-all duration-500 ${step.status === 'running' ? 'opacity-100' : ''}`}>
-                <AgentStatusBadge agentName={step.agentName} status={step.status} />
+              <div className={`flex flex-col gap-1 pb-4 transition-all duration-500 ${step.status === 'running' ? 'opacity-100' : ''}`}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <AgentStatusBadge agentName={step.agentName} status={step.status} />
 
-                {step.status === 'running' && (
-                  <span className="text-xs text-primary animate-pulse">думает…</span>
-                )}
+                  {step.status === 'running' && (
+                    <span className="text-xs text-primary animate-pulse">думает…</span>
+                  )}
 
-                {step.iterationNumber !== undefined && (
-                  <span className="badge badge-outline border-base-300 text-base-content/60">
-                    итерация {step.iterationNumber}
-                  </span>
+                  {step.iterationNumber !== undefined && (
+                    <span className="badge badge-outline border-base-300 text-base-content/60">
+                      итерация {step.iterationNumber}
+                    </span>
+                  )}
+                </div>
+
+                {step.summary && step.status === 'done' && (
+                  <div className="mt-0.5 max-w-prose text-sm text-base-content/70">
+                    {(() => {
+                      const lines = step.summary.split('\n').filter(Boolean)
+                      if (lines.length <= 1) return <p className="leading-relaxed">{step.summary}</p>
+                      const [header, ...items] = lines
+                      return (
+                        <>
+                          <p className="mb-1.5 leading-relaxed">{header}</p>
+                          <ul className="space-y-1">
+                            {items.map((line, idx) => (
+                              <li key={idx} className="flex items-start gap-2">
+                                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-base-content/30" />
+                                <span className="leading-relaxed">{line}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </>
+                      )
+                    })()}
+                  </div>
                 )}
               </div>
             </li>

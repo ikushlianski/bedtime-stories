@@ -8,8 +8,21 @@ import {
   buildPlotterOnlySnapshotInsert,
   buildPlotterOnlyStoriesUpdate,
 } from './pipeline-persistence'
-import { setPipelineStatus, setCurrentStep } from './pipeline-state'
+import { setPipelineStatus, setCurrentStep, setStepSummary } from './pipeline-state'
 import { defaultModels, defaultPromptVersions } from './pipeline-defaults'
+
+function extractPlotterSummary(planText: string): string {
+  const lines = planText.split('\n')
+  const taskIdx = lines.findIndex((l) => l.includes('ЭМОЦИОНАЛЬНАЯ ЗАДАЧА'))
+
+  if (taskIdx === -1) return 'Сюжетник пересмотрел план истории.'
+
+  const taskLine = lines.slice(taskIdx + 1).find((l) => l.trim().length > 0)
+
+  if (!taskLine) return 'Сюжетник пересмотрел план истории.'
+
+  return `Сюжетник пересмотрел план. Эмоциональная задача: ${taskLine.trim()}`
+}
 
 function formatAnnotationsAsFeedback(items: Array<{ selectedText: string; noteText: string | null }>): string {
   return items
@@ -44,6 +57,8 @@ export function triggerPlanRedo(storyId: number, seed: string, previousPlan: str
       )
     })
     .then(async ({ result, userFeedback }) => {
+      setStepSummary(storyId, 'Plotter', extractPlotterSummary(result.planV1))
+
       try {
         const changeSummary = await generatePlanChangeSummary({
           previousPlan,

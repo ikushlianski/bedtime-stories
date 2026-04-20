@@ -15,7 +15,7 @@ import {
   type PipelineInternalStatus,
   type PublicPipelineStatus,
 } from './pipeline-status'
-import { getPipelineStatus, setPipelineStatus, getCurrentStep } from './pipeline-state'
+import { getPipelineStatus, setPipelineStatus, getCurrentStep, getStepSummaries, subscribePipelineEvents } from './pipeline-state'
 import { defaultModels, defaultPromptVersions } from './pipeline-defaults'
 import pipelineQuestionsRouter from './pipeline-questions'
 import { triggerAutoPipeline } from './pipeline-auto-trigger'
@@ -177,21 +177,25 @@ router.get('/status/:storyId', async (req, res) => {
       ? (getCurrentStep(storyIdRaw) ?? (publicStatus.status === 'plan_running' ? 'Plotter' : 'Writer'))
       : null
 
+    const summaries = getStepSummaries(storyIdRaw)
+
     let passedActive = false
     const steps = PIPELINE_STEP_NAMES.map((name) => {
-      if (isAllDone) return { name, status: 'completed', agent: name }
-      if (isFailed) return { name, status: 'failed', agent: name }
+      const summary = summaries.get(name)
 
-      if (!isRunning) return { name, status: 'pending', agent: name }
+      if (isAllDone) return { name, status: 'completed', agent: name, summary }
+      if (isFailed) return { name, status: 'failed', agent: name, summary }
+
+      if (!isRunning) return { name, status: 'pending', agent: name, summary }
 
       if (name === activeStep) {
         passedActive = true
-        return { name, status: 'running', agent: name }
+        return { name, status: 'running', agent: name, summary }
       }
 
-      if (passedActive) return { name, status: 'pending', agent: name }
+      if (passedActive) return { name, status: 'pending', agent: name, summary }
 
-      return { name, status: 'completed', agent: name }
+      return { name, status: 'completed', agent: name, summary }
     })
 
     res.json({
@@ -205,6 +209,51 @@ router.get('/status/:storyId', async (req, res) => {
     console.error('GET /pipeline/status/:storyId failed:', err)
     res.status(500).json({ error: 'Failed to get pipeline status' })
   }
+})
+
+const TERMINAL_INTERNAL_STATUSES = new Set(['plan_ready', 'text_ready', 'text_review', 'plan_failed', 'text_failed'])
+
+router.get('/stream/:storyId', (req, res) => {
+  const storyId = parseInt(req.params['storyId'] ?? '', 10)
+
+  if (isNaN(storyId)) {
+    res.status(400).json({ error: 'Invalid storyId' })
+    return
+  }
+
+  res.setHeader('Content-Type', 'text/event-stream')
+  res.setHeader('Cache-Control', 'no-cache')
+  res.setHeader('Connection', 'keep-alive')
+  res.setHeader('X-Accel-Buffering', 'no')
+  res.flushHeaders()
+
+  console.log(`[sse] storyId=${storyId} client connected`)
+
+  const send = (eventType: string, data: unknown) => {
+    res.write(`event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`)
+  }
+
+  const unsubscribe = subscribePipelineEvents(storyId, (event) => {
+    if (event.type === 'chunk') {
+      send('chunk', { text: event.text })
+    } else if (event.type === 'chunk_reset') {
+      send('chunk_reset', {})
+    } else if (event.type === 'step') {
+      send('step', event)
+    } else if (event.type === 'status') {
+      send('status', event)
+
+      if (TERMINAL_INTERNAL_STATUSES.has(event.status)) {
+        unsubscribe()
+        res.end()
+      }
+    }
+  })
+
+  req.on('close', () => {
+    console.log(`[sse] storyId=${storyId} client disconnected`)
+    unsubscribe()
+  })
 })
 
 router.get('/snapshot/:storyId', async (req, res) => {
