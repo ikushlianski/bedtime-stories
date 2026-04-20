@@ -214,27 +214,25 @@ function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '', initialGr
             <label className="label pb-1">
               <span className="label-text text-sm text-base-content/60">Режим конвейера</span>
             </label>
-            <div className="flex gap-4">
-              <label className="flex cursor-pointer items-center gap-2">
-                <input
-                  type="radio"
-                  name="pipelineMode"
-                  className="radio radio-sm"
-                  checked={form.pipelineMode === 'auto'}
-                  onChange={() => setForm((prev) => ({ ...prev, pipelineMode: 'auto' }))}
-                />
-                <span className="text-sm">Авто</span>
-              </label>
-              <label className="flex cursor-pointer items-center gap-2">
-                <input
-                  type="radio"
-                  name="pipelineMode"
-                  className="radio radio-sm"
-                  checked={form.pipelineMode === 'manual'}
-                  onChange={() => setForm((prev) => ({ ...prev, pipelineMode: 'manual' }))}
-                />
-                <span className="text-sm">Ручной</span>
-              </label>
+            <div className="join" role="radiogroup" aria-label="Режим конвейера">
+              <button
+                type="button"
+                role="radio"
+                aria-checked={form.pipelineMode === 'auto'}
+                className={`btn join-item ${form.pipelineMode === 'auto' ? 'btn-primary' : 'btn-outline'}`}
+                onClick={() => setForm((prev) => ({ ...prev, pipelineMode: 'auto' }))}
+              >
+                Авто
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={form.pipelineMode === 'manual'}
+                className={`btn join-item ${form.pipelineMode === 'manual' ? 'btn-primary' : 'btn-outline'}`}
+                onClick={() => setForm((prev) => ({ ...prev, pipelineMode: 'manual' }))}
+              >
+                Ручной
+              </button>
             </div>
           </div>
         </div>
