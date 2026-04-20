@@ -6,7 +6,7 @@ import { QuestionsPipelineSection } from '../components/questions-pipeline-secti
 import type { PipelineStep, AgentName, AgentStatus } from '../components/types'
 import { decidePipelineRetry } from './pipeline-retry'
 
-const POLL_INTERVAL_MS = 3000
+const API_BASE = (import.meta as ImportMeta & { env: Record<string, string | undefined> }).env['VITE_API_URL'] ?? 'http://localhost:8020'
 
 const API_STATUS_MAP: Record<string, AgentStatus> = {
   pending: 'idle',
@@ -32,6 +32,13 @@ const AGENT_DISPLAY_NAMES: Record<string, string> = {
   WriterCritic: 'Критик текста',
   Improver: 'Улучшатель',
 }
+
+const TERMINAL_PUBLIC_STATUSES = new Set<PipelineStatusValue>([
+  'plan_ready',
+  'text_ready',
+  'text_review',
+  'failed',
+])
 
 function toAgentName(raw: string): AgentName {
   if (KNOWN_AGENT_NAMES.has(raw as AgentName)) {
@@ -76,14 +83,29 @@ function toPipelineSteps(status: PipelineStatus): PipelineStep[] {
       resolvedStatus = 'done'
     }
 
-    return { agentName, status: resolvedStatus }
+    return { agentName, status: resolvedStatus, summary: step.summary }
   })
 
   return [questionsStep, ...agentSteps]
 }
 
-function isActivePolling(status: PipelineStatusValue): boolean {
+function isActiveStatus(status: PipelineStatusValue): boolean {
   return status === 'plan_running' || status === 'text_running' || status === 'pending' || status === 'questions_pending'
+}
+
+function internalToPublicStatus(internal: string): PipelineStatusValue {
+  switch (internal) {
+    case 'questions_pending': return 'questions_pending'
+    case 'questions_answered': return 'plan_running'
+    case 'plan_running': return 'plan_running'
+    case 'plan_ready': return 'plan_ready'
+    case 'plan_failed': return 'failed'
+    case 'text_running': return 'text_running'
+    case 'text_ready': return 'text_ready'
+    case 'text_review': return 'text_review'
+    case 'text_failed': return 'failed'
+    default: return 'pending'
+  }
 }
 
 function describeStatus(status: PipelineStatusValue): string {
@@ -118,7 +140,8 @@ export function PipelineStatusPage() {
   const [error, setError] = useState<string | null>(null)
   const [retrying, setRetrying] = useState(false)
   const [retryError, setRetryError] = useState<string | null>(null)
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [streamingText, setStreamingText] = useState('')
+  const esRef = useRef<EventSource | null>(null)
 
   useEffect(() => {
     if (isNaN(storyId)) return
@@ -127,9 +150,108 @@ export function PipelineStatusPage() {
       .get(storyId)
       .then(setStory)
       .catch(() => {
-        /* non-fatal — retry button will hide until story loads */
+        /* non-fatal */
       })
   }, [storyId])
+
+  const openEventSource = useCallback((sid: number) => {
+    if (esRef.current) {
+      esRef.current.close()
+      esRef.current = null
+    }
+
+    const es = new EventSource(`${API_BASE}/api/pipeline/stream/${sid}`)
+    esRef.current = es
+
+    es.addEventListener('step', (e: MessageEvent<string>) => {
+      const event = JSON.parse(e.data) as { type: 'step'; name: string; status: 'running' | 'done'; summary?: string }
+
+      setStatus((prev) => {
+        if (!prev) return prev
+
+        const newSteps = prev.steps.map((step) => {
+          if (step.name === event.name || step.agent === event.name) {
+            return {
+              ...step,
+              status: event.status === 'running' ? 'running' : 'completed',
+              ...(event.summary !== undefined ? { summary: event.summary } : {}),
+            }
+          }
+
+          return step
+        })
+
+        return {
+          ...prev,
+          current_step: event.status === 'running' ? event.name : prev.current_step,
+          steps: newSteps,
+        }
+      })
+    })
+
+    es.addEventListener('status', (e: MessageEvent<string>) => {
+      const event = JSON.parse(e.data) as { type: 'status'; status: string }
+      const publicStatus = internalToPublicStatus(event.status)
+
+      setStatus((prev) => {
+        if (!prev) return prev
+
+        return { ...prev, status: publicStatus }
+      })
+
+      if (TERMINAL_PUBLIC_STATUSES.has(publicStatus)) {
+        es.close()
+        esRef.current = null
+        setStreamingText('')
+      }
+    })
+
+    es.addEventListener('chunk', (e: MessageEvent<string>) => {
+      const event = JSON.parse(e.data) as { text: string }
+      setStreamingText((prev) => prev + event.text)
+    })
+
+    es.addEventListener('chunk_reset', () => {
+      setStreamingText('')
+    })
+
+    es.onerror = () => {
+      es.close()
+      esRef.current = null
+    }
+  }, [])
+
+  const fetchStatus = useCallback(async () => {
+    try {
+      const data = await api.pipeline.status(storyId)
+
+      setStatus(data)
+
+      if (isActiveStatus(data.status)) {
+        if (!esRef.current) {
+          openEventSource(storyId)
+        }
+      } else {
+        if (esRef.current) {
+          esRef.current.close()
+          esRef.current = null
+        }
+      }
+    } catch (fetchError) {
+      setError(fetchError instanceof Error ? fetchError.message : 'Не удалось загрузить статус конвейера')
+    }
+  }, [storyId, openEventSource])
+
+  useEffect(() => {
+    void fetchStatus()
+
+    return () => {
+      if (esRef.current) {
+        esRef.current.close()
+        esRef.current = null
+      }
+    }
+  }, [fetchStatus])
 
   const handleRetry = useCallback(async (seed: string) => {
     setRetrying(true)
@@ -138,57 +260,13 @@ export function PipelineStatusPage() {
     try {
       await api.pipeline.run(storyId, seed)
       setError(null)
-
-      if (intervalRef.current === null) {
-        intervalRef.current = setInterval(async () => {
-          try {
-            const data = await api.pipeline.status(storyId)
-            setStatus(data)
-          } catch {
-            /* polling will self-heal on next tick */
-          }
-        }, POLL_INTERVAL_MS)
-      }
+      await fetchStatus()
     } catch (err) {
       setRetryError(err instanceof Error ? err.message : 'Не удалось перезапустить конвейер')
     } finally {
       setRetrying(false)
     }
-  }, [storyId])
-
-  const fetchStatus = useCallback(async () => {
-    try {
-      const data = await api.pipeline.status(storyId)
-
-      setStatus(data)
-
-      if (!isActivePolling(data.status)) {
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current)
-          intervalRef.current = null
-        }
-      }
-    } catch (fetchError) {
-      setError(fetchError instanceof Error ? fetchError.message : 'Не удалось загрузить статус конвейера')
-
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-        intervalRef.current = null
-      }
-    }
-  }, [storyId])
-
-  useEffect(() => {
-    void fetchStatus()
-
-    intervalRef.current = setInterval(() => void fetchStatus(), POLL_INTERVAL_MS)
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-      }
-    }
-  }, [fetchStatus])
+  }, [storyId, fetchStatus])
 
   return (
     <div>
@@ -198,7 +276,7 @@ export function PipelineStatusPage() {
         description={
           status
             ? `${describeStatus(status.status)}${status.current_step ? ` Сейчас работает: ${AGENT_DISPLAY_NAMES[status.current_step] ?? status.current_step}.` : ''}`
-            : 'Опрашиваем текущий конвейер генерации.'
+            : 'Подключаемся к конвейеру генерации.'
         }
       />
 
@@ -221,6 +299,13 @@ export function PipelineStatusPage() {
           )}
 
           <PipelineProgress steps={toPipelineSteps(status)} />
+
+          {streamingText && (
+            <div className="rounded-lg border border-base-300 bg-base-200 p-4">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-base-content/50">Писатель — текст в процессе</p>
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-base-content/80">{streamingText}</p>
+            </div>
+          )}
 
           {status.status === 'plan_ready' && (
             <div className="flex justify-end">
