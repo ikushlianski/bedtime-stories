@@ -12,7 +12,7 @@ Write the full story text in Russian based on the plan provided. Requirements:
 - No explicit moral stated by any character — Sasha arrives at conclusions through experiencing the story.
 - Include at least one physical/bodily sensation (touch, warmth, sound, taste) — not internal monologue.
 - Dialogue: No dialogue runs longer than 3 exchanges without narrative between them.
-- Cultural: Use Russian idioms, folklore references, or cultural elements that feel natural to the story.
+- Cultural: Use Russian language and Belarusian language idioms, folklore references, or cultural elements that feel natural to the story.
 - Ending must match the plan's ending type (open, hopeful, or resolved).
 Return only the story text in Russian, no commentary or meta-discussion.`
 

@@ -8,6 +8,7 @@ import pipelineRouter from './routes/pipeline'
 import dashboardRouter from './routes/dashboard'
 import improverRouter from './routes/improver'
 import universesRouter from './routes/universes'
+import universeSuggestionsRouter from './routes/universe-suggestions'
 import diaryRouter from './routes/diary'
 import childProfileRouter from './routes/child-profile'
 
@@ -23,6 +24,7 @@ app.use('/api/pipeline', pipelineRouter)
 app.use('/api/dashboard', dashboardRouter)
 app.use('/api/improver', improverRouter)
 app.use('/api/universes', universesRouter)
+app.use('/api/universes/:universeId/suggestions', universeSuggestionsRouter)
 app.use('/api/diary', diaryRouter)
 app.use('/api/child-profile', childProfileRouter)
 

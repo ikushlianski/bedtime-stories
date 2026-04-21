@@ -57,7 +57,15 @@ export const StoryAnalysisOutputSchema = z.object({
   analysis_summary: z.string(),
 })
 
+export const UniverseFactExtractorOutputSchema = z.object({
+  facts: z.array(z.object({
+    fact_text: z.string(),
+    suggested_character_name: z.string().nullable(),
+  })).min(0).max(5),
+})
+
 export type PsychologistOutput = z.infer<typeof PsychologistOutputSchema>
 export type CriticOutput = z.infer<typeof CriticOutputSchema>
 export type ImproverOutput = z.infer<typeof ImproverOutputSchema>
 export type StoryAnalysisOutput = z.infer<typeof StoryAnalysisOutputSchema>
+export type UniverseFactExtractorOutput = z.infer<typeof UniverseFactExtractorOutputSchema>

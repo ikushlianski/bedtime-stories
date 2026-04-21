@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { eq, desc, and, sql } from 'drizzle-orm'
 import { db } from '@bedtime/core/db/client'
-import { stories, annotations, feedback, runSnapshots, storyGroups, planQuestions, planConversations, childDiary, parentReviews, childReactions } from '@bedtime/core/db/schema'
+import { stories, annotations, feedback, runSnapshots, storyGroups, planQuestions, planConversations, childDiary, parentReviews, childReactions, universeCharacters, universeSuggestions, storyReadings } from '@bedtime/core/db/schema'
 import type { Story, NewStory, NewAnnotation, ParentReview, ChildReaction } from '@bedtime/core/db/types'
 import { validate } from '../middleware/validate'
 import { triggerTextPhase, getPipelineStatus } from './pipeline'
@@ -12,6 +12,7 @@ import { decideApprovePlan } from './approve-plan-decision'
 import { createStorySchema, resolveCreateStoryMode } from './create-story-schema'
 import { runStoryAnalyzer } from '@bedtime/core/pipeline/stages/story-analyzer'
 import { updateStyleGuide } from '@bedtime/core/pipeline/style-guide-updater'
+import { runUniverseFactExtractor } from '@bedtime/core/pipeline/stages/universe-fact-extractor'
 
 const router = Router()
 
@@ -50,6 +51,7 @@ function toSnakeCase(row: Story) {
     mode: row.mode,
     text_change_summary: row.textChangeSummary ?? null,
     story_analysis: row.storyAnalysis ?? null,
+    sort_order: row.sortOrder ?? null,
   }
 }
 
@@ -126,9 +128,35 @@ router.post('/', validate(createStorySchema), async (req, res) => {
   }
 })
 
+const reorderSchema = z.object({
+  orders: z.array(z.object({ id: z.number().int(), sort_order: z.number().int() })),
+})
+
+router.post('/reorder', validate(reorderSchema), async (req, res) => {
+  try {
+    const { orders } = req.body as z.infer<typeof reorderSchema>
+
+    if (orders.length === 0) {
+      res.json({ ok: true })
+      return
+    }
+
+    await Promise.all(
+      orders.map(({ id, sort_order }) =>
+        db.update(stories).set({ sortOrder: sort_order }).where(eq(stories.id, id)),
+      ),
+    )
+
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('POST /stories/reorder failed:', err)
+    res.status(500).json({ error: 'Failed to reorder stories' })
+  }
+})
+
 router.get('/', async (req, res) => {
   try {
-    const { status, groupId, tag } = req.query
+    const { status, groupId, tag, readSort } = req.query
 
     if (status !== undefined && typeof status !== 'string') {
       res.status(400).json({ error: 'Invalid status filter' })
@@ -153,14 +181,58 @@ router.get('/', async (req, res) => {
       conditions.push(sql`${stories.tags}::jsonb @> ${JSON.stringify([tag])}::jsonb`)
     }
 
-    const result = conditions.length > 0
-      ? await db.select().from(stories).where(and(...conditions)).orderBy(desc(stories.createdAt))
-      : await db.select().from(stories).orderBy(desc(stories.createdAt))
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined
 
-    res.json(result.map((row) => toSnakeCase(row as Story)))
+    let result: Story[]
+
+    if (readSort === 'oldest_read' || readSort === 'newest_read') {
+      const dir = readSort === 'newest_read' ? sql`DESC` : sql`ASC`
+      const orderExpr = sql`(SELECT MAX(read_at) FROM story_readings WHERE story_id = stories.id) ${dir} NULLS LAST`
+      result = whereClause
+        ? await db.select().from(stories).where(whereClause).orderBy(orderExpr) as Story[]
+        : await db.select().from(stories).orderBy(orderExpr) as Story[]
+    } else {
+      result = whereClause
+        ? await db.select().from(stories).where(whereClause).orderBy(sql`sort_order ASC NULLS LAST, created_at DESC`) as Story[]
+        : await db.select().from(stories).orderBy(sql`sort_order ASC NULLS LAST, created_at DESC`) as Story[]
+    }
+
+    res.json(result.map((row) => toSnakeCase(row)))
   } catch (err) {
     console.error('GET /stories failed:', err)
     res.status(500).json({ error: 'Failed to fetch stories' })
+  }
+})
+
+router.post('/:id/readings', async (req, res) => {
+  try {
+    const storyId = parseIntParam(req.params['id'])
+
+    if (isNaN(storyId)) {
+      res.status(400).json({ error: 'Invalid story id' })
+      return
+    }
+
+    const [story] = await db.select().from(stories).where(eq(stories.id, storyId))
+
+    if (!story) {
+      res.status(404).json({ error: 'Story not found' })
+      return
+    }
+
+    const [reading] = await db.insert(storyReadings).values({ storyId }).returning()
+
+    let statusUpdated = false
+
+    if (story.status === 'ready') {
+      await db.update(stories).set({ status: 'read' }).where(eq(stories.id, storyId))
+      statusUpdated = true
+    }
+
+    res.status(201).json({ ok: true, readAt: reading!.readAt, statusUpdated })
+  } catch (err) {
+    console.error('POST /stories/:id/readings failed:', err)
+    res.status(500).json({ error: 'Failed to record reading' })
   }
 })
 
@@ -674,9 +746,37 @@ router.post('/:id/analyze', async (req, res) => {
       )
     }
 
+    let suggestionsCreated = 0
+
     if (story.groupId !== null && story.groupId !== undefined) {
-      console.log(`[analyze] story ${storyId} — updating style guide for group ${story.groupId}`)
-      await updateStyleGuide(story.groupId, output, story.title)
+      const groupId = story.groupId
+
+      console.log(`[analyze] story ${storyId} — updating style guide for group ${groupId}`)
+      const existingChars = await db
+        .select({ name: universeCharacters.name, description: universeCharacters.description })
+        .from(universeCharacters)
+        .where(eq(universeCharacters.universeId, groupId))
+
+      await Promise.all([
+        updateStyleGuide(groupId, output, story.title),
+        runUniverseFactExtractor({ storyText: story.textFinal, existingCharacters: existingChars })
+          .then(async (factOutput) => {
+            if (factOutput.facts.length === 0) return
+
+            await db.insert(universeSuggestions).values(
+              factOutput.facts.map((f) => ({
+                universeId: groupId,
+                factText: f.fact_text,
+                sourceStoryId: storyId,
+                status: 'pending' as const,
+              })),
+            )
+            suggestionsCreated = factOutput.facts.length
+          })
+          .catch((err) => {
+            console.error(`[analyze] story ${storyId} — fact extractor failed:`, err)
+          }),
+      ])
     }
 
     console.log(`[analyze] story ${storyId} — done`)
@@ -685,6 +785,7 @@ router.post('/:id/analyze', async (req, res) => {
       storyAnalysis: output.analysis_summary,
       reactionsExtracted: output.extracted_reactions.length,
       styleGuideUpdated: story.groupId !== null && story.groupId !== undefined,
+      suggestionsCreated,
     })
   } catch (err) {
     console.error('POST /stories/:id/analyze failed:', err)
@@ -884,6 +985,7 @@ router.delete('/:id', async (req, res) => {
     await db.delete(feedback).where(eq(feedback.storyId, storyId))
     await db.delete(planQuestions).where(eq(planQuestions.storyId, storyId))
     await db.delete(planConversations).where(eq(planConversations.storyId, storyId))
+    await db.delete(storyReadings).where(eq(storyReadings.storyId, storyId))
     await db.delete(stories).where(eq(stories.id, storyId))
 
     res.status(204).send()

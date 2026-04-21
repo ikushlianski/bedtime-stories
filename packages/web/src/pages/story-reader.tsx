@@ -41,19 +41,68 @@ function useStoryFetch(id: number) {
   return { story, setStory, loading, error }
 }
 
+function stripLeadingTitle(text: string): string {
+  const lines = text.split('\n')
+  const firstNonEmpty = lines.findIndex((l) => l.trim() !== '')
+
+  if (firstNonEmpty === -1) return text
+
+  const first = lines[firstNonEmpty].trim()
+
+  if (/^\*\*[^*]+\*\*$/.test(first) || /^#+\s/.test(first)) {
+    return lines.slice(firstNonEmpty + 1).join('\n').trimStart()
+  }
+
+  return text
+}
+
 function StoryText({
   text,
+  editable = false,
+  draftKey,
+  editRef,
   onSelection,
+  onInput,
 }: {
   text: string
+  editable?: boolean
+  draftKey?: string
+  editRef?: RefObject<HTMLDivElement | null>
   onSelection: (sel: SelectionState | null) => void
+  onInput?: () => void
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const resolvedRef = editRef ?? containerRef
+
+  const displayText = stripLeadingTitle(text)
+
+  useEffect(() => {
+    if (!editable || !resolvedRef.current) return
+
+    const saved = draftKey ? localStorage.getItem(draftKey) : null
+    resolvedRef.current.innerText = saved ?? displayText
+  }, [editable])
+
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const handleInput = useCallback(() => {
+    onInput?.()
+
+    if (!draftKey || !resolvedRef.current) return
+
+    const text = resolvedRef.current.innerText
+
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+
+    saveTimer.current = setTimeout(() => {
+      localStorage.setItem(draftKey, text)
+    }, 400)
+  }, [draftKey, onInput, resolvedRef])
 
   const handleMouseUp = useCallback(() => {
     const selection = window.getSelection()
 
-    if (!selection || selection.isCollapsed || !containerRef.current) {
+    if (!selection || selection.isCollapsed || !resolvedRef.current) {
       onSelection(null)
       return
     }
@@ -67,7 +116,7 @@ function StoryText({
 
     const range = selection.getRangeAt(0)
     const rect = range.getBoundingClientRect()
-    const containerRect = containerRef.current.getBoundingClientRect()
+    const containerRect = resolvedRef.current.getBoundingClientRect()
     const spaceAbove = rect.top - containerRect.top
     const placement: 'above' | 'below' = spaceAbove < 60 ? 'below' : 'above'
 
@@ -81,43 +130,33 @@ function StoryText({
       start: range.startOffset,
       end: range.endOffset,
     })
-  }, [onSelection])
+  }, [onSelection, resolvedRef])
+
+  if (editable) {
+    return (
+      <div
+        ref={resolvedRef}
+        contentEditable
+        suppressContentEditableWarning
+        className="rounded-box border-2 border-primary/40 bg-base-100 p-8 font-serif text-xl leading-relaxed text-base-content shadow-sm outline-none focus:border-primary/70 min-h-96 cursor-text"
+        onMouseUp={handleMouseUp}
+        onInput={handleInput}
+      />
+    )
+  }
 
   return (
     <div
-      ref={containerRef}
+      ref={resolvedRef}
       className="relative rounded-box border border-base-300 bg-base-100 p-8 font-serif text-xl leading-relaxed text-base-content shadow-sm"
       onMouseUp={handleMouseUp}
     >
-      {text.split('\n').map((para, i) => (
+      {displayText.split('\n').map((para, i) => (
         <p key={i} className="mb-4 last:mb-0">
           {para}
         </p>
       ))}
     </div>
-  )
-}
-
-function EditableStoryText({
-  initialText,
-  editRef,
-}: {
-  initialText: string
-  editRef: RefObject<HTMLDivElement | null>
-}) {
-  useEffect(() => {
-    if (editRef.current && !editRef.current.innerText) {
-      editRef.current.innerText = initialText
-    }
-  }, [initialText, editRef])
-
-  return (
-    <div
-      ref={editRef}
-      contentEditable
-      suppressContentEditableWarning
-      className="rounded-box border-2 border-primary bg-base-100 p-8 font-serif text-xl leading-relaxed text-base-content shadow-sm outline-none min-h-96 focus:border-primary/70"
-    />
   )
 }
 
@@ -141,8 +180,21 @@ export function StoryReaderPage() {
   const [analysisError, setAnalysisError] = useState<string | null>(null)
   const [analysisReactionsCount, setAnalysisReactionsCount] = useState<number | null>(null)
   const { message: toastMessage, showToast } = useToast()
+
+  const handleMarkRead = useCallback(() => {
+    setMarkingRead(true)
+    api.stories
+      .addReading(storyId)
+      .then((result) => {
+        if (result.statusUpdated) setCurrentStatus('read')
+        showToast('Прочитано!')
+      })
+      .finally(() => setMarkingRead(false))
+  }, [storyId, showToast])
+
   const [storyTags, setStoryTags] = useState<string[]>([])
-  const [editMode, setEditMode] = useState(false)
+  const draftKey = `story-text-draft-${storyId}`
+  const [isDirty, setIsDirty] = useState(() => !!localStorage.getItem(`story-text-draft-${storyId}`))
   const [savingText, setSavingText] = useState(false)
   const [saveTextError, setSaveTextError] = useState<string | null>(null)
   const editRef = useRef<HTMLDivElement>(null)
@@ -209,7 +261,8 @@ export function StoryReaderPage() {
     try {
       const updated = await api.stories.updateText(storyId, newText)
       setStory(updated)
-      setEditMode(false)
+      localStorage.removeItem(draftKey)
+      setIsDirty(false)
       showToast('Текст сохранён')
     } catch (err) {
       setSaveTextError(err instanceof Error ? err.message : 'Не удалось сохранить текст')
@@ -265,7 +318,7 @@ export function StoryReaderPage() {
     <div>
       <Toast message={toastMessage} />
 
-      {pipelineStatus === 'text_review' && (
+      {pipelineStatus === 'text_review' && (currentStatus ?? story.status) === 'draft' && (
         <div className="mb-6 rounded-box border border-primary/30 bg-primary/10 p-4">
           {story.text_change_summary && (
             <div className="mb-4 rounded-box border border-info/30 bg-info/10 p-4">
@@ -336,19 +389,13 @@ export function StoryReaderPage() {
                 {reactionCount} реакций · {counts.my_note} заметок
               </span>
             )}
-            {(currentStatus ?? story.status) === 'ready' && (
+            {((currentStatus ?? story.status) === 'ready' || (currentStatus ?? story.status) === 'read') && (
               <button
                 className="btn btn-primary btn-sm"
                 disabled={markingRead}
-                onClick={() => {
-                  setMarkingRead(true)
-                  api.stories
-                    .updateStatus(storyId, 'read')
-                    .then(() => setCurrentStatus('read'))
-                    .finally(() => setMarkingRead(false))
-                }}
+                onClick={handleMarkRead}
               >
-                {markingRead ? '...' : '✓ Прочитано'}
+                {markingRead ? '...' : (currentStatus ?? story.status) === 'read' ? 'Прочитать снова' : '✓ Прочитано'}
               </button>
             )}
           </div>
@@ -367,33 +414,16 @@ export function StoryReaderPage() {
         />
       </div>
 
-      <div className="mb-2 flex justify-end gap-2">
-        {textToDisplay && !editMode && (
-          <button
-            className="btn btn-xs btn-outline"
-            onClick={() => setEditMode(true)}
-          >
-            Редактировать текст
-          </button>
-        )}
-        {editMode && (
-          <>
-            {saveTextError && <span className="text-xs text-error self-center">{saveTextError}</span>}
-            <button className="btn btn-xs btn-ghost" disabled={savingText} onClick={() => setEditMode(false)}>
-              Отмена
-            </button>
-            <button className="btn btn-xs btn-primary" disabled={savingText} onClick={() => void handleSaveText()}>
-              {savingText ? 'Сохраняем…' : 'Сохранить'}
-            </button>
-          </>
-        )}
-      </div>
-
       <div className="relative">
-        {editMode && textToDisplay ? (
-          <EditableStoryText initialText={textToDisplay} editRef={editRef} />
-        ) : textToDisplay ? (
-          <StoryText text={textToDisplay} onSelection={setSelection} />
+        {textToDisplay ? (
+          <StoryText
+            text={textToDisplay}
+            editable
+            draftKey={draftKey}
+            editRef={editRef}
+            onSelection={setSelection}
+            onInput={() => setIsDirty(true)}
+          />
         ) : (
           <StatusCallout
             tone="warning"
@@ -402,7 +432,7 @@ export function StoryReaderPage() {
           />
         )}
 
-        {!editMode && selection && (
+        {selection && (
           <div
             style={{
               position: 'absolute',
@@ -428,13 +458,34 @@ export function StoryReaderPage() {
         )}
       </div>
 
+      {isDirty && (
+        <div className="mt-2 flex items-center justify-end gap-2">
+          {saveTextError && <span className="text-xs text-error">{saveTextError}</span>}
+          <button
+            className="btn btn-xs btn-ghost"
+            disabled={savingText}
+            onClick={() => {
+              localStorage.removeItem(draftKey)
+              if (editRef.current && textToDisplay) editRef.current.innerText = stripLeadingTitle(textToDisplay)
+              setIsDirty(false)
+              setSaveTextError(null)
+            }}
+          >
+            Отмена
+          </button>
+          <button className="btn btn-xs btn-primary" disabled={savingText} onClick={() => void handleSaveText()}>
+            {savingText ? 'Сохраняем…' : 'Сохранить'}
+          </button>
+        </div>
+      )}
+
       {annotationError && (
         <div className="mt-4">
           <StatusCallout tone="error" title="Ошибка сохранения заметки" message={annotationError} />
         </div>
       )}
 
-      {pipelineStatus === 'text_review' && (
+      {pipelineStatus === 'text_review' && (currentStatus ?? story.status) === 'draft' && (
         <div className="mt-4 rounded-box border border-primary/30 bg-primary/10 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-base-content">Одобри историю или отправь на доработку.</p>
@@ -605,6 +656,18 @@ export function StoryReaderPage() {
             {analysisError && <span className="text-sm text-error">{analysisError}</span>}
           </div>
         </section>
+      )}
+
+      {((currentStatus ?? story.status) === 'ready' || (currentStatus ?? story.status) === 'read') && (
+        <div className="mt-10 flex justify-center">
+          <button
+            className="btn btn-primary"
+            disabled={markingRead}
+            onClick={handleMarkRead}
+          >
+            {markingRead ? '...' : (currentStatus ?? story.status) === 'read' ? 'Прочитать снова' : '✓ Прочитано'}
+          </button>
+        </div>
       )}
 
       {story.status !== 'draft' && (

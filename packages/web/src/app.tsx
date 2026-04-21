@@ -9,6 +9,7 @@ import { DashboardPage } from './pages/dashboard'
 import { IdeasPage } from './pages/ideas'
 import { InboxPage } from './pages/inbox'
 import { UniversesPage } from './pages/universes'
+import { UniverseDetailPage } from './pages/universe-detail'
 import { DiaryPage } from './pages/diary'
 import { ChildProfilePage } from './pages/child-profile'
 import { useTheme } from './lib/use-theme'
@@ -107,6 +108,7 @@ function App() {
                 <Route path="/child-profile" element={<ChildProfilePage />} />
                 <Route path="/inbox" element={<InboxPage />} />
                 <Route path="/universes" element={<UniversesPage />} />
+                <Route path="/universes/:id" element={<UniverseDetailPage />} />
               </Routes>
             </div>
           </main>

@@ -7,8 +7,30 @@ export const storyGroups = pgTable('story_groups', {
   systemPrompt: text('system_prompt').notNull(),
   universeContext: text('universe_context'),
   styleGuide: text('style_guide'),
+  styleGuideWorks: text('style_guide_works'),
+  styleGuideDoesntWork: text('style_guide_doesnt_work'),
+  styleGuideTechniques: text('style_guide_techniques'),
+  styleGuideMinimize: text('style_guide_minimize'),
   agentOverrides: jsonb('agent_overrides').default({}),
   createdAt: timestamp('created_at').defaultNow(),
+})
+
+export const universeCharacters = pgTable('universe_characters', {
+  id: serial('id').primaryKey(),
+  universeId: integer('universe_id').references(() => storyGroups.id).notNull(),
+  name: text('name').notNull(),
+  description: text('description').notNull().default(''),
+  createdAt: timestamp('created_at').defaultNow(),
+})
+
+export const universeSuggestions = pgTable('universe_suggestions', {
+  id: serial('id').primaryKey(),
+  universeId: integer('universe_id').references(() => storyGroups.id).notNull(),
+  factText: text('fact_text').notNull(),
+  sourceStoryId: integer('source_story_id').references(() => stories.id),
+  status: text('status').$type<'pending' | 'approved' | 'rejected'>().default('pending').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 })
 
 export const stories = pgTable('stories', {
@@ -40,6 +62,7 @@ export const stories = pgTable('stories', {
   mode: text('mode').$type<'auto' | 'manual'>().notNull().default('auto'),
   textChangeSummary: text('text_change_summary'),
   storyAnalysis: text('story_analysis'),
+  sortOrder: integer('sort_order'),
 })
 
 export const feedback = pgTable('feedback', {
@@ -178,3 +201,9 @@ export const childReactions = pgTable('child_reactions', {
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 }, (t) => [unique('child_reactions_story_id_unique').on(t.storyId)])
+
+export const storyReadings = pgTable('story_readings', {
+  id: serial('id').primaryKey(),
+  storyId: integer('story_id').references(() => stories.id).notNull(),
+  readAt: timestamp('read_at').defaultNow().notNull(),
+})

@@ -2,7 +2,7 @@ import { claudeCliRunner } from '../../ai'
 import { resolvePrompt, type ResolvedPrompt } from '../prompt-resolver'
 import type { CriticOutput } from '../schemas'
 
-export const PLOTTER_SYSTEM_PROMPT_DEFAULT = `You are the editor-in-chief of a Russian children's magazine. A writer has come to you with a story idea. Your job is to sketch a rough story outline — a working brief for the writer, not a draft of the story itself.
+export const PLOTTER_SYSTEM_PROMPT_DEFAULT = `You are the editor-in-chief of a Belarusian children's magazine. A writer has come to you with a story idea. Your job is to sketch a rough story outline — a working brief for the writer, not a draft of the story itself.
 
 The outline must be SHORT: a few bullet points per section, plain language, no prose passages. Think of it as an internal editorial memo.
 

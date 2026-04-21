@@ -42,6 +42,24 @@ async function requestEmpty(path: string, init?: RequestInit): Promise<void> {
   }
 }
 
+export interface UniverseCharacter {
+  id: number
+  universeId: number
+  name: string
+  description: string
+  createdAt: string | null
+}
+
+export interface UniverseSuggestion {
+  id: number
+  universeId: number
+  factText: string
+  sourceStoryId: number | null
+  status: 'pending' | 'approved' | 'rejected'
+  createdAt: string | null
+  updatedAt: string | null
+}
+
 export interface StoryGroup {
   id: number
   name: string
@@ -49,8 +67,14 @@ export interface StoryGroup {
   systemPrompt: string
   universeContext: string | null
   styleGuide: string | null
+  styleGuideWorks: string | null
+  styleGuideDoesntWork: string | null
+  styleGuideTechniques: string | null
+  styleGuideMinimize: string | null
   agentOverrides: Record<string, string> | null
   createdAt: string
+  characters: UniverseCharacter[]
+  pendingSuggestionsCount: number
 }
 
 export interface Story {
@@ -82,6 +106,7 @@ export interface Story {
   mode: 'auto' | 'manual'
   text_change_summary: string | null
   story_analysis: string | null
+  sort_order: number | null
 }
 
 export interface RunSnapshot {
@@ -266,12 +291,13 @@ export interface PipelineStatus {
 
 export const api = {
   stories: {
-    list: (filters?: { status?: string; groupId?: number; tag?: string }) => {
+    list: (filters?: { status?: string; groupId?: number; tag?: string; readSort?: string }) => {
       const params = new URLSearchParams()
 
       if (filters?.status) params.set('status', filters.status)
       if (filters?.groupId != null) params.set('groupId', String(filters.groupId))
       if (filters?.tag) params.set('tag', filters.tag)
+      if (filters?.readSort && filters.readSort !== 'default') params.set('readSort', filters.readSort)
 
       const query = params.toString() ? `?${params.toString()}` : ''
 
@@ -355,6 +381,17 @@ export const api = {
       request<ChildReaction>(`/api/stories/${id}/child-reaction`, {
         method: 'PUT',
         body: JSON.stringify(data),
+      }),
+
+    reorder: (orders: Array<{ id: number; sort_order: number }>) =>
+      request<{ ok: boolean }>('/api/stories/reorder', {
+        method: 'POST',
+        body: JSON.stringify({ orders }),
+      }),
+
+    addReading: (id: number) =>
+      request<{ ok: boolean; readAt: string; statusUpdated: boolean }>(`/api/stories/${id}/readings`, {
+        method: 'POST',
       }),
   },
 
@@ -461,6 +498,10 @@ export const api = {
         description: string
         universeContext: string
         styleGuide: string
+        styleGuideWorks: string | null
+        styleGuideDoesntWork: string | null
+        styleGuideTechniques: string | null
+        styleGuideMinimize: string | null
         agentOverrides: Record<string, string>
       }>,
     ) =>
@@ -470,5 +511,36 @@ export const api = {
       }),
 
     delete: (id: number) => requestEmpty(`/api/universes/${id}`, { method: 'DELETE' }),
+
+    createCharacter: (universeId: number, data: { name: string; description?: string }) =>
+      request<UniverseCharacter>(`/api/universes/${universeId}/characters`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    updateCharacter: (universeId: number, charId: number, data: { name?: string; description?: string }) =>
+      request<UniverseCharacter>(`/api/universes/${universeId}/characters/${charId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+
+    deleteCharacter: (universeId: number, charId: number) =>
+      requestEmpty(`/api/universes/${universeId}/characters/${charId}`, { method: 'DELETE' }),
+
+    listSuggestions: (universeId: number) =>
+      request<UniverseSuggestion[]>(`/api/universes/${universeId}/suggestions`),
+
+    approveSuggestion: (
+      universeId: number,
+      suggestionId: number,
+      body: { target: 'character' | 'new_character'; characterName: string } | { target: 'description' },
+    ) =>
+      requestEmpty(`/api/universes/${universeId}/suggestions/${suggestionId}/approve`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+
+    rejectSuggestion: (universeId: number, suggestionId: number) =>
+      requestEmpty(`/api/universes/${universeId}/suggestions/${suggestionId}/reject`, { method: 'POST' }),
   },
 }

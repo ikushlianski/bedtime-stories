@@ -4,17 +4,20 @@ import type { StoryGroup } from '../lib/api'
 import StoryFilterTabs from './story-filter-tabs'
 
 export type StatusFilter = 'all' | 'draft' | 'ready' | 'read' | 'archived'
+export type ReadSort = 'default' | 'newest_read' | 'oldest_read'
 
 export interface StoryFilterState {
   status: StatusFilter
   groupId: number | null
   tag: string | null
+  readSort: ReadSort
 }
 
 export const DEFAULT_FILTERS: StoryFilterState = {
   status: 'ready',
   groupId: null,
   tag: null,
+  readSort: 'default',
 }
 
 const STORED_FILTERS_KEY = 'story-list-filters-v1'
@@ -23,6 +26,7 @@ const storedFiltersSchema = z.object({
   status: z.enum(['all', 'draft', 'ready', 'read', 'archived']),
   groupId: z.number().int().nullable(),
   tag: z.string().nullable(),
+  readSort: z.enum(['default', 'newest_read', 'oldest_read']).default('default'),
 })
 
 export function loadStoredFilters(): StoryFilterState {
@@ -62,11 +66,50 @@ export function activeFilterCount(f: StoryFilterState): number {
 
   if (f.tag !== null) count++
 
+  if (f.readSort !== 'default') count++
+
   return count
 }
 
 export function hasCustomFilters(f: StoryFilterState): boolean {
-  return f.status !== DEFAULT_FILTERS.status || f.groupId !== DEFAULT_FILTERS.groupId || f.tag !== DEFAULT_FILTERS.tag
+  return (
+    f.status !== DEFAULT_FILTERS.status ||
+    f.groupId !== DEFAULT_FILTERS.groupId ||
+    f.tag !== DEFAULT_FILTERS.tag ||
+    f.readSort !== DEFAULT_FILTERS.readSort
+  )
+}
+
+const statusLabels: Record<StatusFilter, string> = {
+  all: 'Все',
+  draft: 'Черновики',
+  ready: 'Готовые',
+  read: 'Прочитанные',
+  archived: 'Архив',
+}
+
+const readSortLabels: Record<ReadSort, string> = {
+  default: 'По дате',
+  newest_read: 'Недавно читалось',
+  oldest_read: 'Давно читалось',
+}
+
+function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <span className="flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-content">
+      {label}
+      <button
+        type="button"
+        className="ml-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full text-secondary-content/60 hover:bg-secondary-content/20 hover:text-secondary-content"
+        onClick={onRemove}
+        aria-label={`Убрать фильтр "${label}"`}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3 w-3">
+          <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+        </svg>
+      </button>
+    </span>
+  )
 }
 
 function StoryFilters({ value, onChange, universes, availableTags }: StoryFiltersProps) {
@@ -86,6 +129,7 @@ function StoryFilters({ value, onChange, universes, availableTags }: StoryFilter
 
   const count = activeFilterCount(value)
   const hasActive = hasCustomFilters(value)
+  const activeUniverse = value.groupId !== null ? universes.find((u) => u.id === value.groupId) : null
 
   function reset() {
     onChange(DEFAULT_FILTERS)
@@ -93,7 +137,7 @@ function StoryFilters({ value, onChange, universes, availableTags }: StoryFilter
   }
 
   return (
-    <div className="flex items-center">
+    <div className="flex flex-wrap items-center gap-2">
       <div className="relative" ref={ref}>
         <button
           className={`btn btn-sm gap-2 px-4 ${open || count > 0 ? 'btn-secondary' : 'btn-outline'}`}
@@ -105,11 +149,6 @@ function StoryFilters({ value, onChange, universes, availableTags }: StoryFilter
             <path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L13 10.414V17a1 1 0 01-.553.894l-4-2A1 1 0 018 15v-4.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" />
           </svg>
           Фильтры
-          {count > 0 && (
-            <span className="badge badge-sm border border-secondary-content bg-secondary-content text-secondary">
-              {count}
-            </span>
-          )}
         </button>
 
         {open && (
@@ -148,7 +187,7 @@ function StoryFilters({ value, onChange, universes, availableTags }: StoryFilter
             )}
 
             {availableTags.length > 0 && (
-              <div>
+              <div className="mb-4">
                 <p className="mb-2 text-xs font-medium uppercase tracking-wide text-base-content/50">Категория</p>
                 <div className="flex flex-wrap gap-2">
                   {availableTags.map((tag) => (
@@ -163,9 +202,54 @@ function StoryFilters({ value, onChange, universes, availableTags }: StoryFilter
                 </div>
               </div>
             )}
+
+            {value.status === 'read' && (
+              <div>
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-base-content/50">Сортировка по прочтению</p>
+                <div className="join flex">
+                  {(['default', 'newest_read', 'oldest_read'] as ReadSort[]).map((sort) => (
+                    <button
+                      key={sort}
+                      className={`btn join-item btn-sm whitespace-nowrap ${value.readSort === sort ? 'btn-secondary' : 'btn-outline'}`}
+                      onClick={() => onChange({ ...value, readSort: sort })}
+                    >
+                      {readSortLabels[sort]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
+
+      {value.status !== 'all' && (
+        <FilterChip
+          label={statusLabels[value.status]}
+          onRemove={() => onChange({ ...value, status: 'all' })}
+        />
+      )}
+
+      {activeUniverse && (
+        <FilterChip
+          label={activeUniverse.name}
+          onRemove={() => onChange({ ...value, groupId: null })}
+        />
+      )}
+
+      {value.tag !== null && (
+        <FilterChip
+          label={`#${value.tag}`}
+          onRemove={() => onChange({ ...value, tag: null })}
+        />
+      )}
+
+      {value.readSort !== 'default' && (
+        <FilterChip
+          label={readSortLabels[value.readSort]}
+          onRemove={() => onChange({ ...value, readSort: 'default' })}
+        />
+      )}
     </div>
   )
 }

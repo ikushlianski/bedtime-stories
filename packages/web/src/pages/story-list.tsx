@@ -1,8 +1,67 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  useSortable,
+  rectSortingStrategy,
+  arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { api, type Story, type CreateStoryInput, type StoryGroup } from '../lib/api'
 import { AddExampleStoryModal, CreateStoryModal, PageHeader, StatusCallout, StoryCard, StoryFilters } from '../components'
-import { DEFAULT_FILTERS, loadStoredFilters, saveStoredFilters, type StoryFilterState } from '../components/story-filters'
+import { loadStoredFilters, saveStoredFilters, type StoryFilterState } from '../components/story-filters'
+
+interface SortableStoryCardProps {
+  story: Story
+  onTitleClick: () => void
+  onDelete: () => void
+}
+
+function SortableStoryCard({ story, onTitleClick, onDelete }: SortableStoryCardProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: story.id,
+  })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : undefined,
+    position: isDragging ? ('relative' as const) : undefined,
+  }
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <StoryCard
+        title={story.title}
+        status={story.status}
+        createdAt={story.created_at}
+        onTitleClick={onTitleClick}
+        dragHandleProps={{ ...listeners, ...attributes }}
+        actions={[
+          {
+            label: 'Открыть',
+            tone: 'primary',
+            onClick: onTitleClick,
+          },
+          {
+            label: 'Удалить',
+            tone: 'destructive',
+            onClick: onDelete,
+          },
+        ]}
+      />
+    </div>
+  )
+}
 
 export function StoryListPage() {
   const navigate = useNavigate()
@@ -13,6 +72,12 @@ export function StoryListPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filters, setFilters] = useState<StoryFilterState>(() => loadStoredFilters())
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+  )
 
   useEffect(() => {
     saveStoredFilters(filters)
@@ -38,6 +103,7 @@ export function StoryListPage() {
         status: filters.status === 'all' ? undefined : filters.status,
         groupId: filters.groupId ?? undefined,
         tag: filters.tag ?? undefined,
+        readSort: filters.readSort !== 'default' ? filters.readSort : undefined,
       })
 
       setStories(data)
@@ -51,6 +117,22 @@ export function StoryListPage() {
   useEffect(() => {
     void fetchStories()
   }, [fetchStories])
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+
+    if (!over || active.id === over.id) return
+
+    setStories((prev) => {
+      const oldIndex = prev.findIndex((s) => s.id === active.id)
+      const newIndex = prev.findIndex((s) => s.id === over.id)
+      const reordered = arrayMove(prev, oldIndex, newIndex)
+
+      void api.stories.reorder(reordered.map((s, i) => ({ id: s.id, sort_order: i * 10 })))
+
+      return reordered
+    })
+  }
 
   async function handleCreateStory(input: CreateStoryInput) {
     const created = await api.stories.create(input)
@@ -117,37 +199,49 @@ export function StoryListPage() {
       )}
 
       {!loading && !error && stories.length === 0 && (
-        <StatusCallout
-          tone="warning"
-          title="Историй пока нет"
-          message="Создай историю или смени фильтры."
-        />
+        <div className="rounded-box border border-warning/30 bg-warning/5 px-5 py-4 text-sm text-base-content/70">
+          {(() => {
+            const labels: Record<string, string> = {
+              draft: 'Черновиков',
+              ready: 'Готовых историй',
+              read: 'Прочитанных историй',
+              archived: 'Архивных историй',
+              all: 'Историй',
+            }
+            const label = labels[filters.status] ?? 'Историй'
+            const hasFilter = filters.status !== 'all' || filters.groupId != null || filters.tag != null
+
+            return (
+              <>
+                <span>{label} пока нет. </span>
+                <button
+                  className="btn-link text-sm font-normal underline-offset-2"
+                  onClick={() => setShowModal(true)}
+                >
+                  Создай историю
+                </button>
+                {hasFilter && <span> или смени фильтр.</span>}
+              </>
+            )
+          })()}
+        </div>
       )}
 
       {!loading && !error && stories.length > 0 && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {stories.map((story) => (
-            <StoryCard
-              key={story.id}
-              title={story.title}
-              status={story.status}
-              createdAt={story.created_at}
-              onTitleClick={() => navigate(`/stories/${story.id}`)}
-              actions={[
-                {
-                  label: 'Открыть',
-                  tone: 'primary',
-                  onClick: () => navigate(`/stories/${story.id}`),
-                },
-                {
-                  label: 'Удалить',
-                  tone: 'destructive',
-                  onClick: () => handleDeleteStory(story),
-                },
-              ]}
-            />
-          ))}
-        </div>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={stories.map((s) => s.id)} strategy={rectSortingStrategy}>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {stories.map((story) => (
+                <SortableStoryCard
+                  key={story.id}
+                  story={story}
+                  onTitleClick={() => navigate(`/stories/${story.id}`)}
+                  onDelete={() => handleDeleteStory(story)}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       <CreateStoryModal

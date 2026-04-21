@@ -50,3 +50,33 @@ None.
 
 ## Items skipped
 None — no existing duplicate for multi-round/follow-up questions in Project #13.
+
+---
+date: 2026-04-21 00:00
+skill: project-manager
+batch: status-audit-full
+---
+
+## What I processed
+User request: audit all 283 items in Project #13 against the codebase and set statuses to reflect reality. Reopen any closed issues found. If fully implemented → close issue + set Done. If partially implemented → narrow scope of existing issue, keep in Backlog. If not implemented → Backlog.
+
+## Decisions made
+- Reopened 14 previously-closed issues: #271, #270, #255, #248, #228, #225, #205, #203, #202, #198, #28, #17, #14, #2.
+- Closed 39 fully-implemented issues and set their project status to Done: #17, #28, #47, #82, #90, #100, #101, #102, #106, #124, #125, #130, #131, #135, #136, #137, #140, #141, #142, #143, #145, #146, #147, #152, #154, #155, #159, #168, #175, #178, #184, #185, #186, #187, #191, #202, #203, #205, #284.
+- Set 142 items with missing status to Backlog (issues #93–#277 range minus Done set).
+- Items #1–#92, #249–#256, #278–#285 were already in Backlog; left as-is.
+- Partial items (#166, #167, #188, #119) left in Backlog as open work — no splits created because the "done portions" are negligible/incidental and don't merit separate tracking.
+- No items remain in Todo status (per user directive that Todo should be empty after audit).
+
+## Key findings from codebase audit
+- Pipeline status is in-memory only (Maps in pipeline-state.ts) → #166 and #167 remain open.
+- Universe context is looked up dynamically at generation time, not snapshotted → #188 remains open.
+- Dashboard analytics are all "coming soon" stubs → all dashboard Epics/Stories remain open in Backlog.
+- diary.tsx has no edit functionality → #182 remains open.
+- pipeline-status.tsx has empty onerror handler → #172 remains open.
+
+## Open questions
+None.
+
+## Items skipped
+None.
