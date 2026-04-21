@@ -27,7 +27,7 @@ function extractPlotterSummary(planText: string): string {
 function formatAnnotationsAsFeedback(items: Array<{ selectedText: string; noteText: string | null }>): string {
   return items
     .filter((a) => a.noteText)
-    .map((a, i) => `${i + 1}. On the passage "${a.selectedText}":\n   ${a.noteText}`)
+    .map((a) => `К фрагменту «${a.selectedText}»:\n${a.noteText}`)
     .join('\n\n')
 }
 

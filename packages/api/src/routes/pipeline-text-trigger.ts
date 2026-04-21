@@ -1,7 +1,7 @@
-import { eq, desc } from 'drizzle-orm'
+import { eq, desc, and } from 'drizzle-orm'
 import { runWriterOnly } from '@bedtime/core/pipeline/orchestrator'
 import { db } from '@bedtime/core/db/client'
-import { runSnapshots, stories } from '@bedtime/core/db/schema'
+import { runSnapshots, stories, annotations } from '@bedtime/core/db/schema'
 import {
   buildWriterOnlyStoriesUpdate,
 } from './pipeline-persistence'
@@ -22,20 +22,31 @@ export function triggerTextPhase(
 ): void {
   setPipelineStatus(storyId, 'text_running')
 
-  runWriterOnly({
-    seed,
-    planFinal,
-    storyId,
-    models: defaultModels,
-    promptVersions: defaultPromptVersions,
-    ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
-    ...(universeContext !== undefined ? { universeContext } : {}),
-    ...(styleGuide !== undefined ? { styleGuide } : {}),
-    ...(sashaContext !== undefined && sashaContext !== null ? { sashaContext } : {}),
-    onStepChange: (step) => setCurrentStep(storyId, step),
-    onChunk: (chunk) => emitPipelineEvent(storyId, { type: 'chunk', text: chunk }),
-    onChunkReset: () => emitPipelineEvent(storyId, { type: 'chunk_reset' }),
-  })
+  db.select({ selectedText: annotations.selectedText, noteText: annotations.noteText })
+    .from(annotations)
+    .where(and(eq(annotations.storyId, storyId), eq(annotations.context, 'plan')))
+    .then((rows) => {
+      const planAnnotations = rows
+        .filter((a) => a.noteText)
+        .map((a) => `К фрагменту «${a.selectedText}»:\n${a.noteText}`)
+        .join('\n\n')
+
+      return runWriterOnly({
+        seed,
+        planFinal,
+        storyId,
+        models: defaultModels,
+        promptVersions: defaultPromptVersions,
+        ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
+        ...(universeContext !== undefined ? { universeContext } : {}),
+        ...(styleGuide !== undefined ? { styleGuide } : {}),
+        ...(sashaContext !== undefined && sashaContext !== null ? { sashaContext } : {}),
+        ...(planAnnotations ? { userAnnotations: planAnnotations } : {}),
+        onStepChange: (step) => setCurrentStep(storyId, step),
+        onChunk: (chunk) => emitPipelineEvent(storyId, { type: 'chunk', text: chunk }),
+        onChunkReset: () => emitPipelineEvent(storyId, { type: 'chunk_reset' }),
+      })
+    })
     .then(async (result) => {
       try {
         const [existing] = await db
