@@ -213,6 +213,7 @@ export interface CreateAnnotationInput {
 
 export type PipelineStatusValue =
   | 'questions_pending'
+  | 'questions_answered'
   | 'plan_running'
   | 'plan_ready'
   | 'text_running'
@@ -345,6 +346,9 @@ export const api = {
     snapshot: (storyId: number) => request<RunSnapshot>(`/api/pipeline/snapshot/${storyId}`),
 
     questions: (storyId: number) => request<PlanQuestion[]>(`/api/pipeline/questions/${storyId}`),
+
+    retryPlan: (storyId: number) =>
+      request<{ started: boolean; storyId: number }>(`/api/pipeline/questions/${storyId}/retry-plan`, { method: 'POST' }),
 
     submitAnswers: (storyId: number, answers: Array<{ id: number; answer: string }>) =>
       request<{ ok: boolean }>(`/api/pipeline/questions/${storyId}/submit`, {

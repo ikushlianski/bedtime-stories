@@ -90,13 +90,13 @@ function toPipelineSteps(status: PipelineStatus): PipelineStep[] {
 }
 
 function isActiveStatus(status: PipelineStatusValue): boolean {
-  return status === 'plan_running' || status === 'text_running' || status === 'pending' || status === 'questions_pending'
+  return status === 'plan_running' || status === 'text_running' || status === 'pending' || status === 'questions_pending' || status === 'questions_answered'
 }
 
 function internalToPublicStatus(internal: string): PipelineStatusValue {
   switch (internal) {
     case 'questions_pending': return 'questions_pending'
-    case 'questions_answered': return 'plan_running'
+    case 'questions_answered': return 'questions_answered'
     case 'plan_running': return 'plan_running'
     case 'plan_ready': return 'plan_ready'
     case 'plan_failed': return 'failed'
@@ -112,6 +112,8 @@ function describeStatus(status: PipelineStatusValue): string {
   switch (status) {
     case 'questions_pending':
       return 'Ожидаем ответов на уточняющие вопросы.'
+    case 'questions_answered':
+      return 'Вопросы отвечены. Запустите фазу планирования.'
     case 'plan_running':
       return 'Идёт фаза планирования.'
     case 'plan_ready':
@@ -351,6 +353,30 @@ export function PipelineStatusPage() {
                   title="Перезапуск невозможен"
                   message="У истории нет затравки, поэтому конвейер нельзя перезапустить отсюда."
                 />
+              )
+            }
+
+            if (retryDecision.action === 'trigger_plan') {
+              return (
+                <div className="space-y-2">
+                  {retryError && <StatusCallout tone="error" title="Запуск не удался" message={retryError} />}
+                  <div className="flex justify-end">
+                    <button
+                      className="btn btn-primary"
+                      disabled={retrying}
+                      onClick={() => {
+                        setRetrying(true)
+                        setRetryError(null)
+                        api.pipeline.retryPlan(storyId)
+                          .then(() => fetchStatus())
+                          .catch((err: unknown) => setRetryError(err instanceof Error ? err.message : 'Не удалось запустить планировщик'))
+                          .finally(() => setRetrying(false))
+                      }}
+                    >
+                      {retrying ? 'Запускаем…' : 'Запустить сюжетника →'}
+                    </button>
+                  </div>
+                </div>
               )
             }
 

@@ -149,6 +149,10 @@ async function inferStatusFromDb(storyId: number): Promise<PipelineInternalStatu
     return 'questions_pending'
   }
 
+  if (unanswered.length > 0 && !hasUnanswered) {
+    return 'questions_answered'
+  }
+
   return undefined
 }
 
