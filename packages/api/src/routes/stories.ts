@@ -85,6 +85,7 @@ router.post('/', validate(createStorySchema), async (req, res) => {
         textFinal: resolved.textFinal,
         status: resolved.addToReadingList ? 'ready' : 'read',
         source: 'legacy',
+        mode: 'manual',
         ...(resolved.groupId !== undefined ? { groupId: resolved.groupId } : {}),
       }
       const [created] = await db.insert(stories).values(legacyStory).returning()
@@ -99,6 +100,7 @@ router.post('/', validate(createStorySchema), async (req, res) => {
         textFinal: resolved.textFinal,
         status: 'ready',
         source: 'user',
+        mode: 'manual',
         ...(resolved.groupId !== undefined ? { groupId: resolved.groupId } : {}),
       }
       const [created] = await db.insert(stories).values(userStory).returning()
@@ -687,6 +689,39 @@ router.post('/:id/analyze', async (req, res) => {
   } catch (err) {
     console.error('POST /stories/:id/analyze failed:', err)
     res.status(500).json({ error: 'Failed to analyze story' })
+  }
+})
+
+const updateTextSchema = z.object({
+  text: z.string().min(1),
+})
+
+router.patch('/:id/text', validate(updateTextSchema), async (req, res) => {
+  try {
+    const storyId = parseIntParam(req.params['id'])
+
+    if (isNaN(storyId)) {
+      res.status(400).json({ error: 'Invalid story id' })
+      return
+    }
+
+    const { text } = req.body as z.infer<typeof updateTextSchema>
+
+    const [story] = await db
+      .update(stories)
+      .set({ textFinal: text })
+      .where(eq(stories.id, storyId))
+      .returning()
+
+    if (!story) {
+      res.status(404).json({ error: 'Story not found' })
+      return
+    }
+
+    res.json(toSnakeCase(story as Story))
+  } catch (err) {
+    console.error('PATCH /stories/:id/text failed:', err)
+    res.status(500).json({ error: 'Failed to update story text' })
   }
 })
 

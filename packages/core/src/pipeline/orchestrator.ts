@@ -1,13 +1,10 @@
 import { runPlotter, PLOTTER_SYSTEM_PROMPT_DEFAULT } from './stages/plotter'
-import { runPlotCritic } from './stages/plot-critic'
 import { runWriter, WRITER_SYSTEM_PROMPT_DEFAULT } from './stages/writer'
 import { runWriterCritic } from './stages/writer-critic'
 import { runPlotterQuestions, type PlotterQuestionItem } from './stages/plotter-questions'
 import { generateStoryTitle } from './stages/title-generator'
 import { resolvePrompt, type ResolvedPrompt } from './prompt-resolver'
 import type { CriticOutput } from './schemas'
-
-const MAX_PLAN_ITERATIONS = 3
 
 export interface PipelineModels {
   plotter: string
@@ -122,56 +119,9 @@ export async function runPlanPhase(options: {
     ...userFeedbackArg,
   })
 
-  let currentPlan = planV1
-  let iterationsCount = 0
-  let plotCriticOutput: CriticOutput | undefined
-
-  for (let i = 0; i < MAX_PLAN_ITERATIONS; i++) {
-    const iterationNumber = i + 1
-    const isFinalIteration = i === MAX_PLAN_ITERATIONS - 1
-
-    iterationsCount = iterationNumber
-
-    notify('PlotCritic')
-    plotCriticOutput = await runPlotCritic({
-      plan: currentPlan,
-      iterationNumber,
-      model: models.plotCritic,
-      ...cwdArg,
-      ...universeArg,
-      ...universeContextArg,
-      ...styleGuideArg,
-      ...sashaContextArg,
-    })
-
-    if (!plotCriticOutput.improvement_needed) {
-      break
-    }
-
-    if (!isFinalIteration) {
-      notify('Plotter')
-      currentPlan = await runPlotter({
-        seed,
-        previousPlan: currentPlan,
-        criticNotes: plotCriticOutput,
-        model: models.plotter,
-        resolvedPrompt: plotterPrompt,
-        ...cwdArg,
-        ...universeArg,
-        ...universeContextArg,
-        ...styleGuideArg,
-        ...sashaContextArg,
-      })
-    }
-  }
-
-  if (plotCriticOutput === undefined) {
-    throw new Error('Plan phase completed without critic output')
-  }
-
   notify('TitleGenerator')
   const titleSuggested = await generateStoryTitle({
-    plan: currentPlan,
+    plan: planV1,
     seed,
     model: models.plotter,
     ...cwdArg,
@@ -179,10 +129,10 @@ export async function runPlanPhase(options: {
 
   return {
     planV1,
-    planFinal: currentPlan,
-    planIterationsCount: iterationsCount,
+    planFinal: planV1,
+    planIterationsCount: 1,
     titleSuggested,
-    plotCriticOutput,
+    plotCriticOutput: { issues: [], improvement_needed: false },
     models,
     promptVersions: resolvedVersions,
     sashaContext: options.sashaContext ?? null,

@@ -305,6 +305,12 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify({ tags }),
       }),
+
+    updateText: (id: number, text: string) =>
+      request<Story>(`/api/stories/${id}/text`, {
+        method: 'PATCH',
+        body: JSON.stringify({ text }),
+      }),
   },
 
   feedback: {

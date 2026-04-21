@@ -117,7 +117,9 @@ router.post('/run', validate(runPipelineSchema), async (req, res) => {
   }
 })
 
-const PIPELINE_STEP_NAMES = ['Plotter', 'Writer', 'WriterCritic'] as const
+function getStepNamesForPhase(phase: 'plan' | 'text' | null): readonly string[] {
+  return phase === 'text' ? ['Writer'] : ['Plotter']
+}
 
 async function inferStatusFromDb(storyId: number): Promise<PipelineInternalStatus | undefined> {
   const [row] = await db.select().from(stories).where(eq(stories.id, storyId))
@@ -174,20 +176,23 @@ router.get('/status/:storyId', async (req, res) => {
     const publicStatus = toPublicStatus(internal)
 
     const isRunning = publicStatus.status === 'plan_running' || publicStatus.status === 'text_running'
-    const isAllDone = publicStatus.status === 'plan_ready' || publicStatus.status === 'text_ready' || publicStatus.status === 'text_review'
     const isFailed = publicStatus.status === 'failed'
+    const isThisPhaseDone = publicStatus.phase === 'text'
+      ? publicStatus.status === 'text_ready' || publicStatus.status === 'text_review'
+      : publicStatus.status === 'plan_ready'
 
     const activeStep = isRunning
       ? (getCurrentStep(storyIdRaw) ?? (publicStatus.status === 'plan_running' ? 'Plotter' : 'Writer'))
       : null
 
     const summaries = getStepSummaries(storyIdRaw)
+    const stepNames = getStepNamesForPhase(publicStatus.phase)
 
     let passedActive = false
-    const steps = PIPELINE_STEP_NAMES.map((name) => {
+    const steps = stepNames.map((name) => {
       const summary = summaries.get(name)
 
-      if (isAllDone) return { name, status: 'completed', agent: name, summary }
+      if (isThisPhaseDone) return { name, status: 'completed', agent: name, summary }
       if (isFailed) return { name, status: 'failed', agent: name, summary }
 
       if (!isRunning) return { name, status: 'pending', agent: name, summary }

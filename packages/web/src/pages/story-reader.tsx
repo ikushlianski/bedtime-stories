@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, type RefObject } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { api, isReactionAnnotation, type Story, type Annotation, type AnnotationType, type PipelineStatusValue } from '../lib/api'
 import { AnnotationToolbar, FeedbackForm, PageHeader, StatusCallout, Toast, StoryTagEditor } from '../components'
@@ -37,7 +37,7 @@ function useStoryFetch(id: number) {
       .finally(() => setLoading(false))
   }, [id])
 
-  return { story, loading, error }
+  return { story, setStory, loading, error }
 }
 
 function StoryText({
@@ -97,11 +97,34 @@ function StoryText({
   )
 }
 
+function EditableStoryText({
+  initialText,
+  editRef,
+}: {
+  initialText: string
+  editRef: RefObject<HTMLDivElement | null>
+}) {
+  useEffect(() => {
+    if (editRef.current && !editRef.current.innerText) {
+      editRef.current.innerText = initialText
+    }
+  }, [initialText, editRef])
+
+  return (
+    <div
+      ref={editRef}
+      contentEditable
+      suppressContentEditableWarning
+      className="rounded-box border-2 border-primary bg-base-100 p-8 font-serif text-xl leading-relaxed text-base-content shadow-sm outline-none min-h-96 focus:border-primary/70"
+    />
+  )
+}
+
 export function StoryReaderPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const storyId = Number(id)
-  const { story, loading, error } = useStoryFetch(storyId)
+  const { story, setStory, loading, error } = useStoryFetch(storyId)
   const [selection, setSelection] = useState<SelectionState | null>(null)
   const [annotations, setAnnotations] = useState<Annotation[]>([])
   const [annotationError, setAnnotationError] = useState<string | null>(null)
@@ -118,6 +141,10 @@ export function StoryReaderPage() {
   const [analysisReactionsCount, setAnalysisReactionsCount] = useState<number | null>(null)
   const { message: toastMessage, showToast } = useToast()
   const [storyTags, setStoryTags] = useState<string[]>([])
+  const [editMode, setEditMode] = useState(false)
+  const [savingText, setSavingText] = useState(false)
+  const [saveTextError, setSaveTextError] = useState<string | null>(null)
+  const editRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (story) {
@@ -170,6 +197,25 @@ export function StoryReaderPage() {
     },
     [storyId],
   )
+
+  const handleSaveText = useCallback(async () => {
+    if (!editRef.current) return
+
+    const newText = editRef.current.innerText
+    setSavingText(true)
+    setSaveTextError(null)
+
+    try {
+      const updated = await api.stories.updateText(storyId, newText)
+      setStory(updated)
+      setEditMode(false)
+      showToast('Текст сохранён')
+    } catch (err) {
+      setSaveTextError(err instanceof Error ? err.message : 'Не удалось сохранить текст')
+    } finally {
+      setSavingText(false)
+    }
+  }, [storyId, setStory, showToast])
 
   const counts = countByType(annotations)
   const reactionCount = totalReactions(counts)
@@ -320,8 +366,32 @@ export function StoryReaderPage() {
         />
       </div>
 
+      <div className="mb-2 flex justify-end gap-2">
+        {textToDisplay && !editMode && (
+          <button
+            className="btn btn-xs btn-outline"
+            onClick={() => setEditMode(true)}
+          >
+            Редактировать текст
+          </button>
+        )}
+        {editMode && (
+          <>
+            {saveTextError && <span className="text-xs text-error self-center">{saveTextError}</span>}
+            <button className="btn btn-xs btn-ghost" disabled={savingText} onClick={() => setEditMode(false)}>
+              Отмена
+            </button>
+            <button className="btn btn-xs btn-primary" disabled={savingText} onClick={() => void handleSaveText()}>
+              {savingText ? 'Сохраняем…' : 'Сохранить'}
+            </button>
+          </>
+        )}
+      </div>
+
       <div className="relative">
-        {textToDisplay ? (
+        {editMode && textToDisplay ? (
+          <EditableStoryText initialText={textToDisplay} editRef={editRef} />
+        ) : textToDisplay ? (
           <StoryText text={textToDisplay} onSelection={setSelection} />
         ) : (
           <StatusCallout
@@ -331,7 +401,7 @@ export function StoryReaderPage() {
           />
         )}
 
-        {selection && (
+        {!editMode && selection && (
           <div
             style={{
               position: 'absolute',
@@ -363,6 +433,52 @@ export function StoryReaderPage() {
         </div>
       )}
 
+      {pipelineStatus === 'text_review' && (
+        <div className="mt-4 rounded-box border border-primary/30 bg-primary/10 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-base-content">Одобри историю или отправь на доработку.</p>
+            <div className="flex gap-2">
+              {reviewActionError && <span className="text-xs text-error self-center">{reviewActionError}</span>}
+              <button
+                className="btn btn-sm btn-outline"
+                disabled={redoingText}
+                onClick={() => {
+                  setRedoingText(true)
+                  setReviewActionError(null)
+                  api.stories.redoText(storyId)
+                    .then(() => navigate(`/stories/${storyId}/pipeline`))
+                    .catch((err) => {
+                      setReviewActionError(err instanceof Error ? err.message : 'Не удалось запустить доработку')
+                      setRedoingText(false)
+                    })
+                }}
+              >
+                {redoingText ? 'Запускаем…' : 'Ещё один проход'}
+              </button>
+              <button
+                className="btn btn-sm btn-primary"
+                disabled={approvingText}
+                onClick={() => {
+                  setApprovingText(true)
+                  setReviewActionError(null)
+                  api.stories.approveText(storyId, true)
+                    .then(() => {
+                      setCurrentStatus('ready')
+                      setPipelineStatus('text_ready')
+                    })
+                    .catch((err) => {
+                      setReviewActionError(err instanceof Error ? err.message : 'Не удалось одобрить историю')
+                      setApprovingText(false)
+                    })
+                }}
+              >
+                {approvingText ? 'Сохраняем…' : 'Одобрить историю'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {annotations.length > 0 && (
         <section className="mt-8">
           <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
@@ -372,9 +488,9 @@ export function StoryReaderPage() {
             {annotations.map((annotation) => (
               <li
                 key={annotation.id}
-                className="rounded-box border border-base-300 bg-base-100 p-4 shadow-sm"
+                className="rounded-box border border-base-300 bg-base-100 p-4 shadow-sm space-y-3"
               >
-                <div className="mb-2 flex items-center gap-2">
+                <div className="flex items-center gap-2">
                   <span
                     className={`badge badge-sm ${isReactionAnnotation(annotation.type) ? 'badge-primary' : 'badge-secondary'}`}
                   >
@@ -384,13 +500,27 @@ export function StoryReaderPage() {
                     {new Date(annotation.createdAt).toLocaleString()}
                   </span>
                 </div>
-                <p className="whitespace-pre-wrap font-serif text-sm italic text-base-content/70">
-                  &ldquo;{annotation.selectedText}&rdquo;
-                </p>
+
+                <blockquote className="border-l-4 border-base-300 pl-4 font-serif text-sm italic text-base-content/60">
+                  {annotation.selectedText}
+                </blockquote>
+
                 {annotation.noteText && (
-                  <p className="mt-2 whitespace-pre-wrap text-base text-base-content">
-                    {annotation.noteText}
-                  </p>
+                  <div className="flex justify-end">
+                    <div className="max-w-prose rounded-2xl rounded-tr-sm bg-primary/10 px-4 py-2.5">
+                      <p className="mb-1 text-xs font-semibold text-primary/70">Вы</p>
+                      <p className="whitespace-pre-wrap text-sm text-base-content">{annotation.noteText}</p>
+                    </div>
+                  </div>
+                )}
+
+                {annotation.resolvedSummary && (
+                  <div className="flex justify-start">
+                    <div className="max-w-prose rounded-2xl rounded-tl-sm bg-base-200 px-4 py-2.5">
+                      <p className="mb-1 text-xs font-semibold text-base-content/40">ИИ</p>
+                      <p className="whitespace-pre-wrap text-sm text-base-content/80">{annotation.resolvedSummary}</p>
+                    </div>
+                  </div>
                 )}
               </li>
             ))}
