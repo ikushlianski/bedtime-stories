@@ -112,7 +112,7 @@ router.post('/', validate(createStorySchema), async (req, res) => {
       title: resolved.title,
       status: 'draft',
       source: 'agent',
-      mode: resolved.pipelineMode ?? 'auto',
+      mode: resolved.pipelineMode ?? 'manual',
       ...(resolved.groupId !== undefined ? { groupId: resolved.groupId } : {}),
     }
     const [story] = await db.insert(stories).values(newStory).returning()
