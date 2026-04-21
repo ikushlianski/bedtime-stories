@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { annotations, childDiary, childProfiles, feedback, planConversations, planQuestions, prompts, runSnapshots, stories, storyGroups } from './schema.js'
+import { annotations, childDiary, childProfiles, childReactions, feedback, parentReviews, planConversations, planQuestions, prompts, runSnapshots, stories, storyGroups } from './schema.js'
 
 export type StoryGroup = typeof storyGroups.$inferSelect
 export type NewStoryGroup = typeof storyGroups.$inferInsert
@@ -269,6 +269,12 @@ export const newAnnotationSchema = z.object({
   positionStart: z.number().int().optional(),
   positionEnd: z.number().int().optional(),
 })
+
+export type ParentReview = typeof parentReviews.$inferSelect
+export type NewParentReview = typeof parentReviews.$inferInsert
+
+export type ChildReaction = typeof childReactions.$inferSelect
+export type NewChildReaction = typeof childReactions.$inferInsert
 
 export const childDiarySchema = z.object({
   id: z.number().int(),

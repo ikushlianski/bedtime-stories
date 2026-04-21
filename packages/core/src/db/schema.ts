@@ -1,4 +1,4 @@
-import { boolean, integer, jsonb, pgTable, serial, text, timestamp } from 'drizzle-orm/pg-core'
+import { boolean, integer, jsonb, pgTable, serial, text, timestamp, unique } from 'drizzle-orm/pg-core'
 
 export const storyGroups = pgTable('story_groups', {
   id: serial('id').primaryKey(),
@@ -151,3 +151,30 @@ export const planConversations = pgTable('plan_conversations', {
   content: text('content').notNull(),
   createdAt: timestamp('created_at').defaultNow(),
 })
+
+export const parentReviews = pgTable('parent_reviews', {
+  id: serial('id').primaryKey(),
+  storyId: integer('story_id').references(() => stories.id).notNull(),
+  rating: integer('rating'),
+  pacingOk: boolean('pacing_ok'),
+  wouldReuse: boolean('would_reuse'),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (t) => [unique('parent_reviews_story_id_unique').on(t.storyId)])
+
+export const childReactions = pgTable('child_reactions', {
+  id: serial('id').primaryKey(),
+  storyId: integer('story_id').references(() => stories.id).notNull(),
+  enjoyed: integer('enjoyed'),
+  wasFunny: boolean('was_funny'),
+  wasScary: boolean('was_scary'),
+  tooLong: boolean('too_long'),
+  understoodMoral: boolean('understood_moral'),
+  wantAgain: boolean('want_again'),
+  favoriteMoment: text('favorite_moment'),
+  favoriteCharacter: text('favorite_character'),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (t) => [unique('child_reactions_story_id_unique').on(t.storyId)])

@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback, type RefObject } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { api, isReactionAnnotation, type Story, type Annotation, type AnnotationType, type PipelineStatusValue } from '../lib/api'
-import { AnnotationToolbar, FeedbackForm, PageHeader, StatusCallout, Toast, StoryTagEditor } from '../components'
+import { AnnotationToolbar, PageHeader, StatusCallout, Toast, StoryTagEditor } from '../components'
+import ParentReviewForm from '../components/parent-review-form'
+import ChildReactionForm from '../components/child-reaction-form'
 import { useToast } from '../lib/use-toast'
-import type { FeedbackValues } from '../components/types'
 import {
   annotationTypeLabel,
   sortAnnotationsByPosition,
@@ -607,23 +608,28 @@ export function StoryReaderPage() {
       )}
 
       {story.status !== 'draft' && (
-        <section className="mt-12">
+        <section className="mt-12 space-y-6">
           <PageHeader
             eyebrow="Отзыв"
             title="Впечатления от чтения"
-            description="Запиши общее впечатление после прочтения — это поможет улучшить следующие истории."
+            description="Запиши впечатления — родительские и Сашины."
           />
 
-          <FeedbackForm
-            storyId={String(storyId)}
-            onSubmit={(values: FeedbackValues) =>
-              api.feedback.submit(storyId, {
-                rating: values.rating,
-                structured_feedback: values.structured_feedback,
-                feedback_type: 'agent_run',
-              }).then(() => undefined)
-            }
-          />
+          <div className="card border border-base-300 bg-base-200 shadow-sm">
+            <div className="card-body gap-4">
+              <h3 className="font-serif text-xl text-base-content">Впечатления родителя</h3>
+              <p className="text-sm text-base-content/60">Критический взгляд — качество, темп, стоит ли повторять.</p>
+              <ParentReviewForm storyId={storyId} />
+            </div>
+          </div>
+
+          <div className="card border border-base-300 bg-base-200 shadow-sm">
+            <div className="card-body gap-4">
+              <h3 className="font-serif text-xl text-base-content">Реакции Саши</h3>
+              <p className="text-sm text-base-content/60">Что понравилось, что запомнилось, как Саша реагировал.</p>
+              <ChildReactionForm storyId={storyId} />
+            </div>
+          </div>
         </section>
       )}
     </div>

@@ -127,6 +127,33 @@ export interface StructuredFeedback {
   notes: string
 }
 
+export interface ParentReview {
+  id: number
+  storyId: number
+  rating: number | null
+  pacingOk: boolean | null
+  wouldReuse: boolean | null
+  notes: string | null
+  createdAt: string | null
+  updatedAt: string | null
+}
+
+export interface ChildReaction {
+  id: number
+  storyId: number
+  enjoyed: number | null
+  wasFunny: boolean | null
+  wasScary: boolean | null
+  tooLong: boolean | null
+  understoodMoral: boolean | null
+  wantAgain: boolean | null
+  favoriteMoment: string | null
+  favoriteCharacter: string | null
+  notes: string | null
+  createdAt: string | null
+  updatedAt: string | null
+}
+
 export interface FeedbackData {
   rating: number
   comment?: string
@@ -310,6 +337,24 @@ export const api = {
       request<Story>(`/api/stories/${id}/text`, {
         method: 'PATCH',
         body: JSON.stringify({ text }),
+      }),
+
+    getParentReview: (id: number) =>
+      request<ParentReview | null>(`/api/stories/${id}/parent-review`),
+
+    saveParentReview: (id: number, data: Partial<Omit<ParentReview, 'id' | 'storyId' | 'createdAt' | 'updatedAt'>>) =>
+      request<ParentReview>(`/api/stories/${id}/parent-review`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+
+    getChildReaction: (id: number) =>
+      request<ChildReaction | null>(`/api/stories/${id}/child-reaction`),
+
+    saveChildReaction: (id: number, data: Partial<Omit<ChildReaction, 'id' | 'storyId' | 'createdAt' | 'updatedAt'>>) =>
+      request<ChildReaction>(`/api/stories/${id}/child-reaction`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
       }),
   },
 

@@ -2,8 +2,8 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { eq, desc, and, sql } from 'drizzle-orm'
 import { db } from '@bedtime/core/db/client'
-import { stories, annotations, feedback, runSnapshots, storyGroups, planQuestions, planConversations, childDiary } from '@bedtime/core/db/schema'
-import type { Story, NewStory, NewAnnotation } from '@bedtime/core/db/types'
+import { stories, annotations, feedback, runSnapshots, storyGroups, planQuestions, planConversations, childDiary, parentReviews, childReactions } from '@bedtime/core/db/schema'
+import type { Story, NewStory, NewAnnotation, ParentReview, ChildReaction } from '@bedtime/core/db/types'
 import { validate } from '../middleware/validate'
 import { triggerTextPhase, getPipelineStatus } from './pipeline'
 import { triggerPlanRedo } from './pipeline-plan-redo'
@@ -751,6 +751,115 @@ router.patch('/:id/analysis', validate(updateAnalysisSchema), async (req, res) =
   } catch (err) {
     console.error('PATCH /stories/:id/analysis failed:', err)
     res.status(500).json({ error: 'Failed to update story analysis' })
+  }
+})
+
+const parentReviewSchema = z.object({
+  rating: z.number().int().min(1).max(5).nullable().optional(),
+  pacingOk: z.boolean().nullable().optional(),
+  wouldReuse: z.boolean().nullable().optional(),
+  notes: z.string().optional(),
+})
+
+const childReactionSchema = z.object({
+  enjoyed: z.number().int().min(1).max(5).nullable().optional(),
+  wasFunny: z.boolean().nullable().optional(),
+  wasScary: z.boolean().nullable().optional(),
+  tooLong: z.boolean().nullable().optional(),
+  understoodMoral: z.boolean().nullable().optional(),
+  wantAgain: z.boolean().nullable().optional(),
+  favoriteMoment: z.string().optional(),
+  favoriteCharacter: z.string().optional(),
+  notes: z.string().optional(),
+})
+
+router.get('/:id/parent-review', async (req, res) => {
+  try {
+    const storyId = parseIntParam(req.params['id'])
+
+    if (isNaN(storyId)) {
+      res.status(400).json({ error: 'Invalid story id' })
+      return
+    }
+
+    const [review] = await db.select().from(parentReviews).where(eq(parentReviews.storyId, storyId))
+
+    res.json(review ?? null)
+  } catch (err) {
+    console.error('GET /stories/:id/parent-review failed:', err)
+    res.status(500).json({ error: 'Failed to fetch parent review' })
+  }
+})
+
+router.put('/:id/parent-review', validate(parentReviewSchema), async (req, res) => {
+  try {
+    const storyId = parseIntParam(req.params['id'])
+
+    if (isNaN(storyId)) {
+      res.status(400).json({ error: 'Invalid story id' })
+      return
+    }
+
+    const body = req.body as z.infer<typeof parentReviewSchema>
+
+    const [review] = await db
+      .insert(parentReviews)
+      .values({ storyId, ...body, updatedAt: new Date() })
+      .onConflictDoUpdate({
+        target: parentReviews.storyId,
+        set: { ...body, updatedAt: new Date() },
+      })
+      .returning()
+
+    res.json(review as ParentReview)
+  } catch (err) {
+    console.error('PUT /stories/:id/parent-review failed:', err)
+    res.status(500).json({ error: 'Failed to save parent review' })
+  }
+})
+
+router.get('/:id/child-reaction', async (req, res) => {
+  try {
+    const storyId = parseIntParam(req.params['id'])
+
+    if (isNaN(storyId)) {
+      res.status(400).json({ error: 'Invalid story id' })
+      return
+    }
+
+    const [reaction] = await db.select().from(childReactions).where(eq(childReactions.storyId, storyId))
+
+    res.json(reaction ?? null)
+  } catch (err) {
+    console.error('GET /stories/:id/child-reaction failed:', err)
+    res.status(500).json({ error: 'Failed to fetch child reaction' })
+  }
+})
+
+router.put('/:id/child-reaction', validate(childReactionSchema), async (req, res) => {
+  try {
+    const storyId = parseIntParam(req.params['id'])
+
+    if (isNaN(storyId)) {
+      res.status(400).json({ error: 'Invalid story id' })
+      return
+    }
+
+    const body = req.body as z.infer<typeof childReactionSchema>
+
+    const [reaction] = await db
+      .insert(childReactions)
+      .values({ storyId, ...body, updatedAt: new Date() })
+      .onConflictDoUpdate({
+        target: childReactions.storyId,
+        set: { ...body, updatedAt: new Date() },
+      })
+      .returning()
+
+    res.json(reaction as ChildReaction)
+  } catch (err) {
+    console.error('PUT /stories/:id/child-reaction failed:', err)
+    res.status(500).json({ error: 'Failed to save child reaction' })
   }
 })
 
