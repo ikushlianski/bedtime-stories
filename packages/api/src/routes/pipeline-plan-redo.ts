@@ -1,7 +1,8 @@
-import { eq, and } from 'drizzle-orm'
+import { eq, and, isNull } from 'drizzle-orm'
 import { runPlotterOnly } from '@bedtime/core/pipeline/orchestrator'
 import { synthesizeSashaContext } from '@bedtime/core/pipeline/feedback-synthesizer'
 import { generatePlanChangeSummary } from '@bedtime/core/pipeline/plan-change-summarizer'
+import { resolveAnnotations } from '@bedtime/core/pipeline/annotation-resolver'
 import { db } from '@bedtime/core/db/client'
 import { annotations, runSnapshots, stories } from '@bedtime/core/db/schema'
 import {
@@ -34,12 +35,12 @@ function formatAnnotationsAsFeedback(items: Array<{ selectedText: string; noteTe
 export function triggerPlanRedo(storyId: number, seed: string, previousPlan: string, universeSystemPrompt?: string, universeContext?: string, styleGuide?: string): void {
   setPipelineStatus(storyId, 'plan_running')
 
-  db.select({ selectedText: annotations.selectedText, noteText: annotations.noteText })
+  db.select({ id: annotations.id, selectedText: annotations.selectedText, noteText: annotations.noteText })
     .from(annotations)
-    .where(and(eq(annotations.storyId, storyId), eq(annotations.context, 'plan')))
+    .where(and(eq(annotations.storyId, storyId), eq(annotations.context, 'plan'), isNull(annotations.resolvedAt)))
     .then((rows) => {
-      const planRows = rows.filter((r): r is { selectedText: string; noteText: string | null } => true)
-      const userFeedback = formatAnnotationsAsFeedback(planRows)
+      const activeRows = rows.filter((r) => r.noteText !== null) as Array<{ id: number; selectedText: string; noteText: string }>
+      const userFeedback = formatAnnotationsAsFeedback(activeRows)
 
       return synthesizeSashaContext().then((sashaContext) =>
         runPlotterOnly({
@@ -53,19 +54,40 @@ export function triggerPlanRedo(storyId: number, seed: string, previousPlan: str
           ...(sashaContext !== null ? { sashaContext } : {}),
           ...(userFeedback ? { userFeedback } : {}),
           onStepChange: (step) => setCurrentStep(storyId, step),
-        }).then(async (result) => ({ result, userFeedback }))
+        }).then(async (result) => ({ result, userFeedback, activeRows }))
       )
     })
-    .then(async ({ result, userFeedback }) => {
+    .then(async ({ result, userFeedback, activeRows }) => {
       setStepSummary(storyId, 'Plotter', extractPlotterSummary(result.planV1))
 
       try {
-        const changeSummary = await generatePlanChangeSummary({
-          previousPlan,
-          newPlan: result.planV1,
-          userFeedback,
-          model: defaultModels.plotter,
-        })
+        const [changeSummary, resolutionMap] = await Promise.all([
+          generatePlanChangeSummary({
+            previousPlan,
+            newPlan: result.planV1,
+            userFeedback,
+            model: defaultModels.plotter,
+          }),
+          resolveAnnotations({
+            previousVersion: previousPlan,
+            newVersion: result.planV1,
+            annotations: activeRows,
+            model: defaultModels.plotter,
+            versionLabel: 'план',
+          }),
+        ])
+
+        const resolvedAt = new Date()
+
+        await Promise.all(
+          activeRows.map((row) => {
+            const summary = resolutionMap.get(row.id) ?? null
+            return db
+              .update(annotations)
+              .set({ resolvedAt, resolvedSummary: summary })
+              .where(eq(annotations.id, row.id))
+          }),
+        )
 
         await db.insert(runSnapshots).values(buildPlotterOnlySnapshotInsert(storyId, result))
 

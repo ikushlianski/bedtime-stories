@@ -41,17 +41,54 @@ function RedoPlanButton({ storyId, disabled }: { storyId: number; disabled: bool
   )
 }
 
+function ResolvedAnnotations({ annotations }: { annotations: Annotation[] }) {
+  const [expanded, setExpanded] = useState(false)
+
+  if (annotations.length === 0) return null
+
+  return (
+    <div className="rounded-box border border-base-300 bg-base-200/30">
+      <button
+        className="flex w-full items-center justify-between px-4 py-3 text-sm text-base-content/50 hover:text-base-content/70"
+        onClick={() => setExpanded((v) => !v)}
+      >
+        <span>Учтённые комментарии ({annotations.length})</span>
+        <span>{expanded ? '▲' : '▼'}</span>
+      </button>
+
+      {expanded && (
+        <ul className="space-y-3 px-4 pb-4">
+          {annotations.map((a) => (
+            <li key={a.id} className="rounded-box border border-base-300/50 bg-base-100/50 p-3 opacity-50">
+              <p className="mb-1 text-xs italic text-base-content/40">&ldquo;{a.selectedText}&rdquo;</p>
+              <p className="text-sm text-base-content/60">{a.noteText}</p>
+              {a.resolvedSummary && (
+                <p className="mt-2 border-t border-base-300/30 pt-2 text-xs text-base-content/40">
+                  ✓ {a.resolvedSummary}
+                </p>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 function PlanAnnotator({ storyId, planText }: PlanAnnotatorProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [popover, setPopover] = useState<SelectionPopover | null>(null)
   const [comment, setComment] = useState('')
   const [saving, setSaving] = useState(false)
-  const [annotations, setAnnotations] = useState<Annotation[]>([])
+  const [allAnnotations, setAllAnnotations] = useState<Annotation[]>([])
   const [saveError, setSaveError] = useState<string | null>(null)
 
   useEffect(() => {
-    api.annotations.list(storyId, 'plan').then(setAnnotations).catch(() => undefined)
+    api.annotations.list(storyId, 'plan').then(setAllAnnotations).catch(() => undefined)
   }, [storyId])
+
+  const activeAnnotations = allAnnotations.filter((a) => a.resolvedAt === null)
+  const resolvedAnnotations = allAnnotations.filter((a) => a.resolvedAt !== null)
 
   const handleMouseUp = useCallback(() => {
     const selection = window.getSelection()
@@ -102,7 +139,7 @@ function PlanAnnotator({ storyId, planText }: PlanAnnotatorProps) {
         context: 'plan',
       })
 
-      setAnnotations((prev) => [...prev, created])
+      setAllAnnotations((prev) => [...prev, created])
       handleDismiss()
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Не удалось сохранить')
@@ -111,11 +148,9 @@ function PlanAnnotator({ storyId, planText }: PlanAnnotatorProps) {
     }
   }
 
-  const hasAnnotations = annotations.length > 0
-
   return (
     <div className="space-y-4">
-      {hasAnnotations && (
+      {activeAnnotations.length > 0 && (
         <div className="flex justify-end">
           <RedoPlanButton storyId={storyId} disabled={false} />
         </div>
@@ -176,14 +211,14 @@ function PlanAnnotator({ storyId, planText }: PlanAnnotatorProps) {
         )}
       </div>
 
-      {hasAnnotations && (
+      {activeAnnotations.length > 0 && (
         <div className="space-y-4">
           <section>
             <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
               Заметки к плану
             </h3>
             <ul className="space-y-3">
-              {annotations.map((a) => (
+              {activeAnnotations.map((a) => (
                 <li key={a.id} className="rounded-box border border-base-300 bg-base-200/50 p-4">
                   <p className="mb-1 text-xs italic text-base-content/50">&ldquo;{a.selectedText}&rdquo;</p>
                   <p className="text-sm text-base-content">{a.noteText}</p>
@@ -197,6 +232,8 @@ function PlanAnnotator({ storyId, planText }: PlanAnnotatorProps) {
           </div>
         </div>
       )}
+
+      <ResolvedAnnotations annotations={resolvedAnnotations} />
     </div>
   )
 }

@@ -85,6 +85,13 @@
       "when": 1776594466650,
       "tag": "0011_dusty_rick_jones",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1776760890444,
+      "tag": "0012_annotations_soft_delete",
+      "breakpoints": true
     }
   ]
 }

@@ -178,6 +178,8 @@ export interface Annotation {
   noteText: string | null
   positionStart: number | null
   positionEnd: number | null
+  resolvedAt: string | null
+  resolvedSummary: string | null
   createdAt: string
 }
 

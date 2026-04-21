@@ -83,6 +83,8 @@ export const annotations = pgTable('annotations', {
   positionStart: integer('position_start'),
   positionEnd: integer('position_end'),
   context: text('context').$type<'plan' | 'text'>().default('text'),
+  resolvedAt: timestamp('resolved_at'),
+  resolvedSummary: text('resolved_summary'),
   createdAt: timestamp('created_at').defaultNow(),
 })
 
