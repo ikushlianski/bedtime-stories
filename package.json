@@ -2,9 +2,7 @@
   "name": "bedtime-agent",
   "version": "1.0.0",
   "description": "",
-  "main": "packages/core/src/mastra/index.ts",
   "scripts": {
-    "dev": "mastra dev",
     "dev:api": "npm run dev -w @bedtime/api",
     "dev:web": "npm run dev -w @bedtime/web",
     "dev:debug": "npm run dev:api 2>&1 | tee /tmp/bedtime-api.log & npm run dev:web 2>&1 | tee /tmp/bedtime-web.log",
@@ -25,10 +23,6 @@
   ],
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.89",
-    "@mastra/core": "^1.17.0",
-    "@mastra/loggers": "^1.0.3",
-    "@mastra/memory": "^1.10.0",
-    "@mastra/pg": "^1.8.3",
     "@neondatabase/serverless": "^1.0.2",
     "ai-sdk-provider-claude-code": "^3.4.4",
     "cors": "^2.8.6",
