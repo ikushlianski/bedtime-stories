@@ -15,6 +15,7 @@ interface StoryCardProps {
   status: StoryStatus
   createdAt: string
   rating?: number
+  seriesId?: string | null
   actions?: StoryCardAction[]
   onTitleClick?: () => void
   dragHandleProps?: HTMLAttributes<HTMLDivElement>
@@ -71,7 +72,7 @@ function GripIcon() {
   )
 }
 
-function StoryCard({ title, status, createdAt, rating, actions = [], onTitleClick, dragHandleProps }: StoryCardProps) {
+function StoryCard({ title, status, createdAt, rating, seriesId, actions = [], onTitleClick, dragHandleProps }: StoryCardProps) {
   const config = statusConfig[status]
   const isArchived = status === 'archived'
   const regularActions = actions.filter((action) => action.tone !== 'destructive')
@@ -107,7 +108,12 @@ function StoryCard({ title, status, createdAt, rating, actions = [], onTitleClic
             ) : (
               <h3 className="font-serif text-base leading-tight text-base-content">{title}</h3>
             )}
-            <span className={`badge badge-sm shrink-0 ${config.tone}`}>{config.label}</span>
+            <div className="flex shrink-0 gap-1">
+              {seriesId && (
+                <span className="badge badge-sm badge-outline" title="Часть серии историй">Серия</span>
+              )}
+              <span className={`badge badge-sm ${config.tone}`}>{config.label}</span>
+            </div>
           </div>
 
           <div className="flex items-center justify-between gap-3 text-xs text-base-content/65">

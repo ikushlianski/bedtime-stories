@@ -1,0 +1,1 @@
+ALTER TABLE "stories" ADD COLUMN "updated_at" timestamp DEFAULT now();

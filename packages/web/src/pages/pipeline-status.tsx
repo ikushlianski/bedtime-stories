@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { api, type PipelineStatus, type PipelineStatusValue, type Story } from '../lib/api'
-import { PageHeader, PipelineProgress, StatusCallout } from '../components'
+import { AttentionStories, PageHeader, PipelineProgress, StatusCallout } from '../components'
 import { QuestionsPipelineSection } from '../components/questions-pipeline-section'
 import type { PipelineStep, AgentName, AgentStatus } from '../components/types'
 import { decidePipelineRetry } from './pipeline-retry'
@@ -255,6 +255,17 @@ export function PipelineStatusPage() {
     }
   }, [fetchStatus])
 
+  const autoTriggeredRef = useRef(false)
+
+  useEffect(() => {
+    if (status?.status === 'questions_answered' && !autoTriggeredRef.current) {
+      autoTriggeredRef.current = true
+      api.pipeline.retryPlan(storyId)
+        .then(() => fetchStatus())
+        .catch((err: unknown) => setRetryError(err instanceof Error ? err.message : 'Не удалось запустить планировщик'))
+    }
+  }, [status?.status, storyId, fetchStatus])
+
   const handleRetry = useCallback(async (seed: string) => {
     setRetrying(true)
     setRetryError(null)
@@ -274,7 +285,7 @@ export function PipelineStatusPage() {
     <div>
       <PageHeader
         eyebrow="Обработка"
-        title="Статус конвейера"
+        title={story?.title || 'Статус конвейера'}
         description={
           status
             ? `${describeStatus(status.status)}${status.current_step ? ` Сейчас работает: ${AGENT_DISPLAY_NAMES[status.current_step] ?? status.current_step}.` : ''}`
@@ -297,10 +308,14 @@ export function PipelineStatusPage() {
               storyId={storyId}
               pipelineStatus={status.status}
               onAnswersSubmitted={() => void fetchStatus()}
+              storyTitle={story?.title}
+              storySeed={story?.seed}
             />
           )}
 
           <PipelineProgress steps={toPipelineSteps(status)} />
+
+          <AttentionStories currentStoryId={storyId} />
 
           {streamingText && (
             <div className="rounded-lg border border-base-300 bg-base-200 p-4">
@@ -353,30 +368,6 @@ export function PipelineStatusPage() {
                   title="Перезапуск невозможен"
                   message="У истории нет затравки, поэтому конвейер нельзя перезапустить отсюда."
                 />
-              )
-            }
-
-            if (retryDecision.action === 'trigger_plan') {
-              return (
-                <div className="space-y-2">
-                  {retryError && <StatusCallout tone="error" title="Запуск не удался" message={retryError} />}
-                  <div className="flex justify-end">
-                    <button
-                      className="btn btn-primary"
-                      disabled={retrying}
-                      onClick={() => {
-                        setRetrying(true)
-                        setRetryError(null)
-                        api.pipeline.retryPlan(storyId)
-                          .then(() => fetchStatus())
-                          .catch((err: unknown) => setRetryError(err instanceof Error ? err.message : 'Не удалось запустить планировщик'))
-                          .finally(() => setRetrying(false))
-                      }}
-                    >
-                      {retrying ? 'Запускаем…' : 'Запустить сюжетника →'}
-                    </button>
-                  </div>
-                </div>
               )
             }
 

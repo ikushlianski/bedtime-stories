@@ -3,7 +3,6 @@ import type { PipelineStatusValue, Story } from '../lib/api'
 export type RetryDecision =
   | { action: 'hidden' }
   | { action: 'retry_plan'; seed: string; reason: 'pending' | 'plan_failed' }
-  | { action: 'trigger_plan' }
   | { action: 'retry_text'; reason: 'text_failed' }
   | { action: 'blocked'; reason: 'missing_seed' }
 
@@ -24,7 +23,7 @@ export function decidePipelineRetry(
   }
 
   if (status === 'questions_answered') {
-    return { action: 'trigger_plan' }
+    return { action: 'hidden' }
   }
 
   const needsPlanRetry = status === 'pending' || (status === 'failed' && story.plan_final === null)

@@ -48,6 +48,7 @@ export interface UniverseCharacter {
   name: string
   description: string
   createdAt: string | null
+  updatedAt: string | null
 }
 
 export interface UniverseSuggestion {
@@ -107,6 +108,8 @@ export interface Story {
   text_change_summary: string | null
   story_analysis: string | null
   sort_order: number | null
+  series_id: string | null
+  updated_at: string | null
 }
 
 export interface RunSnapshot {
@@ -256,6 +259,16 @@ export type CreateStoryInput =
   | { seed: string; groupId?: number; pipelineMode?: 'auto' | 'manual' }
   | { title?: string; textFinal: string; groupId?: number; source?: 'user' | 'legacy'; addToReadingList?: boolean }
 
+export interface CreateSeriesInput {
+  seed: string
+  groupId?: number
+}
+
+export interface CreateSeriesResult {
+  seriesId: string
+  stories: Array<{ id: number; title: string; status: string; series_id: string; created_at: string }>
+}
+
 export interface CreateAnnotationInput {
   type: AnnotationType
   selectedText: string
@@ -308,6 +321,12 @@ export const api = {
 
     create: (input: CreateStoryInput) =>
       request<Story>('/api/stories', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+
+    createSeries: (input: CreateSeriesInput) =>
+      request<CreateSeriesResult>('/api/stories/series', {
         method: 'POST',
         body: JSON.stringify(input),
       }),

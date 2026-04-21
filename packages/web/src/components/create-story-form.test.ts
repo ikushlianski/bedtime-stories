@@ -13,13 +13,13 @@ describe('validateCreateStoryForm', () => {
   it('accepts a valid seed with a universe and returns the input', () => {
     const result = validateCreateStoryForm(formWith({ seed: 'A hero learns patience', groupId: 1 }))
 
-    expect(result).toEqual({ valid: true, input: { seed: 'A hero learns patience', pipelineMode: 'auto', groupId: 1 } })
+    expect(result).toEqual({ valid: true, input: { seed: 'A hero learns patience', pipelineMode: 'manual', groupId: 1 } })
   })
 
   it('trims the seed before returning', () => {
     const result = validateCreateStoryForm(formWith({ seed: '   brave bear   ', groupId: 1 }))
 
-    expect(result).toEqual({ valid: true, input: { seed: 'brave bear', pipelineMode: 'auto', groupId: 1 } })
+    expect(result).toEqual({ valid: true, input: { seed: 'brave bear', pipelineMode: 'manual', groupId: 1 } })
   })
 
   it('includes pipelineMode=manual when set', () => {

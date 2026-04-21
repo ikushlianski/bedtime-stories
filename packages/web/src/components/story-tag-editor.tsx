@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 
 const SUGGESTED_TAGS = [
   'Эмоции', 'Семья', 'Детский сад', 'Страхи', 'Дружба',
@@ -13,6 +13,10 @@ interface StoryTagEditorProps {
 function StoryTagEditor({ tags, onSave }: StoryTagEditorProps) {
   const [current, setCurrent] = useState<string[]>(tags)
   const [input, setInput] = useState('')
+
+  useEffect(() => {
+    setCurrent(tags)
+  }, [tags])
   const [saving, setSaving] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 

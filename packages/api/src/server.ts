@@ -2,6 +2,7 @@ import express from 'express'
 import cors from 'cors'
 import dns from 'node:dns'
 import storiesRouter from './routes/stories'
+import storiesSeriesRouter from './routes/stories-series'
 import feedbackRouter from './routes/feedback'
 import promptsRouter from './routes/prompts'
 import pipelineRouter from './routes/pipeline'
@@ -17,6 +18,7 @@ export const app = express()
 app.use(cors())
 app.use(express.json())
 
+app.use('/api/stories/series', storiesSeriesRouter)
 app.use('/api/stories', storiesRouter)
 app.use('/api/stories/:id/feedback', feedbackRouter)
 app.use('/api/prompts', promptsRouter)

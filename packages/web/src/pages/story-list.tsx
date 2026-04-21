@@ -44,6 +44,7 @@ function SortableStoryCard({ story, onTitleClick, onDelete }: SortableStoryCardP
         title={story.title}
         status={story.status}
         createdAt={story.created_at}
+        seriesId={story.series_id}
         onTitleClick={onTitleClick}
         dragHandleProps={{ ...listeners, ...attributes }}
         actions={[
@@ -259,6 +260,7 @@ export function StoryListPage() {
           }
         }}
         onSubmit={handleCreateStory}
+        onSeriesCreated={() => void fetchStories()}
       />
 
       <AddExampleStoryModal

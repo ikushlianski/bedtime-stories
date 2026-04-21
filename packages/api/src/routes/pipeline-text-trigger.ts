@@ -66,7 +66,7 @@ export function triggerTextPhase(
         await db.update(stories).set(buildWriterOnlyStoriesUpdate(result)).where(eq(stories.id, storyId))
 
         if (mode === 'auto') {
-          await db.update(stories).set({ status: 'ready' }).where(eq(stories.id, storyId))
+          await db.update(stories).set({ status: 'ready', updatedAt: new Date() }).where(eq(stories.id, storyId))
           setPipelineStatus(storyId, 'text_ready')
         } else {
           setPipelineStatus(storyId, 'text_review')

@@ -9,7 +9,7 @@ export interface CreateStoryFormState {
 export const INITIAL_CREATE_STORY_FORM: CreateStoryFormState = {
   seed: '',
   groupId: null,
-  pipelineMode: 'auto',
+  pipelineMode: 'manual',
 }
 
 export type CreateStoryFormValidation =

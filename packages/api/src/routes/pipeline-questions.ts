@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { validate } from '../middleware/validate'
 import { db } from '@bedtime/core/db/client'
 import { planQuestions, planConversations, stories, storyGroups } from '@bedtime/core/db/schema'
+import { loadUniverseContext } from './load-universe-context'
 import { claudeCliRunner } from '@bedtime/core/ai'
 import { updateUniverseContext } from '@bedtime/core/pipeline/universe-context-updater'
 import { triggerPlanPhaseFromAnswers } from './pipeline-plan-trigger'
@@ -88,19 +89,9 @@ router.post('/questions/:storyId/submit', validate(submitAnswersSchema), async (
 
     const seed = storyRow.seed ?? ''
 
-    let universeSystemPrompt: string | undefined
-    let universeContext: string | undefined
-    let styleGuide: string | undefined
-
-    if (storyRow.groupId !== null && storyRow.groupId !== undefined) {
-      const [group] = await db.select().from(storyGroups).where(eq(storyGroups.id, storyRow.groupId))
-
-      if (group) {
-        universeSystemPrompt = group.systemPrompt
-        universeContext = group.universeContext ?? undefined
-        styleGuide = group.styleGuide ?? undefined
-      }
-    }
+    const { universeSystemPrompt, universeContext, styleGuide } = storyRow.groupId != null
+      ? await loadUniverseContext(storyRow.groupId)
+      : { universeSystemPrompt: undefined, universeContext: undefined, styleGuide: undefined }
 
     const updatedQuestions = await db
       .select()
@@ -156,21 +147,11 @@ router.post('/questions/:storyId/retry-plan', async (req, res) => {
 
     const seed = storyRow.seed ?? ''
 
-    let universeSystemPrompt: string | undefined
-    let universeContext: string | undefined
-    let styleGuide: string | undefined
+    const { universeSystemPrompt: usp2, universeContext: uc2, styleGuide: sg2 } = storyRow.groupId != null
+      ? await loadUniverseContext(storyRow.groupId)
+      : { universeSystemPrompt: undefined, universeContext: undefined, styleGuide: undefined }
 
-    if (storyRow.groupId !== null && storyRow.groupId !== undefined) {
-      const [group] = await db.select().from(storyGroups).where(eq(storyGroups.id, storyRow.groupId))
-
-      if (group) {
-        universeSystemPrompt = group.systemPrompt
-        universeContext = group.universeContext ?? undefined
-        styleGuide = group.styleGuide ?? undefined
-      }
-    }
-
-    triggerPlanPhaseFromAnswers(storyIdRaw, seed, qaArray, universeSystemPrompt, universeContext, styleGuide)
+    triggerPlanPhaseFromAnswers(storyIdRaw, seed, qaArray, usp2, uc2, sg2)
 
     res.json({ ok: true, storyId: storyIdRaw })
   } catch (err) {

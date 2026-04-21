@@ -1,0 +1,1 @@
+ALTER TABLE "universe_characters" ADD COLUMN "updated_at" timestamp DEFAULT now();

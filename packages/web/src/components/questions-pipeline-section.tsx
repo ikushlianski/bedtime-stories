@@ -53,9 +53,11 @@ interface Props {
   storyId: number
   pipelineStatus: PipelineStatusValue
   onAnswersSubmitted: () => void
+  storyTitle?: string | null
+  storySeed?: string | null
 }
 
-export function QuestionsPipelineSection({ storyId, pipelineStatus, onAnswersSubmitted }: Props) {
+export function QuestionsPipelineSection({ storyId, pipelineStatus, onAnswersSubmitted, storyTitle, storySeed }: Props) {
   const isPending = pipelineStatus === 'questions_pending'
   const isAnswered = pipelineStatus !== 'pending' && pipelineStatus !== 'questions_pending'
 
@@ -176,10 +178,20 @@ export function QuestionsPipelineSection({ storyId, pipelineStatus, onAnswersSub
     )
   }
 
+  const contextLabel = storySeed?.trim() || storyTitle?.trim()
+
   return (
     <div className="card border border-base-300 bg-base-100 shadow-sm">
       <div className="card-body gap-4">
         <h2 className="font-serif text-2xl text-base-content">Уточняющие вопросы</h2>
+
+        {contextLabel && (
+          <div className="rounded-lg border border-base-200 bg-base-200/50 px-4 py-3">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-base-content/40">Идея</p>
+            <p className="text-sm text-base-content/80">{contextLabel}</p>
+          </div>
+        )}
+
         <p className="text-sm text-base-content/60">
           Ответь на вопросы, чтобы история стала более личной.
         </p>

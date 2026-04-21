@@ -2,6 +2,10 @@ import { useState } from 'react'
 import { api, type UniverseCharacter } from '../lib/api'
 import FormField from './form-field'
 
+function formatDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
 interface CharacterCardProps {
   character: UniverseCharacter
   universeId: number
@@ -80,6 +84,13 @@ function CharacterCard({ character, universeId, onUpdated, onDeleted }: Characte
     )
   }
 
+  const dateStr = character.updatedAt ?? character.createdAt
+  const dateLabel = character.updatedAt
+    ? `Изменён ${formatDate(character.updatedAt)}`
+    : character.createdAt
+      ? `Создан ${formatDate(character.createdAt)}`
+      : null
+
   return (
     <div className="card border border-base-300 bg-base-200 p-4">
       <div className="flex items-start justify-between gap-2">
@@ -87,6 +98,9 @@ function CharacterCard({ character, universeId, onUpdated, onDeleted }: Characte
           <p className="font-semibold text-sm">{character.name}</p>
           {character.description && (
             <p className="mt-1 whitespace-pre-wrap text-xs text-base-content/60">{character.description}</p>
+          )}
+          {dateLabel && (
+            <p className="mt-2 text-xs text-base-content/30">{dateLabel}</p>
           )}
         </div>
         <div className="flex shrink-0 gap-1">

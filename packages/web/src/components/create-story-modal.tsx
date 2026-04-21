@@ -10,6 +10,7 @@ interface CreateStoryModalProps {
   open: boolean
   onClose: () => void
   onSubmit: (input: CreateStoryInput) => Promise<void>
+  onSeriesCreated?: (count: number) => void
   initialSeed?: string
   initialGroupId?: number | null
 }
@@ -36,13 +37,14 @@ function saveLastUniverseId(id: number | null) {
   }
 }
 
-function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '', initialGroupId = null }: CreateStoryModalProps) {
+function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSeed = '', initialGroupId = null }: CreateStoryModalProps) {
   const [form, setForm] = useState<CreateStoryFormState>({
     seed: initialSeed,
     groupId: initialGroupId ?? loadLastUniverseId(),
-    pipelineMode: 'auto',
+    pipelineMode: 'manual',
   })
   const [submitting, setSubmitting] = useState(false)
+  const [creatingSeries, setCreatingSeries] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [universes, setUniverses] = useState<StoryGroup[]>([])
   const [showCreateUniverse, setShowCreateUniverse] = useState(false)
@@ -54,7 +56,7 @@ function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '', initialGr
       setForm({
         seed: initialSeed,
         groupId: initialGroupId ?? loadLastUniverseId(),
-        pipelineMode: 'auto',
+        pipelineMode: 'manual',
       })
       setError(null)
       setShowCreateUniverse(false)
@@ -87,7 +89,7 @@ function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '', initialGr
 
     try {
       await onSubmit(validation.input)
-      setForm({ seed: '', groupId: null, pipelineMode: 'auto' })
+      setForm({ seed: '', groupId: null, pipelineMode: 'manual' })
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Не удалось создать историю')
     } finally {
@@ -117,7 +119,36 @@ function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '', initialGr
     }
   }
 
-  const canSubmit = !submitting && validateCreateStoryForm(form).valid
+  async function handleCreateSeries() {
+    const validation = validateCreateStoryForm(form)
+
+    if (!validation.valid) {
+      setError(validation.reason)
+      return
+    }
+
+    if (!('seed' in validation.input) || form.groupId === null) {
+      setError('Укажи затравку и вселенную')
+      return
+    }
+
+    setCreatingSeries(true)
+    setError(null)
+
+    try {
+      const result = await api.stories.createSeries({ seed: form.seed.trim(), groupId: form.groupId })
+
+      setForm({ seed: '', groupId: null, pipelineMode: 'manual' })
+      onSeriesCreated?.(result.stories.length)
+      onClose()
+    } catch (seriesError) {
+      setError(seriesError instanceof Error ? seriesError.message : 'Не удалось создать серию историй')
+    } finally {
+      setCreatingSeries(false)
+    }
+  }
+
+  const canSubmit = !submitting && !creatingSeries && validateCreateStoryForm(form).valid
 
   return (
     <dialog className="modal modal-open">
@@ -239,6 +270,14 @@ function CreateStoryModal({ open, onClose, onSubmit, initialSeed = '', initialGr
         <div className="modal-action">
           <button className="btn btn-ghost" onClick={onClose}>
             Отмена
+          </button>
+          <button
+            type="button"
+            className={`btn btn-outline ${canSubmit ? '' : 'btn-disabled'}`}
+            onClick={() => void handleCreateSeries()}
+            title="Сгенерировать 3 разных черновика сюжета на основе затравки"
+          >
+            {creatingSeries ? 'Генерируем серию...' : 'Создать серию'}
           </button>
           <button
             className={`btn btn-primary ${canSubmit ? '' : 'btn-disabled'}`}

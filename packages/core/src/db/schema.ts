@@ -21,6 +21,7 @@ export const universeCharacters = pgTable('universe_characters', {
   name: text('name').notNull(),
   description: text('description').notNull().default(''),
   createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 })
 
 export const universeSuggestions = pgTable('universe_suggestions', {
@@ -63,6 +64,8 @@ export const stories = pgTable('stories', {
   textChangeSummary: text('text_change_summary'),
   storyAnalysis: text('story_analysis'),
   sortOrder: integer('sort_order'),
+  seriesId: text('series_id'),
+  updatedAt: timestamp('updated_at').defaultNow(),
 })
 
 export const feedback = pgTable('feedback', {

@@ -13,6 +13,7 @@ import { createStorySchema, resolveCreateStoryMode } from './create-story-schema
 import { runStoryAnalyzer } from '@bedtime/core/pipeline/stages/story-analyzer'
 import { updateStyleGuide } from '@bedtime/core/pipeline/style-guide-updater'
 import { runUniverseFactExtractor } from '@bedtime/core/pipeline/stages/universe-fact-extractor'
+import { loadUniverseContext } from './load-universe-context'
 
 const router = Router()
 
@@ -52,6 +53,8 @@ function toSnakeCase(row: Story) {
     text_change_summary: row.textChangeSummary ?? null,
     story_analysis: row.storyAnalysis ?? null,
     sort_order: row.sortOrder ?? null,
+    series_id: row.seriesId ?? null,
+    updated_at: row.updatedAt ?? null,
   }
 }
 
@@ -225,7 +228,7 @@ router.post('/:id/readings', async (req, res) => {
     let statusUpdated = false
 
     if (story.status === 'ready') {
-      await db.update(stories).set({ status: 'read' }).where(eq(stories.id, storyId))
+      await db.update(stories).set({ status: 'read', updatedAt: new Date() }).where(eq(stories.id, storyId))
       statusUpdated = true
     }
 
@@ -271,7 +274,7 @@ router.patch('/:id/status', validate(updateStatusSchema), async (req, res) => {
     const { status } = req.body as z.infer<typeof updateStatusSchema>
     const [story] = await db
       .update(stories)
-      .set({ status })
+      .set({ status, updatedAt: new Date() })
       .where(eq(stories.id, storyId))
       .returning()
 
@@ -303,7 +306,7 @@ router.patch('/:id/tags', validate(updateTagsSchema), async (req, res) => {
     const { tags } = req.body as z.infer<typeof updateTagsSchema>
     const [story] = await db
       .update(stories)
-      .set({ tags })
+      .set({ tags, updatedAt: new Date() })
       .where(eq(stories.id, storyId))
       .returning()
 
@@ -362,20 +365,10 @@ router.post('/:id/approve-plan', validate(approvePlanSchema), async (req, res) =
     }
 
     if (decision.action === 'start_text_phase') {
-      let universeSystemPrompt: string | undefined
-      let universeContext: string | undefined
-      let styleGuide: string | undefined
+      const { universeSystemPrompt, universeContext, styleGuide } = existing.groupId != null
+        ? await loadUniverseContext(existing.groupId)
+        : { universeSystemPrompt: undefined, universeContext: undefined, styleGuide: undefined }
       let sashaContext: string | null = null
-
-      if (existing.groupId !== null && existing.groupId !== undefined) {
-        const [group] = await db.select().from(storyGroups).where(eq(storyGroups.id, existing.groupId))
-
-        if (group) {
-          universeSystemPrompt = group.systemPrompt
-          universeContext = group.universeContext ?? undefined
-          styleGuide = group.styleGuide ?? undefined
-        }
-      }
 
       const [snapshot] = await db
         .select()
@@ -388,7 +381,7 @@ router.post('/:id/approve-plan', validate(approvePlanSchema), async (req, res) =
         sashaContext = snapshot.sashaContext
       }
 
-      await db.update(stories).set({ planFinal: decision.planV1 }).where(eq(stories.id, storyId))
+      await db.update(stories).set({ planFinal: decision.planV1, updatedAt: new Date() }).where(eq(stories.id, storyId))
 
       triggerTextPhase(storyId, decision.seed, decision.planV1, existing.mode ?? 'manual', universeSystemPrompt, sashaContext, universeContext, styleGuide)
     }
@@ -416,19 +409,9 @@ router.post('/:id/redo-plan', async (req, res) => {
       return
     }
 
-    let universeSystemPrompt: string | undefined
-    let universeContext: string | undefined
-    let styleGuide: string | undefined
-
-    if (existing.groupId !== null && existing.groupId !== undefined) {
-      const [group] = await db.select().from(storyGroups).where(eq(storyGroups.id, existing.groupId))
-
-      if (group) {
-        universeSystemPrompt = group.systemPrompt
-        universeContext = group.universeContext ?? undefined
-        styleGuide = group.styleGuide ?? undefined
-      }
-    }
+    const { universeSystemPrompt, universeContext, styleGuide } = existing.groupId != null
+      ? await loadUniverseContext(existing.groupId)
+      : { universeSystemPrompt: undefined, universeContext: undefined, styleGuide: undefined }
 
     triggerPlanRedo(storyId, existing.seed, existing.planFinal ?? '', universeSystemPrompt, universeContext, styleGuide)
 
@@ -467,20 +450,10 @@ router.post('/:id/redo-text', async (req, res) => {
       return
     }
 
-    let universeSystemPrompt: string | undefined
-    let universeContext: string | undefined
-    let styleGuide: string | undefined
+    const { universeSystemPrompt, universeContext, styleGuide } = existing.groupId != null
+      ? await loadUniverseContext(existing.groupId)
+      : { universeSystemPrompt: undefined, universeContext: undefined, styleGuide: undefined }
     let sashaContext: string | null = null
-
-    if (existing.groupId !== null && existing.groupId !== undefined) {
-      const [group] = await db.select().from(storyGroups).where(eq(storyGroups.id, existing.groupId))
-
-      if (group) {
-        universeSystemPrompt = group.systemPrompt
-        universeContext = group.universeContext ?? undefined
-        styleGuide = group.styleGuide ?? undefined
-      }
-    }
 
     const annotationRows = await db
       .select({ noteText: annotations.noteText })
@@ -540,20 +513,10 @@ router.post('/:id/critique-text', async (req, res) => {
       return
     }
 
-    let universeSystemPrompt: string | undefined
-    let universeContext: string | undefined
-    let styleGuide: string | undefined
+    const { universeSystemPrompt, universeContext, styleGuide } = existing.groupId != null
+      ? await loadUniverseContext(existing.groupId)
+      : { universeSystemPrompt: undefined, universeContext: undefined, styleGuide: undefined }
     let sashaContext: string | null = null
-
-    if (existing.groupId !== null && existing.groupId !== undefined) {
-      const [group] = await db.select().from(storyGroups).where(eq(storyGroups.id, existing.groupId))
-
-      if (group) {
-        universeSystemPrompt = group.systemPrompt
-        universeContext = group.universeContext ?? undefined
-        styleGuide = group.styleGuide ?? undefined
-      }
-    }
 
     const [snapshot] = await db
       .select()
@@ -810,7 +773,7 @@ router.patch('/:id/text', validate(updateTextSchema), async (req, res) => {
 
     const [story] = await db
       .update(stories)
-      .set({ textFinal: text })
+      .set({ textFinal: text, updatedAt: new Date() })
       .where(eq(stories.id, storyId))
       .returning()
 
@@ -839,7 +802,7 @@ router.patch('/:id/analysis', validate(updateAnalysisSchema), async (req, res) =
 
     const [updated] = await db
       .update(stories)
-      .set({ storyAnalysis })
+      .set({ storyAnalysis, updatedAt: new Date() })
       .where(eq(stories.id, storyId))
       .returning()
 

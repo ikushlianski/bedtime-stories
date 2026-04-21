@@ -84,7 +84,7 @@ export function triggerTextRedoWithAnnotations(
         model: defaultModels.writer,
       })
 
-      await db.update(stories).set({ textChangeSummary: summary }).where(eq(stories.id, storyId))
+      await db.update(stories).set({ textChangeSummary: summary, updatedAt: new Date() }).where(eq(stories.id, storyId))
 
       setPipelineStatus(storyId, 'text_review')
     })

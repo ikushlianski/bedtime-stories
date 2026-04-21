@@ -247,7 +247,7 @@ router.patch('/:id/characters/:charId', validate(updateCharacterSchema), async (
 
     const [updated] = await db
       .update(universeCharacters)
-      .set(body)
+      .set({ ...body, updatedAt: new Date() })
       .where(and(eq(universeCharacters.id, charId), eq(universeCharacters.universeId, id)))
       .returning()
 
