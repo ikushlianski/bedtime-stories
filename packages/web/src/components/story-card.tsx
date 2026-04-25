@@ -16,6 +16,7 @@ interface StoryCardProps {
   createdAt: string
   rating?: number
   seriesId?: string | null
+  totalUsd?: number | null
   actions?: StoryCardAction[]
   onTitleClick?: () => void
   dragHandleProps?: HTMLAttributes<HTMLDivElement>
@@ -72,7 +73,7 @@ function GripIcon() {
   )
 }
 
-function StoryCard({ title, status, createdAt, rating, seriesId, actions = [], onTitleClick, dragHandleProps }: StoryCardProps) {
+function StoryCard({ title, status, createdAt, rating, seriesId, totalUsd, actions = [], onTitleClick, dragHandleProps }: StoryCardProps) {
   const config = statusConfig[status]
   const isArchived = status === 'archived'
   const regularActions = actions.filter((action) => action.tone !== 'destructive')
@@ -119,11 +120,16 @@ function StoryCard({ title, status, createdAt, rating, seriesId, actions = [], o
           <div className="flex items-center justify-between gap-3 text-xs text-base-content/65">
             <span>{formatDate(createdAt)}</span>
 
-            {rating !== undefined && (
-              <span className="font-medium text-warning" aria-label={`Оценка: ${rating} из 5`}>
-                {renderStars(rating)}
+            <span className="flex items-center gap-3">
+              <span className="font-mono" title="Стоимость генерации">
+                {totalUsd !== undefined && totalUsd !== null ? `$${totalUsd.toFixed(4)}` : '—'}
               </span>
-            )}
+              {rating !== undefined && (
+                <span className="font-medium text-warning" aria-label={`Оценка: ${rating} из 5`}>
+                  {renderStars(rating)}
+                </span>
+              )}
+            </span>
           </div>
         </div>
       </div>

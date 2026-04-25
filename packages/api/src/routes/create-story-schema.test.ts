@@ -112,4 +112,41 @@ describe('resolveCreateStoryMode', () => {
 
     expect(result.title.length).toBe(60)
   })
+
+  describe('perStageOverrides', () => {
+    it('accepts a partial map of stage overrides', () => {
+      const result = createStorySchema.safeParse({
+        seed: 'hero',
+        perStageOverrides: {
+          writer: { model: 'free/writer', fallback: 'paid/writer' },
+          plotter: { model: 'free/plotter' },
+        },
+      })
+
+      expect(result.success).toBe(true)
+    })
+
+    it('forwards perStageOverrides into agent mode', () => {
+      const resolved = resolveCreateStoryMode({
+        seed: 'hero learns patience',
+        perStageOverrides: { writer: { model: 'free/writer' } },
+      })
+
+      if (resolved.mode !== 'agent') {
+        throw new Error('expected agent mode')
+      }
+
+      expect(resolved.perStageOverrides).toEqual({ writer: { model: 'free/writer' } })
+    })
+
+    it('omits perStageOverrides from agent mode when the map is empty', () => {
+      const resolved = resolveCreateStoryMode({ seed: 'hero', perStageOverrides: {} })
+
+      if (resolved.mode !== 'agent') {
+        throw new Error('expected agent mode')
+      }
+
+      expect(resolved.perStageOverrides).toBeUndefined()
+    })
+  })
 })

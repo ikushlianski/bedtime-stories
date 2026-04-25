@@ -111,6 +111,8 @@ export interface Story {
   series_id: string | null
   updated_at: string | null
   ready_at: string | null
+  total_usd?: number | null
+  cost?: StoryCostBreakdown | null
 }
 
 export interface RunSnapshot {
@@ -256,9 +258,35 @@ export interface ConversationMessage {
   createdAt: string
 }
 
+export type StageOverride = { model?: string; fallback?: string }
+export type PerStageOverrides = Record<string, StageOverride>
+
 export type CreateStoryInput =
-  | { seed: string; groupId?: number; pipelineMode?: 'auto' | 'manual' }
+  | { seed: string; groupId?: number; pipelineMode?: 'auto' | 'manual'; perStageOverrides?: PerStageOverrides }
   | { title?: string; textFinal: string; groupId?: number; source?: 'user' | 'legacy'; addToReadingList?: boolean }
+
+export interface ModelCatalogEntry {
+  id: string
+  name: string
+  inputUsdPerMillion: string | null
+  outputUsdPerMillion: string | null
+  contextLength: number | null
+  supportsJsonSchema: boolean | null
+  isFree: boolean | null
+  isRecommendedForProse: boolean | null
+}
+
+export interface StoryCostBreakdown {
+  totalUsd: number
+  perStage: Array<{
+    stage: string
+    model: string
+    attempt: number
+    tokensIn: number
+    tokensOut: number
+    usd: number
+  }>
+}
 
 export interface CreateSeriesInput {
   seed: string
@@ -562,5 +590,9 @@ export const api = {
 
     rejectSuggestion: (universeId: number, suggestionId: number) =>
       requestEmpty(`/api/universes/${universeId}/suggestions/${suggestionId}/reject`, { method: 'POST' }),
+  },
+
+  models: {
+    list: () => request<{ models: ModelCatalogEntry[] }>('/api/models').then((r) => r.models),
   },
 }

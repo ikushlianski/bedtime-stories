@@ -417,6 +417,37 @@ export function StoryReaderPage() {
         />
       </div>
 
+      {story.cost && story.cost.perStage.length > 0 && (
+        <div className="mb-6 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm">
+          <div className="mb-2 flex items-baseline justify-between">
+            <p className="text-xs font-medium uppercase tracking-wide text-base-content/50">Стоимость</p>
+            <p className="text-sm">Итого: <span className="font-mono">${story.cost.totalUsd.toFixed(5)}</span></p>
+          </div>
+          <table className="table table-xs">
+            <thead>
+              <tr>
+                <th>Стадия</th>
+                <th>Модель</th>
+                <th className="text-right">In</th>
+                <th className="text-right">Out</th>
+                <th className="text-right">USD</th>
+              </tr>
+            </thead>
+            <tbody>
+              {story.cost.perStage.map((row, i) => (
+                <tr key={i}>
+                  <td className="font-mono text-xs">{row.stage}{row.attempt > 1 ? ` #${row.attempt}` : ''}</td>
+                  <td className="font-mono text-xs">{row.model}</td>
+                  <td className="text-right font-mono">{row.tokensIn}</td>
+                  <td className="text-right font-mono">{row.tokensOut}</td>
+                  <td className="text-right font-mono">${row.usd.toFixed(5)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       <div className="relative">
         {textToDisplay ? (
           <StoryText

@@ -8,7 +8,7 @@ import {
   buildPlanStoriesUpdate,
 } from './pipeline-persistence'
 import { setPipelineStatus, setCurrentStep } from './pipeline-state'
-import { defaultPromptVersions, resolvePipelineModels } from './pipeline-defaults'
+import { defaultPromptVersions, resolvePipelineModels, loadStoryOverrides } from './pipeline-defaults'
 import { triggerTextPhase } from './pipeline-text-trigger'
 
 export function triggerAutoPipeline(
@@ -21,7 +21,10 @@ export function triggerAutoPipeline(
 ): void {
   setPipelineStatus(storyId, 'plan_running')
 
-  Promise.all([synthesizeSashaContext(), resolvePipelineModels(universeId)])
+  Promise.all([
+    synthesizeSashaContext(),
+    loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(universeId, overrides)),
+  ])
     .then(([sashaContext, models]) =>
       runPlanPhase({
         seed,

@@ -5,6 +5,7 @@ import {
   type CreateStoryFormState,
 } from './create-story-form'
 import FormField from './form-field'
+import ModelPicker from './model-picker'
 
 interface CreateStoryModalProps {
   open: boolean
@@ -89,7 +90,7 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
 
     try {
       await onSubmit(validation.input)
-      setForm({ seed: '', groupId: null, pipelineMode: 'manual' })
+      setForm({ seed: '', groupId: null, pipelineMode: 'manual', perStageOverrides: {} })
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Не удалось создать историю')
     } finally {
@@ -138,7 +139,7 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
     try {
       const result = await api.stories.createSeries({ seed: form.seed.trim(), groupId: form.groupId })
 
-      setForm({ seed: '', groupId: null, pipelineMode: 'manual' })
+      setForm({ seed: '', groupId: null, pipelineMode: 'manual', perStageOverrides: {} })
       onSeriesCreated?.(result.stories.length)
       onClose()
     } catch (seriesError) {
@@ -263,6 +264,16 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
               </button>
             </div>
           </FormField>
+
+          <details className="collapse collapse-arrow border border-base-300 bg-base-200">
+            <summary className="collapse-title text-sm font-medium">Модели по стадиям (опционально)</summary>
+            <div className="collapse-content">
+              <ModelPicker
+                value={form.perStageOverrides ?? {}}
+                onChange={(next) => setForm((prev) => ({ ...prev, perStageOverrides: next }))}
+              />
+            </div>
+          </details>
         </div>
 
         {error && <p className="mt-3 text-sm text-error">{error}</p>}

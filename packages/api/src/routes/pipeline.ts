@@ -16,7 +16,7 @@ import {
   type PublicPipelineStatus,
 } from './pipeline-status'
 import { getPipelineStatus, setPipelineStatus, getCurrentStep, getStepSummaries, subscribePipelineEvents } from './pipeline-state'
-import { defaultModels, defaultPromptVersions, resolvePipelineModels } from './pipeline-defaults'
+import { defaultModels, defaultPromptVersions, resolvePipelineModels, loadStoryOverrides } from './pipeline-defaults'
 import pipelineQuestionsRouter from './pipeline-questions'
 import { triggerAutoPipeline } from './pipeline-auto-trigger'
 import { triggerTextPhase } from './pipeline-text-trigger'
@@ -92,7 +92,8 @@ router.post('/run', validate(runPipelineSchema), async (req, res) => {
     }
 
     const sashaContext = await synthesizeSashaContext()
-    const questionModels = await resolvePipelineModels(storyRow.groupId ?? null)
+    const storyOverrides = await loadStoryOverrides(storyId)
+    const questionModels = await resolvePipelineModels(storyRow.groupId ?? null, storyOverrides)
 
     const questions = await runQuestionsPhase({
       seed,

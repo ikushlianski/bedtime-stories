@@ -36,7 +36,7 @@ router.post('/', validate(createSeriesSchema), async (req, res) => {
     }
 
     const sashaContext = await synthesizeSashaContext()
-    const models = await resolvePipelineModels(groupId ?? null)
+    const models = await resolvePipelineModels(groupId ?? null, null)
 
     const plans = await runPlotterSeries({
       seed,

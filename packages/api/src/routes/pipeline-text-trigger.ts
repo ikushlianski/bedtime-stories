@@ -6,7 +6,7 @@ import {
   buildWriterOnlyStoriesUpdate,
 } from './pipeline-persistence'
 import { getPipelineStatus, setPipelineStatus, setCurrentStep, emitPipelineEvent } from './pipeline-state'
-import { defaultPromptVersions, resolvePipelineModels } from './pipeline-defaults'
+import { defaultPromptVersions, resolvePipelineModels, loadStoryOverrides } from './pipeline-defaults'
 
 export { getPipelineStatus, setPipelineStatus }
 
@@ -28,7 +28,7 @@ export function triggerTextPhase(
       .select({ selectedText: annotations.selectedText, noteText: annotations.noteText })
       .from(annotations)
       .where(and(eq(annotations.storyId, storyId), eq(annotations.context, 'plan'))),
-    resolvePipelineModels(universeId),
+    loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(universeId, overrides)),
   ])
     .then(([rows, models]) => {
       const planAnnotations = rows

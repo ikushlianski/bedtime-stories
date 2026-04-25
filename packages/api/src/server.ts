@@ -13,6 +13,7 @@ import universesRouter from './routes/universes'
 import universeSuggestionsRouter from './routes/universe-suggestions'
 import diaryRouter from './routes/diary'
 import childProfileRouter from './routes/child-profile'
+import modelsRouter from './routes/models'
 
 export const app = express()
 
@@ -30,6 +31,7 @@ app.use('/api/universes', universesRouter)
 app.use('/api/universes/:universeId/suggestions', universeSuggestionsRouter)
 app.use('/api/diary', diaryRouter)
 app.use('/api/child-profile', childProfileRouter)
+app.use('/api/models', modelsRouter)
 
 dns.setDefaultResultOrder('ipv6first')
 

@@ -67,6 +67,7 @@ export const stories = pgTable('stories', {
   seriesId: text('series_id'),
   updatedAt: timestamp('updated_at').defaultNow(),
   readyAt: timestamp('ready_at'),
+  agentOverrides: jsonb('agent_overrides').default({}),
 })
 
 export const feedback = pgTable('feedback', {

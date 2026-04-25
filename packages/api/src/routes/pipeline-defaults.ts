@@ -1,9 +1,21 @@
 import { eq } from 'drizzle-orm'
 import type { PipelineModels, PipelinePromptVersions } from '@bedtime/core/pipeline/orchestrator'
 import { db } from '@bedtime/core/db/client'
-import { storyGroups } from '@bedtime/core/db/schema'
+import { storyGroups, stories } from '@bedtime/core/db/schema'
 import { derivePerStageModels, type StageOverrides } from '@bedtime/core/pipeline/derivers/per-stage-models'
 import { DEFAULT_STAGE_MODELS } from '@bedtime/core/pipeline/derivers/stage-defaults'
+
+export async function loadStoryOverrides(storyId: number | null): Promise<StageOverrides | null> {
+  if (storyId === null) return null
+
+  const [row] = await db
+    .select({ agentOverrides: stories.agentOverrides })
+    .from(stories)
+    .where(eq(stories.id, storyId))
+    .limit(1)
+
+  return (row?.agentOverrides as StageOverrides | null) ?? null
+}
 
 export const defaultModels: PipelineModels = {
   plotter: DEFAULT_STAGE_MODELS.plotter.model,
@@ -19,7 +31,10 @@ export const defaultPromptVersions: PipelinePromptVersions = {
   writerCritic: 1,
 }
 
-export async function resolvePipelineModels(universeId: number | null): Promise<PipelineModels> {
+export async function resolvePipelineModels(
+  universeId: number | null,
+  perStoryOverrides: StageOverrides | null = null,
+): Promise<PipelineModels> {
   let universeOverrides: StageOverrides | null = null
 
   if (universeId !== null) {
@@ -34,7 +49,7 @@ export async function resolvePipelineModels(universeId: number | null): Promise<
 
   const resolved = derivePerStageModels({
     universeAgentOverrides: universeOverrides,
-    perStoryOverrides: null,
+    perStoryOverrides,
     defaultFallbackMap: DEFAULT_STAGE_MODELS,
   })
 

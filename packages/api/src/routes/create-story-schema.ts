@@ -1,5 +1,12 @@
 import { z } from 'zod'
 
+const stageOverrideSchema = z.object({
+  model: z.string().min(1).optional(),
+  fallback: z.string().min(1).optional(),
+}).partial()
+
+export const perStageOverridesSchema = z.record(z.string(), stageOverrideSchema)
+
 export const createStorySchema = z
   .object({
     seed: z.string().min(1).max(5000).optional(),
@@ -9,6 +16,7 @@ export const createStorySchema = z
     pipelineMode: z.enum(['auto', 'manual']).optional(),
     source: z.enum(['user', 'legacy']).optional(),
     addToReadingList: z.boolean().optional(),
+    perStageOverrides: perStageOverridesSchema.optional(),
   })
   .refine(
     (value) => {
@@ -25,8 +33,10 @@ export const createStorySchema = z
 
 export type CreateStoryInput = z.infer<typeof createStorySchema>
 
+export type PerStageOverrides = z.infer<typeof perStageOverridesSchema>
+
 export type CreateStoryMode =
-  | { mode: 'agent'; seed: string; title: string; groupId?: number; pipelineMode?: 'auto' | 'manual' }
+  | { mode: 'agent'; seed: string; title: string; groupId?: number; pipelineMode?: 'auto' | 'manual'; perStageOverrides?: PerStageOverrides }
   | { mode: 'user'; title: string; textFinal: string; groupId?: number }
   | { mode: 'legacy'; title: string; textFinal: string; groupId?: number; addToReadingList?: boolean }
 
@@ -65,6 +75,10 @@ export function resolveCreateStoryMode(input: CreateStoryInput): CreateStoryMode
 
   if (input.pipelineMode !== undefined) {
     result.pipelineMode = input.pipelineMode
+  }
+
+  if (input.perStageOverrides !== undefined && Object.keys(input.perStageOverrides).length > 0) {
+    result.perStageOverrides = input.perStageOverrides
   }
 
   return result

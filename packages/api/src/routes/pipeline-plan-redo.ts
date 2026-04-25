@@ -10,7 +10,7 @@ import {
   buildPlotterOnlyStoriesUpdate,
 } from './pipeline-persistence'
 import { setPipelineStatus, setCurrentStep, setStepSummary } from './pipeline-state'
-import { defaultPromptVersions, resolvePipelineModels } from './pipeline-defaults'
+import { defaultPromptVersions, resolvePipelineModels, loadStoryOverrides } from './pipeline-defaults'
 
 function extractPlotterSummary(planText: string): string {
   const lines = planText.split('\n')
@@ -40,7 +40,7 @@ export function triggerPlanRedo(storyId: number, seed: string, previousPlan: str
       .select({ id: annotations.id, selectedText: annotations.selectedText, noteText: annotations.noteText })
       .from(annotations)
       .where(and(eq(annotations.storyId, storyId), eq(annotations.context, 'plan'), isNull(annotations.resolvedAt))),
-    resolvePipelineModels(universeId),
+    loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(universeId, overrides)),
   ])
     .then(([rows, models]) => {
       const activeRows = rows.filter((r) => r.noteText !== null) as Array<{ id: number; selectedText: string; noteText: string }>

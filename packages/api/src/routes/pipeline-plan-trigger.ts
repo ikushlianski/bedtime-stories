@@ -8,7 +8,7 @@ import {
   buildPlotterOnlySnapshotInsert,
 } from './pipeline-persistence'
 import { setPipelineStatus, setCurrentStep, setStepSummary } from './pipeline-state'
-import { defaultPromptVersions, resolvePipelineModels } from './pipeline-defaults'
+import { defaultPromptVersions, resolvePipelineModels, loadStoryOverrides } from './pipeline-defaults'
 
 function extractPlotterSummary(planText: string): string {
   const lines = planText.split('\n')
@@ -40,7 +40,10 @@ export function triggerPlanPhaseFromAnswers(
 
   const seedWithAnswers = `SEED: ${seed}\n\nCLARIFYING Q&A:\n${qaBlock}`
 
-  Promise.all([synthesizeSashaContext(), resolvePipelineModels(universeId)])
+  Promise.all([
+    synthesizeSashaContext(),
+    loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(universeId, overrides)),
+  ])
     .then(([sashaContext, models]) =>
       runPlotterOnly({
         seed: seedWithAnswers,

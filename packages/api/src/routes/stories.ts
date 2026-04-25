@@ -2,7 +2,8 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { eq, desc, and, sql } from 'drizzle-orm'
 import { db } from '@bedtime/core/db/client'
-import { stories, annotations, feedback, runSnapshots, storyGroups, planQuestions, planConversations, childDiary, parentReviews, childReactions, universeCharacters, universeSuggestions, storyReadings } from '@bedtime/core/db/schema'
+import { stories, annotations, feedback, runSnapshots, storyGroups, planQuestions, planConversations, childDiary, parentReviews, childReactions, universeCharacters, universeSuggestions, storyReadings, modelCalls } from '@bedtime/core/db/schema'
+import { deriveStoryCostBreakdown } from '@bedtime/core/cost/aggregations/derive-story-cost-breakdown'
 import type { Story, NewStory, NewAnnotation, ParentReview, ChildReaction } from '@bedtime/core/db/types'
 import { validate } from '../middleware/validate'
 import { triggerTextPhase, getPipelineStatus } from './pipeline'
@@ -124,6 +125,7 @@ router.post('/', validate(createStorySchema), async (req, res) => {
       source: 'agent',
       mode: resolved.pipelineMode ?? 'manual',
       ...(resolved.groupId !== undefined ? { groupId: resolved.groupId } : {}),
+      ...(resolved.perStageOverrides !== undefined ? { agentOverrides: resolved.perStageOverrides } : {}),
     }
     const [story] = await db.insert(stories).values(newStory).returning()
 
@@ -210,7 +212,23 @@ router.get('/', async (req, res) => {
       ? await db.select().from(stories).where(whereClause).orderBy(orderExpr) as Story[]
       : await db.select().from(stories).orderBy(orderExpr) as Story[]
 
-    res.json(result.map((row) => toSnakeCase(row)))
+    const totals = await db
+      .select({
+        storyId: modelCalls.storyId,
+        totalUsd: sql<string>`SUM(${modelCalls.usd})`,
+      })
+      .from(modelCalls)
+      .groupBy(modelCalls.storyId)
+
+    const totalById = new Map<number, number>()
+    for (const t of totals) {
+      if (t.storyId !== null) totalById.set(t.storyId, parseFloat(t.totalUsd ?? '0'))
+    }
+
+    res.json(result.map((row) => {
+      const total = totalById.get(row.id)
+      return { ...toSnakeCase(row), total_usd: total ?? null }
+    }))
   } catch (err) {
     console.error('GET /stories failed:', err)
     res.status(500).json({ error: 'Failed to fetch stories' })
@@ -265,7 +283,22 @@ router.get('/:id', async (req, res) => {
       return
     }
 
-    res.json(toSnakeCase(story as Story))
+    const callRows = await db
+      .select({
+        stage: modelCalls.stage,
+        modelId: modelCalls.modelId,
+        attempt: modelCalls.attempt,
+        tokensIn: modelCalls.tokensIn,
+        tokensOut: modelCalls.tokensOut,
+        usd: modelCalls.usd,
+        createdAt: modelCalls.createdAt,
+      })
+      .from(modelCalls)
+      .where(eq(modelCalls.storyId, storyId))
+
+    const cost = callRows.length > 0 ? deriveStoryCostBreakdown(callRows) : null
+
+    res.json({ ...toSnakeCase(story as Story), cost })
   } catch (err) {
     console.error('GET /stories/:id failed:', err)
     res.status(500).json({ error: 'Failed to fetch story' })

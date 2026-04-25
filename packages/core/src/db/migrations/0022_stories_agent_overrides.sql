@@ -1,0 +1,1 @@
+ALTER TABLE "stories" ADD COLUMN "agent_overrides" jsonb DEFAULT '{}'::jsonb;

@@ -4,7 +4,7 @@ import { db } from '@bedtime/core/db/client'
 import { annotations, runSnapshots, stories } from '@bedtime/core/db/schema'
 import { buildTextCritiqueStoriesUpdate, buildTextCritiqueSnapshotUpdate, buildAnnotatedRewriteStoriesUpdate, buildAnnotatedRewriteSnapshotUpdate } from './pipeline-persistence'
 import { setPipelineStatus, setCurrentStep, setStepSummary, emitPipelineEvent } from './pipeline-state'
-import { defaultPromptVersions, resolvePipelineModels } from './pipeline-defaults'
+import { defaultPromptVersions, resolvePipelineModels, loadStoryOverrides } from './pipeline-defaults'
 
 function shortenDescription(desc: string): string {
   const match = desc.match(/^(.{20,120}[.!?])(?:\s|$)/)
@@ -36,7 +36,7 @@ export function triggerTextCritique(
       .select({ selectedText: annotations.selectedText, noteText: annotations.noteText })
       .from(annotations)
       .where(and(eq(annotations.storyId, storyId), eq(annotations.context, 'text'))),
-    resolvePipelineModels(universeId),
+    loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(universeId, overrides)),
   ])
     .then(([rows, models]) => {
       const withNotes = rows.filter((r) => r.noteText)
@@ -144,7 +144,7 @@ export function triggerTextRewrite(
       .select({ selectedText: annotations.selectedText, noteText: annotations.noteText })
       .from(annotations)
       .where(and(eq(annotations.storyId, storyId), eq(annotations.context, 'text'))),
-    resolvePipelineModels(universeId),
+    loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(universeId, overrides)),
   ])
     .then(async ([rows, models]) => {
       const withNotes = rows.filter((r) => r.noteText)

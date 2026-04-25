@@ -11,7 +11,7 @@ import {
   buildTextStoriesUpdate,
 } from './pipeline-persistence'
 import { setPipelineStatus, setCurrentStep } from './pipeline-state'
-import { defaultPromptVersions, resolvePipelineModels } from './pipeline-defaults'
+import { defaultPromptVersions, resolvePipelineModels, loadStoryOverrides } from './pipeline-defaults'
 
 export function triggerTextRedoWithAnnotations(
   storyId: number,
@@ -25,7 +25,10 @@ export function triggerTextRedoWithAnnotations(
 ): void {
   setPipelineStatus(storyId, 'plan_running')
 
-  Promise.all([synthesizeSashaContext(), resolvePipelineModels(universeId)])
+  Promise.all([
+    synthesizeSashaContext(),
+    loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(universeId, overrides)),
+  ])
     .then(([sashaContext, models]) =>
       runPlanPhase({
         seed: seedWithContext,
