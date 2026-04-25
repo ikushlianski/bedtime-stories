@@ -1,12 +1,6 @@
-export interface UpstreamModel {
-  id: string
-  name: string
-  inputUsdPerMillion: number
-  outputUsdPerMillion: number
-  contextLength: number
-  supportsJsonSchema: boolean
-  isFree: boolean
-}
+import type { OpenRouterModel } from './openrouter-catalog-fetcher.js'
+
+export type { OpenRouterModel as UpstreamModel }
 
 export interface CatalogRow {
   id: string
@@ -14,13 +8,13 @@ export interface CatalogRow {
 }
 
 export interface CatalogSyncDiff {
-  toUpsert: UpstreamModel[]
+  toUpsert: OpenRouterModel[]
   toSoftDelete: string[]
   toUndelete: string[]
 }
 
 export function deriveCatalogSyncDiff(input: {
-  upstream: UpstreamModel[]
+  upstream: OpenRouterModel[]
   current: CatalogRow[]
 }): CatalogSyncDiff {
   const upstreamIds = new Set(input.upstream.map((m) => m.id))
