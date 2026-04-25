@@ -10,6 +10,7 @@ import { OpenRouterClient, OpenRouterHttpError, type OpenRouterUsage } from './o
 import { parseJsonWithSchema } from './json-extract.js'
 import { deriveStructuredRequestPayload } from './derive-structured-request-payload.js'
 import { costRecorder, type CostRecorder } from '../cost/cost-recorder.js'
+import { langfuse } from '@bedtime/observability'
 
 const SYSTEM_PROMPT =
   'You are an AI assistant following the instructions in the user message exactly. Do not introduce yourself, do not explain what you are about to do, and do not add trailing commentary. Produce only the output the user asked for.'
@@ -112,6 +113,13 @@ export class OpenRouterRunner implements AiRunner {
     const stage = options.stage ?? deriveStage(options.label, undefined)
     const candidates = options.fallback !== undefined ? [options.model, options.fallback] : [options.model]
 
+    const generation = langfuse.generation({
+      name: label,
+      model: options.model,
+      input: options.prompt,
+      metadata: { stage },
+    })
+
     let lastErr: unknown
 
     for (let i = 0; i < candidates.length; i++) {
@@ -162,6 +170,16 @@ export class OpenRouterRunner implements AiRunner {
         })
 
         if (collected === '') throw new AiExecutionError('no result received')
+
+        generation.end({
+          output: collected,
+          usage: {
+            input: usage.promptTokens,
+            output: usage.completionTokens,
+            unit: 'TOKENS',
+          },
+        })
+
         return collected
       } catch (err) {
         const latencyMs = Date.now() - startedAt
@@ -186,9 +204,14 @@ export class OpenRouterRunner implements AiRunner {
         }
 
         console.error(`[ai] ${label} failed model=${model} latencyMs=${latencyMs}:`, err)
+
+        generation.end({ level: 'ERROR', statusMessage: String(err) })
+
         throw err
       }
     }
+
+    generation.end({ level: 'ERROR', statusMessage: 'no candidates available' })
 
     throw lastErr ?? new AiExecutionError('no candidates available')
   }
@@ -208,6 +231,13 @@ export class OpenRouterRunner implements AiRunner {
       '=== INPUT ===',
       options.prompt,
     ].join('\n')
+
+    const generation = langfuse.generation({
+      name: options.skill,
+      model: options.model,
+      input: userPrompt,
+      metadata: { stage },
+    })
 
     const candidates = options.fallback !== undefined ? [options.model, options.fallback] : [options.model]
     let lastErr: unknown
@@ -260,6 +290,16 @@ export class OpenRouterRunner implements AiRunner {
 
           if (parsed.ok) {
             console.log(`[ai] ${label} done model=${model} stage=${stage} usd=${result.usage.costUsd} latencyMs=${latencyMs} attempt=${attempt}`)
+
+            generation.end({
+              output: parsed.value,
+              usage: {
+                input: result.usage.promptTokens,
+                output: result.usage.completionTokens,
+                unit: 'TOKENS',
+              },
+            })
+
             return parsed.value
           }
 
@@ -302,14 +342,19 @@ export class OpenRouterRunner implements AiRunner {
             }
           }
 
+          generation.end({ level: 'ERROR', statusMessage: String(err) })
+
           throw err
         }
       }
 
       if (lastValidation !== null && candidateIdx + 1 === candidates.length) {
+        generation.end({ level: 'ERROR', statusMessage: String(lastValidation.error) })
         throw new AiValidationError(lastValidation.raw, lastValidation.error)
       }
     }
+
+    generation.end({ level: 'ERROR', statusMessage: 'no candidates available' })
 
     throw lastErr ?? new AiExecutionError('no candidates available')
   }

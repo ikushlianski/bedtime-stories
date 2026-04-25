@@ -1,6 +1,8 @@
 import express from 'express'
 import cors from 'cors'
+import cookieParser from 'cookie-parser'
 import dns from 'node:dns'
+import { Sentry } from '@bedtime/observability'
 import { scheduleDailyCatalogSync } from '@bedtime/core/queue'
 import storiesRouter from './routes/stories'
 import storiesSeriesRouter from './routes/stories-series'
@@ -17,6 +19,8 @@ import modelsRouter from './routes/models'
 import storiesSwapModelRouter from './routes/stories-swap-model'
 import storiesVfmRouter from './routes/stories-vfm'
 import adminRouter from './routes/admin'
+import authRouter from './routes/auth.routes'
+import { requireAuth } from './middleware/auth.middleware'
 
 export const app = express()
 
@@ -25,8 +29,13 @@ const ALLOWED_ORIGINS = (process.env['ALLOWED_ORIGINS'] ?? 'http://localhost:802
   .map((s) => s.trim())
   .filter(Boolean)
 
-app.use(cors({ origin: ALLOWED_ORIGINS }))
+app.use(cors({ origin: ALLOWED_ORIGINS, credentials: true }))
 app.use(express.json())
+app.use(cookieParser())
+
+app.use('/api/auth', authRouter)
+
+app.use(requireAuth)
 
 app.use('/api/stories/series', storiesSeriesRouter)
 app.use('/api/stories', storiesRouter)
@@ -43,6 +52,8 @@ app.use('/api/models', modelsRouter)
 app.use('/api/stories/:id/swap-model', storiesSwapModelRouter)
 app.use('/api/stories/:id/value-for-money', storiesVfmRouter)
 app.use('/api/admin', adminRouter)
+
+Sentry.setupExpressErrorHandler(app)
 
 dns.setDefaultResultOrder('ipv6first')
 

@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "notion-import": "tsx packages/core/src/scripts/notion-import.ts",
-    "db:migrate": "tsx packages/core/src/db/migrate.ts"
+    "db:migrate": "tsx packages/core/src/db/migrate.ts",
+    "create-user": "tsx packages/core/src/scripts/create-user.ts"
   },
   "keywords": [],
   "author": "",
@@ -23,16 +24,21 @@
   ],
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",
+    "argon2": "^0.44.0",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "drizzle-orm": "^0.45.2",
     "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
     "ws": "^8.20.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^25.5.0",
     "drizzle-kit": "^0.31.10",
     "tsx": "^4.21.0",

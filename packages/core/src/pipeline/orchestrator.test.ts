@@ -6,6 +6,35 @@ import * as writerStage from './stages/writer'
 import * as writerCriticStage from './stages/writer-critic'
 import type { CriticOutput } from './schemas'
 
+vi.mock('@bedtime/observability', () => ({
+  withPipelineTrace: vi.fn((_id: string, fn: (trace: unknown) => Promise<unknown>) => fn({})),
+  addStoryContext: vi.fn(),
+  langfuse: {
+    generation: vi.fn(() => ({ end: vi.fn() })),
+    trace: vi.fn(() => ({})),
+    flushAsync: vi.fn(),
+  },
+}))
+
+vi.mock('../env', () => ({
+  env: {
+    OPENROUTER_API_KEY: 'test-key',
+    JWT_SECRET: 'test-secret-that-is-long-enough-32chars',
+  },
+}))
+
+vi.mock('../db/client', () => ({
+  db: {
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          limit: vi.fn(async () => []),
+        })),
+      })),
+    })),
+  },
+}))
+
 vi.mock('./stages/plotter', async () => {
   const actual = await vi.importActual<typeof import('./stages/plotter')>('./stages/plotter')
   return { ...actual, runPlotter: vi.fn() }

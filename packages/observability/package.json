@@ -1,0 +1,19 @@
+{
+  "name": "@bedtime/observability",
+  "version": "0.1.0",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@sentry/node": "^9",
+    "langfuse": "^3"
+  },
+  "peerDependencies": {
+    "@sentry/react": "^9"
+  },
+  "devDependencies": {
+    "typescript": "*"
+  }
+}

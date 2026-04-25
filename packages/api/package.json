@@ -8,6 +8,8 @@
     "start": "tsx src/index.ts"
   },
   "dependencies": {
-    "@bedtime/core": "*"
+    "@bedtime/core": "*",
+    "@bedtime/observability": "^0.1.0",
+    "@sentry/node": "^9.47.1"
   }
 }

@@ -6,6 +6,7 @@ import { runPlotterQuestions, type PlotterQuestionItem } from './stages/plotter-
 import { generateStoryTitle } from './stages/title-generator'
 import { resolvePrompt, type ResolvedPrompt } from './prompt-resolver'
 import type { CriticOutput } from './schemas'
+import { withPipelineTrace, addStoryContext } from '@bedtime/observability'
 
 export interface PipelineModels {
   plotter: string
@@ -543,20 +544,24 @@ export async function runPipeline(options: {
   sashaContext?: string | null
   cwd?: string
 }): Promise<PipelineResult> {
-  const planPhase = await runPlanPhase(options)
+  return withPipelineTrace(String(options.storyId), async (_trace) => {
+    addStoryContext({ storyId: String(options.storyId) })
 
-  const textPhase = await runTextPhase({
-    seed: options.seed,
-    planFinal: planPhase.planFinal,
-    storyId: options.storyId,
-    models: options.models,
-    promptVersions: options.promptVersions,
-    ...(options.universeSystemPrompt !== undefined ? { universeSystemPrompt: options.universeSystemPrompt } : {}),
-    ...(options.universeContext !== undefined ? { universeContext: options.universeContext } : {}),
-    ...(options.styleGuide !== undefined ? { styleGuide: options.styleGuide } : {}),
-    ...(options.sashaContext !== undefined ? { sashaContext: options.sashaContext } : {}),
-    ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
+    const planPhase = await runPlanPhase(options)
+
+    const textPhase = await runTextPhase({
+      seed: options.seed,
+      planFinal: planPhase.planFinal,
+      storyId: options.storyId,
+      models: options.models,
+      promptVersions: options.promptVersions,
+      ...(options.universeSystemPrompt !== undefined ? { universeSystemPrompt: options.universeSystemPrompt } : {}),
+      ...(options.universeContext !== undefined ? { universeContext: options.universeContext } : {}),
+      ...(options.styleGuide !== undefined ? { styleGuide: options.styleGuide } : {}),
+      ...(options.sashaContext !== undefined ? { sashaContext: options.sashaContext } : {}),
+      ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
+    })
+
+    return { ...planPhase, ...textPhase }
   })
-
-  return { ...planPhase, ...textPhase }
 }
