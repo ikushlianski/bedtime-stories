@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { claudeCliRunner } from '../../ai'
+import { aiRunner } from '../../ai'
 
 const PlotterQuestionItemSchema = z.object({
   question: z.string(),
@@ -32,7 +32,7 @@ export async function runPlotterQuestions(options: {
     ? `${options.universeSystemPrompt}\n\n---\n\n${basePrompt}`
     : basePrompt
 
-  const result = await claudeCliRunner.runStructured({
+  const result = await aiRunner.runStructured({
     skill: 'plotter-questions',
     model,
     prompt,

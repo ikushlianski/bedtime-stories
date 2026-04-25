@@ -22,9 +22,7 @@
     "packages/*"
   ],
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.2.89",
     "@neondatabase/serverless": "^1.0.2",
-    "ai-sdk-provider-claude-code": "^3.4.4",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "drizzle-orm": "^0.45.2",

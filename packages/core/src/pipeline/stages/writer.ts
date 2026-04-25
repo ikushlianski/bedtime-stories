@@ -1,4 +1,4 @@
-import { claudeCliRunner } from '../../ai'
+import { aiRunner } from '../../ai'
 import { resolvePrompt, type ResolvedPrompt } from '../prompt-resolver'
 import type { CriticOutput } from '../schemas'
 
@@ -105,5 +105,5 @@ export async function runWriter(options: {
   const onChunkArg = options.onChunk !== undefined ? { onChunk: options.onChunk } : {}
   const onChunkResetArg = options.onChunkReset !== undefined ? { onChunkReset: options.onChunkReset } : {}
 
-  return claudeCliRunner.runText({ model, prompt, label: `writer:v${resolved.version}`, ...cwdArg, ...onChunkArg, ...onChunkResetArg })
+  return aiRunner.runText({ model, prompt, label: `writer:v${resolved.version}`, ...cwdArg, ...onChunkArg, ...onChunkResetArg })
 }

@@ -1,12 +1,11 @@
-import { desc, eq, and, inArray } from 'drizzle-orm'
+import { desc, eq, and, inArray, isNotNull } from 'drizzle-orm'
 import { db } from '../db/client'
 import { feedback, childDiary, childProfiles, stories, annotations } from '../db/schema'
-import { claudeCliRunner } from '../ai'
+import { aiRunner } from '../ai'
+import { resolveStageModel } from './derivers/resolve-stage-model'
 import { buildSynthesizerPrompt, SIGNAL_WEIGHTS } from './synthesizer-prompt-builder'
 
 export { SIGNAL_WEIGHTS }
-
-const SYNTHESIZER_MODEL = 'claude-sonnet-4-6'
 
 export async function synthesizeSashaContext(): Promise<string | null> {
   const [recentFeedback, recentDiary, recentStories, [profile], recentAnnotations] = await Promise.all([
@@ -15,9 +14,9 @@ export async function synthesizeSashaContext(): Promise<string | null> {
     db
       .select({ id: stories.id, title: stories.title, storyAnalysis: stories.storyAnalysis })
       .from(stories)
-      .where(inArray(stories.status, ['ready', 'read']))
+      .where(and(inArray(stories.status, ['ready', 'read']), isNotNull(stories.storyAnalysis)))
       .orderBy(desc(stories.createdAt))
-      .limit(15),
+      .limit(30),
     db.select().from(childProfiles).limit(1),
     db
       .select({
@@ -73,9 +72,8 @@ export async function synthesizeSashaContext(): Promise<string | null> {
     .map((a) => ({ selectedText: a.selectedText, noteText: a.noteText, storyTitle: a.storyTitle }))
 
   const storyAnalyses = recentStories
-    .filter((s) => s.storyAnalysis)
     .map((s) => `«${s.title}»: ${s.storyAnalysis}`)
-    .slice(0, 5)
+    .slice(0, 30)
 
   const structuredFeedback = recentFeedback.map((f) => {
     const sf = f.structuredFeedback
@@ -116,9 +114,13 @@ export async function synthesizeSashaContext(): Promise<string | null> {
     recentTitles: recentStories.filter((s) => s.title).map((s) => s.title),
   })
 
-  return claudeCliRunner.runText({
-    model: SYNTHESIZER_MODEL,
+  const choice = await resolveStageModel(null, 'feedbackSynthesizer')
+
+  return aiRunner.runText({
+    model: choice.model,
+    fallback: choice.fallback,
     prompt,
     label: 'feedback-synthesizer',
+    stage: 'feedbackSynthesizer',
   })
 }

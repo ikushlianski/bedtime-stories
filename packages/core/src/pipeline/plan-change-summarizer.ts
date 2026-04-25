@@ -1,4 +1,4 @@
-import { claudeCliRunner } from '../ai'
+import { aiRunner } from '../ai'
 
 export async function generatePlanChangeSummary(options: {
   previousPlan: string
@@ -23,7 +23,7 @@ export async function generatePlanChangeSummary(options: {
     newPlan,
   ].join('\n')
 
-  return claudeCliRunner.runText({
+  return aiRunner.runText({
     model,
     prompt,
     label: 'plan-change-summarizer',

@@ -1,4 +1,4 @@
-import { boolean, integer, jsonb, pgTable, serial, text, timestamp, unique } from 'drizzle-orm/pg-core'
+import { boolean, integer, jsonb, numeric, pgTable, serial, text, timestamp, unique } from 'drizzle-orm/pg-core'
 
 export const storyGroups = pgTable('story_groups', {
   id: serial('id').primaryKey(),
@@ -210,4 +210,32 @@ export const storyReadings = pgTable('story_readings', {
   id: serial('id').primaryKey(),
   storyId: integer('story_id').references(() => stories.id).notNull(),
   readAt: timestamp('read_at').defaultNow().notNull(),
+})
+
+export const modelCatalog = pgTable('model_catalog', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  inputUsdPerMillion: numeric('input_usd_per_million'),
+  outputUsdPerMillion: numeric('output_usd_per_million'),
+  contextLength: integer('context_length'),
+  supportsJsonSchema: boolean('supports_json_schema').default(false),
+  isFree: boolean('is_free').default(false),
+  isRecommendedForProse: boolean('is_recommended_for_prose').default(false),
+  lastSyncedAt: timestamp('last_synced_at'),
+  deletedAt: timestamp('deleted_at'),
+})
+
+export const modelCalls = pgTable('model_calls', {
+  id: serial('id').primaryKey(),
+  storyId: integer('story_id').references(() => stories.id),
+  stage: text('stage').notNull(),
+  modelId: text('model_id').references(() => modelCatalog.id),
+  attempt: integer('attempt').notNull().default(1),
+  fallbackUsed: boolean('fallback_used').notNull().default(false),
+  tokensIn: integer('tokens_in'),
+  tokensOut: integer('tokens_out'),
+  usd: numeric('usd').notNull().default('0'),
+  latencyMs: integer('latency_ms'),
+  success: boolean('success').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
 })

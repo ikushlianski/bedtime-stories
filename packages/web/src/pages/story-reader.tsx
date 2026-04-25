@@ -189,6 +189,9 @@ export function StoryReaderPage() {
         if (result.statusUpdated) setCurrentStatus('read')
         showToast('Прочитано!')
       })
+      .catch((err) => {
+        showToast(err instanceof Error ? err.message : 'Не удалось отметить как прочитанное')
+      })
       .finally(() => setMarkingRead(false))
   }, [storyId, showToast])
 

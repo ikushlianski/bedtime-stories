@@ -1,4 +1,4 @@
-import { claudeCliRunner } from '../../ai'
+import { aiRunner } from '../../ai'
 import { PsychologistOutputSchema, type PsychologistOutput } from '../schemas'
 
 export async function runPsychologist(options: {
@@ -38,7 +38,7 @@ export async function runPsychologist(options: {
     ? `${options.universeSystemPrompt}\n\n---\n\n${basePrompt}`
     : basePrompt
 
-  return claudeCliRunner.runStructured({
+  return aiRunner.runStructured({
     skill: 'psychologist',
     model,
     prompt,

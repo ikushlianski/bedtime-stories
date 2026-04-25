@@ -8,7 +8,7 @@ import {
   buildPlanStoriesUpdate,
 } from './pipeline-persistence'
 import { setPipelineStatus, setCurrentStep } from './pipeline-state'
-import { defaultModels, defaultPromptVersions } from './pipeline-defaults'
+import { defaultPromptVersions, resolvePipelineModels } from './pipeline-defaults'
 import { triggerTextPhase } from './pipeline-text-trigger'
 
 export function triggerAutoPipeline(
@@ -17,22 +17,23 @@ export function triggerAutoPipeline(
   universeSystemPrompt?: string,
   universeContext?: string,
   styleGuide?: string,
+  universeId: number | null = null,
 ): void {
   setPipelineStatus(storyId, 'plan_running')
 
-  synthesizeSashaContext()
-    .then((sashaContext) =>
+  Promise.all([synthesizeSashaContext(), resolvePipelineModels(universeId)])
+    .then(([sashaContext, models]) =>
       runPlanPhase({
         seed,
         storyId,
-        models: defaultModels,
+        models,
         promptVersions: defaultPromptVersions,
         ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
         ...(universeContext !== undefined ? { universeContext } : {}),
         ...(styleGuide !== undefined ? { styleGuide } : {}),
         ...(sashaContext !== null ? { sashaContext } : {}),
         onStepChange: (step) => setCurrentStep(storyId, step),
-      }).then((plan) => ({ plan, sashaContext }))
+      }).then((plan) => ({ plan, sashaContext })),
     )
     .then(async ({ plan, sashaContext }) => {
       try {
@@ -49,6 +50,7 @@ export function triggerAutoPipeline(
           sashaContext,
           universeContext,
           styleGuide,
+          universeId,
         )
       } catch (dbError) {
         console.error(`Failed to persist plan phase (auto) for storyId=${storyId}:`, dbError)

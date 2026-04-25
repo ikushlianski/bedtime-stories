@@ -6,7 +6,7 @@ import {
   buildWriterOnlyStoriesUpdate,
 } from './pipeline-persistence'
 import { getPipelineStatus, setPipelineStatus, setCurrentStep, emitPipelineEvent } from './pipeline-state'
-import { defaultModels, defaultPromptVersions } from './pipeline-defaults'
+import { defaultPromptVersions, resolvePipelineModels } from './pipeline-defaults'
 
 export { getPipelineStatus, setPipelineStatus }
 
@@ -19,13 +19,18 @@ export function triggerTextPhase(
   sashaContext?: string | null,
   universeContext?: string,
   styleGuide?: string,
+  universeId: number | null = null,
 ): void {
   setPipelineStatus(storyId, 'text_running')
 
-  db.select({ selectedText: annotations.selectedText, noteText: annotations.noteText })
-    .from(annotations)
-    .where(and(eq(annotations.storyId, storyId), eq(annotations.context, 'plan')))
-    .then((rows) => {
+  Promise.all([
+    db
+      .select({ selectedText: annotations.selectedText, noteText: annotations.noteText })
+      .from(annotations)
+      .where(and(eq(annotations.storyId, storyId), eq(annotations.context, 'plan'))),
+    resolvePipelineModels(universeId),
+  ])
+    .then(([rows, models]) => {
       const planAnnotations = rows
         .filter((a) => a.noteText)
         .map((a) => `К фрагменту «${a.selectedText}»:\n${a.noteText}`)
@@ -35,7 +40,7 @@ export function triggerTextPhase(
         seed,
         planFinal,
         storyId,
-        models: defaultModels,
+        models,
         promptVersions: defaultPromptVersions,
         ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
         ...(universeContext !== undefined ? { universeContext } : {}),

@@ -4,7 +4,7 @@ import { db } from '@bedtime/core/db/client'
 import { annotations, runSnapshots, stories } from '@bedtime/core/db/schema'
 import { buildTextCritiqueStoriesUpdate, buildTextCritiqueSnapshotUpdate, buildAnnotatedRewriteStoriesUpdate, buildAnnotatedRewriteSnapshotUpdate } from './pipeline-persistence'
 import { setPipelineStatus, setCurrentStep, setStepSummary, emitPipelineEvent } from './pipeline-state'
-import { defaultModels, defaultPromptVersions } from './pipeline-defaults'
+import { defaultPromptVersions, resolvePipelineModels } from './pipeline-defaults'
 
 function shortenDescription(desc: string): string {
   const match = desc.match(/^(.{20,120}[.!?])(?:\s|$)/)
@@ -27,13 +27,18 @@ export function triggerTextCritique(
   universeContext?: string,
   styleGuide?: string,
   sashaContext?: string | null,
+  universeId: number | null = null,
 ): void {
   setPipelineStatus(storyId, 'text_running')
 
-  db.select({ selectedText: annotations.selectedText, noteText: annotations.noteText })
-    .from(annotations)
-    .where(and(eq(annotations.storyId, storyId), eq(annotations.context, 'text')))
-    .then((rows) => {
+  Promise.all([
+    db
+      .select({ selectedText: annotations.selectedText, noteText: annotations.noteText })
+      .from(annotations)
+      .where(and(eq(annotations.storyId, storyId), eq(annotations.context, 'text'))),
+    resolvePipelineModels(universeId),
+  ])
+    .then(([rows, models]) => {
       const withNotes = rows.filter((r) => r.noteText)
 
       console.log(`\n[TEXT-CRITIQUE] story=${storyId} — annotations in DB: ${rows.length} total, ${withNotes.length} with notes`)
@@ -56,7 +61,7 @@ export function triggerTextCritique(
         textV1,
         planFinal,
         storyId,
-        models: defaultModels,
+        models,
         promptVersions: defaultPromptVersions,
         ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
         ...(universeContext !== undefined ? { universeContext } : {}),
@@ -130,13 +135,18 @@ export function triggerTextRewrite(
   universeContext?: string,
   styleGuide?: string,
   sashaContext?: string | null,
+  universeId: number | null = null,
 ): void {
   setPipelineStatus(storyId, 'text_running')
 
-  db.select({ selectedText: annotations.selectedText, noteText: annotations.noteText })
-    .from(annotations)
-    .where(and(eq(annotations.storyId, storyId), eq(annotations.context, 'text')))
-    .then(async (rows) => {
+  Promise.all([
+    db
+      .select({ selectedText: annotations.selectedText, noteText: annotations.noteText })
+      .from(annotations)
+      .where(and(eq(annotations.storyId, storyId), eq(annotations.context, 'text'))),
+    resolvePipelineModels(universeId),
+  ])
+    .then(async ([rows, models]) => {
       const withNotes = rows.filter((r) => r.noteText)
 
       console.log(`\n[TEXT-REWRITE] story=${storyId} — annotations: ${rows.length} total, ${withNotes.length} with notes`)
@@ -153,7 +163,7 @@ export function triggerTextRewrite(
         currentText,
         planFinal,
         storyId,
-        models: defaultModels,
+        models,
         promptVersions: defaultPromptVersions,
         ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
         ...(universeContext !== undefined ? { universeContext } : {}),

@@ -1,4 +1,4 @@
-import { claudeCliRunner } from '../ai'
+import { aiRunner } from '../ai'
 
 export async function generateTextChangeSummary(options: {
   previousText: string
@@ -23,7 +23,7 @@ export async function generateTextChangeSummary(options: {
     newText,
   ].join('\n')
 
-  return claudeCliRunner.runText({
+  return aiRunner.runText({
     model,
     prompt,
     label: 'text-change-summarizer',

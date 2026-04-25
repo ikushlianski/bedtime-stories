@@ -1,4 +1,4 @@
-import { claudeCliRunner } from '../../ai'
+import { aiRunner } from '../../ai'
 import { resolvePrompt, type ResolvedPrompt } from '../prompt-resolver'
 import type { CriticOutput } from '../schemas'
 
@@ -107,5 +107,5 @@ export async function runPlotter(options: {
 
   const prompt = parts.join('\n')
 
-  return claudeCliRunner.runText({ model, prompt, label: `plotter:v${resolved.version}`, ...cwdArg })
+  return aiRunner.runText({ model, prompt, label: `plotter:v${resolved.version}`, ...cwdArg })
 }

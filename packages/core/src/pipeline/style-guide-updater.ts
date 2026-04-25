@@ -2,11 +2,10 @@ import { z } from 'zod'
 import { eq } from 'drizzle-orm'
 import { db } from '../db/client'
 import { storyGroups } from '../db/schema'
-import { claudeCliRunner } from '../ai'
+import { aiRunner } from '../ai'
 import type { StoryAnalysisOutput } from './schemas'
 import { compileStyleGuide } from './derivers/style-guide'
-
-const MODEL = 'claude-sonnet-4-6'
+import { resolveStageModel } from './derivers/resolve-stage-model'
 
 const StyleGuideSectionsSchema = z.object({
   works: z.string(),
@@ -62,10 +61,14 @@ export async function updateStyleGuide(
     `Резюме: ${newAnalysis.analysis_summary}`,
   ].join('\n')
 
-  const raw = await claudeCliRunner.runText({
-    model: MODEL,
+  const choice = await resolveStageModel(groupId, 'styleGuideUpdater')
+
+  const raw = await aiRunner.runText({
+    model: choice.model,
+    fallback: choice.fallback,
     prompt,
     label: 'style-guide-updater',
+    stage: 'styleGuideUpdater',
   })
 
   const jsonMatch = raw.match(/\{[\s\S]*\}/)

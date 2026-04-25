@@ -1,4 +1,4 @@
-import { claudeCliRunner } from '../../ai'
+import { aiRunner } from '../../ai'
 import { CriticOutputSchema, type CriticOutput } from '../schemas'
 
 export async function runWriterCritic(options: {
@@ -46,7 +46,7 @@ export async function runWriterCritic(options: {
     ? `${options.universeSystemPrompt}\n\n---\n\n${basePrompt}`
     : basePrompt
 
-  return claudeCliRunner.runStructured({
+  return aiRunner.runStructured({
     skill: 'writer-critic',
     model,
     prompt,

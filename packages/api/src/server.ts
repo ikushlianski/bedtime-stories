@@ -1,6 +1,7 @@
 import express from 'express'
 import cors from 'cors'
 import dns from 'node:dns'
+import { scheduleDailyCatalogSync } from '@bedtime/core/queue'
 import storiesRouter from './routes/stories'
 import storiesSeriesRouter from './routes/stories-series'
 import feedbackRouter from './routes/feedback'
@@ -38,5 +39,6 @@ const HOST = process.env['HOST'] ?? '::'
 export function startServer(): void {
   app.listen(PORT, HOST, () => {
     console.log(`Server running on [${HOST}]:${PORT}`)
+    scheduleDailyCatalogSync()
   })
 }

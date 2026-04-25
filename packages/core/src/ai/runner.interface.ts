@@ -13,6 +13,9 @@ export interface RunTextOptions {
   thinking?: ThinkingConfig
   onChunk?: (chunk: string) => void
   onChunkReset?: () => void
+  fallback?: string
+  storyId?: number
+  stage?: string
 }
 
 export interface RunStructuredOptions<T> {
@@ -22,6 +25,9 @@ export interface RunStructuredOptions<T> {
   outputSchema: z.ZodType<T>
   cwd?: string
   thinking?: ThinkingConfig
+  fallback?: string
+  storyId?: number
+  stage?: string
 }
 
 export interface AiRunner {

@@ -1,4 +1,4 @@
-import { claudeCliRunner } from '../../ai'
+import { aiRunner } from '../../ai'
 
 export async function generateStoryTitle(options: {
   plan: string
@@ -25,7 +25,7 @@ export async function generateStoryTitle(options: {
     `STORY PLAN:\n${plan}`,
   ].join('\n')
 
-  const raw = await claudeCliRunner.runText({ model, prompt, label: 'title-generator', ...cwdArg })
+  const raw = await aiRunner.runText({ model, prompt, label: 'title-generator', ...cwdArg })
 
   return raw.trim().replace(/^["«»""]|["«»""]$/g, '').trim()
 }

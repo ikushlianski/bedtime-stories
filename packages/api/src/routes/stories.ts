@@ -423,7 +423,7 @@ router.post('/:id/redo-plan', async (req, res) => {
       ? await loadUniverseContext(existing.groupId)
       : { universeSystemPrompt: undefined, universeContext: undefined, styleGuide: undefined }
 
-    triggerPlanRedo(storyId, existing.seed, existing.planFinal ?? '', universeSystemPrompt, universeContext, styleGuide)
+    triggerPlanRedo(storyId, existing.seed, existing.planFinal ?? '', universeSystemPrompt, universeContext, styleGuide, existing.groupId ?? null)
 
     res.json({ started: true, storyId })
   } catch (err) {
@@ -488,7 +488,7 @@ router.post('/:id/redo-text', async (req, res) => {
       sashaContext = snapshot.sashaContext
     }
 
-    triggerTextRewrite(storyId, currentText, existing.planFinal, universeSystemPrompt, universeContext, styleGuide, sashaContext)
+    triggerTextRewrite(storyId, currentText, existing.planFinal, universeSystemPrompt, universeContext, styleGuide, sashaContext, existing.groupId ?? null)
 
     res.json({ started: true, storyId })
   } catch (err) {
@@ -540,7 +540,7 @@ router.post('/:id/critique-text', async (req, res) => {
     }
 
     const textToReview = existing.textV2 ?? existing.textV1
-    triggerTextCritique(storyId, textToReview, existing.planFinal, universeSystemPrompt, universeContext, styleGuide, sashaContext)
+    triggerTextCritique(storyId, textToReview, existing.planFinal, universeSystemPrompt, universeContext, styleGuide, sashaContext, existing.groupId ?? null)
 
     res.json({ started: true, storyId })
   } catch (err) {

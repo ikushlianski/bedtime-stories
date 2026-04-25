@@ -11,7 +11,7 @@ import {
   buildTextStoriesUpdate,
 } from './pipeline-persistence'
 import { setPipelineStatus, setCurrentStep } from './pipeline-state'
-import { defaultModels, defaultPromptVersions } from './pipeline-defaults'
+import { defaultPromptVersions, resolvePipelineModels } from './pipeline-defaults'
 
 export function triggerTextRedoWithAnnotations(
   storyId: number,
@@ -21,38 +21,39 @@ export function triggerTextRedoWithAnnotations(
   universeSystemPrompt?: string,
   universeContext?: string,
   styleGuide?: string,
+  universeId: number | null = null,
 ): void {
   setPipelineStatus(storyId, 'plan_running')
 
-  synthesizeSashaContext()
-    .then((sashaContext) =>
+  Promise.all([synthesizeSashaContext(), resolvePipelineModels(universeId)])
+    .then(([sashaContext, models]) =>
       runPlanPhase({
         seed: seedWithContext,
         storyId,
-        models: defaultModels,
+        models,
         promptVersions: defaultPromptVersions,
         ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
         ...(universeContext !== undefined ? { universeContext } : {}),
         ...(styleGuide !== undefined ? { styleGuide } : {}),
         ...(sashaContext !== null ? { sashaContext } : {}),
         onStepChange: (step) => setCurrentStep(storyId, step),
-      }).then((plan) => ({ plan, sashaContext }))
+      }).then((plan) => ({ plan, sashaContext, models })),
     )
-    .then(async ({ plan, sashaContext }) => {
+    .then(async ({ plan, sashaContext, models }) => {
       await db.insert(runSnapshots).values(buildPlanSnapshotInsert(storyId, plan))
 
       await db.update(stories).set(buildPlanStoriesUpdate(plan)).where(eq(stories.id, storyId))
 
-      return { plan, sashaContext }
+      return { plan, sashaContext, models }
     })
-    .then(async ({ plan, sashaContext }) => {
+    .then(async ({ plan, sashaContext, models }) => {
       setPipelineStatus(storyId, 'text_running')
 
       const text = await runTextPhase({
         seed: seedWithContext,
         planFinal: plan.planFinal,
         storyId,
-        models: defaultModels,
+        models,
         promptVersions: defaultPromptVersions,
         ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
         ...(universeContext !== undefined ? { universeContext } : {}),
@@ -81,7 +82,7 @@ export function triggerTextRedoWithAnnotations(
         previousText,
         newText: text.textV2,
         annotationFeedback,
-        model: defaultModels.writer,
+        model: models.writer,
       })
 
       await db.update(stories).set({ textChangeSummary: summary, updatedAt: new Date() }).where(eq(stories.id, storyId))

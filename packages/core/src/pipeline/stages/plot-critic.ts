@@ -1,4 +1,4 @@
-import { claudeCliRunner } from '../../ai'
+import { aiRunner } from '../../ai'
 import { CriticOutputSchema, type CriticOutput } from '../schemas'
 
 export async function runPlotCritic(options: {
@@ -35,7 +35,7 @@ export async function runPlotCritic(options: {
     ? `${options.universeSystemPrompt}\n\n---\n\n${basePrompt}`
     : basePrompt
 
-  return claudeCliRunner.runStructured({
+  return aiRunner.runStructured({
     skill: 'plot-critic',
     model,
     prompt,

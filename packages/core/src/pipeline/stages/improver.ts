@@ -2,11 +2,9 @@ import { eq, desc } from 'drizzle-orm'
 import { db } from '../../db/client'
 import { feedback, prompts } from '../../db/schema'
 import type { Feedback, Prompt } from '../../db/types'
-import { claudeCliRunner } from '../../ai'
+import { aiRunner, AiValidationError, parseJsonWithSchema } from '../../ai'
 import { ImproverOutputSchema, type ImproverOutput } from '../schemas'
-import { AiValidationError, parseJsonWithSchema } from '../../ai/claude-cli.runner'
-
-const IMPROVER_MODEL = 'claude-sonnet-4-6'
+import { resolveStageModel } from '../derivers/resolve-stage-model'
 
 const RECENT_FEEDBACK_LIMIT = 10
 
@@ -70,7 +68,9 @@ async function runPass1(historicalFeedbacks: Feedback[]): Promise<string> {
 
   const prompt = PASS_1_PROMPT_PREFIX + feedbackLines
 
-  return claudeCliRunner.runText({ model: IMPROVER_MODEL, prompt })
+  const choice = await resolveStageModel(null, 'improver')
+
+  return aiRunner.runText({ model: choice.model, fallback: choice.fallback, prompt, label: 'improver:pass1', stage: 'improver' })
 }
 
 function buildPass2Prompt(
@@ -114,7 +114,9 @@ export async function runImprover(): Promise<ImproverOutput> {
 
   const pass2Prompt = buildPass2Prompt(historicalSummary, recentFeedbacks, currentPrompts)
 
-  const rawOutput = await claudeCliRunner.runText({ model: IMPROVER_MODEL, prompt: pass2Prompt })
+  const choice = await resolveStageModel(null, 'improver')
+
+  const rawOutput = await aiRunner.runText({ model: choice.model, fallback: choice.fallback, prompt: pass2Prompt, label: 'improver:pass2', stage: 'improver' })
 
   const parsed = parseJsonWithSchema(rawOutput, ImproverOutputSchema)
 

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { claudeCliRunner } from '../ai'
+import { aiRunner } from '../ai'
 
 const AnnotationResolutionsSchema = z.object({
   resolutions: z.array(
@@ -47,7 +47,7 @@ export async function resolveAnnotations(options: {
     newVersion,
   ].join('\n')
 
-  const result = await claudeCliRunner.runStructured({
+  const result = await aiRunner.runStructured({
     skill: 'annotation-resolver',
     model,
     prompt,

@@ -5,7 +5,7 @@ import { validate } from '../middleware/validate'
 import { db } from '@bedtime/core/db/client'
 import { planQuestions, planConversations, stories, storyGroups } from '@bedtime/core/db/schema'
 import { loadUniverseContext } from './load-universe-context'
-import { claudeCliRunner } from '@bedtime/core/ai'
+import { aiRunner } from '@bedtime/core/ai'
 import { updateUniverseContext } from '@bedtime/core/pipeline/universe-context-updater'
 import { triggerPlanPhaseFromAnswers } from './pipeline-plan-trigger'
 
@@ -102,7 +102,7 @@ router.post('/questions/:storyId/submit', validate(submitAnswersSchema), async (
       .filter((q) => q.answerText !== null && q.answerText !== undefined)
       .map((q) => ({ question: q.questionText, answer: q.answerText ?? '' }))
 
-    triggerPlanPhaseFromAnswers(storyIdRaw, seed, qaArray, universeSystemPrompt, universeContext, styleGuide)
+    triggerPlanPhaseFromAnswers(storyIdRaw, seed, qaArray, universeSystemPrompt, universeContext, styleGuide, storyRow.groupId ?? null)
 
     if (storyRow.groupId !== null && storyRow.groupId !== undefined) {
       void updateUniverseContext(storyRow.groupId, qaArray, seed)
@@ -151,7 +151,7 @@ router.post('/questions/:storyId/retry-plan', async (req, res) => {
       ? await loadUniverseContext(storyRow.groupId)
       : { universeSystemPrompt: undefined, universeContext: undefined, styleGuide: undefined }
 
-    triggerPlanPhaseFromAnswers(storyIdRaw, seed, qaArray, usp2, uc2, sg2)
+    triggerPlanPhaseFromAnswers(storyIdRaw, seed, qaArray, usp2, uc2, sg2, storyRow.groupId ?? null)
 
     res.json({ ok: true, storyId: storyIdRaw })
   } catch (err) {
@@ -234,8 +234,9 @@ router.post('/conversations/:storyId', validate(sendMessageSchema), async (req, 
       conversationContext,
     ].join('\n')
 
-    const aiResponse = await claudeCliRunner.runText({
-      model: 'claude-sonnet-4-6',
+    const aiResponse = await aiRunner.runText({
+      model: 'anthropic/claude-sonnet-4',
+      fallback: 'anthropic/claude-3.5-haiku',
       prompt,
       label: 'plan-conversation',
     })

@@ -10,7 +10,7 @@ import {
   buildPlotterOnlyStoriesUpdate,
 } from './pipeline-persistence'
 import { setPipelineStatus, setCurrentStep, setStepSummary } from './pipeline-state'
-import { defaultModels, defaultPromptVersions } from './pipeline-defaults'
+import { defaultPromptVersions, resolvePipelineModels } from './pipeline-defaults'
 
 function extractPlotterSummary(planText: string): string {
   const lines = planText.split('\n')
@@ -32,13 +32,17 @@ function formatAnnotationsAsFeedback(items: Array<{ selectedText: string; noteTe
     .join('\n\n')
 }
 
-export function triggerPlanRedo(storyId: number, seed: string, previousPlan: string, universeSystemPrompt?: string, universeContext?: string, styleGuide?: string): void {
+export function triggerPlanRedo(storyId: number, seed: string, previousPlan: string, universeSystemPrompt?: string, universeContext?: string, styleGuide?: string, universeId: number | null = null): void {
   setPipelineStatus(storyId, 'plan_running')
 
-  db.select({ id: annotations.id, selectedText: annotations.selectedText, noteText: annotations.noteText })
-    .from(annotations)
-    .where(and(eq(annotations.storyId, storyId), eq(annotations.context, 'plan'), isNull(annotations.resolvedAt)))
-    .then((rows) => {
+  Promise.all([
+    db
+      .select({ id: annotations.id, selectedText: annotations.selectedText, noteText: annotations.noteText })
+      .from(annotations)
+      .where(and(eq(annotations.storyId, storyId), eq(annotations.context, 'plan'), isNull(annotations.resolvedAt))),
+    resolvePipelineModels(universeId),
+  ])
+    .then(([rows, models]) => {
       const activeRows = rows.filter((r) => r.noteText !== null) as Array<{ id: number; selectedText: string; noteText: string }>
       const userFeedback = formatAnnotationsAsFeedback(activeRows)
 
@@ -46,7 +50,7 @@ export function triggerPlanRedo(storyId: number, seed: string, previousPlan: str
         runPlotterOnly({
           seed,
           storyId,
-          models: defaultModels,
+          models,
           promptVersions: defaultPromptVersions,
           ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
           ...(universeContext !== undefined ? { universeContext } : {}),
@@ -54,10 +58,10 @@ export function triggerPlanRedo(storyId: number, seed: string, previousPlan: str
           ...(sashaContext !== null ? { sashaContext } : {}),
           ...(userFeedback ? { userFeedback } : {}),
           onStepChange: (step) => setCurrentStep(storyId, step),
-        }).then(async (result) => ({ result, userFeedback, activeRows }))
+        }).then(async (result) => ({ result, userFeedback, activeRows, models })),
       )
     })
-    .then(async ({ result, userFeedback, activeRows }) => {
+    .then(async ({ result, userFeedback, activeRows, models }) => {
       setStepSummary(storyId, 'Plotter', extractPlotterSummary(result.planV1))
 
       try {
@@ -66,13 +70,13 @@ export function triggerPlanRedo(storyId: number, seed: string, previousPlan: str
             previousPlan,
             newPlan: result.planV1,
             userFeedback,
-            model: defaultModels.plotter,
+            model: models.plotter,
           }),
           resolveAnnotations({
             previousVersion: previousPlan,
             newVersion: result.planV1,
             annotations: activeRows,
-            model: defaultModels.plotter,
+            model: models.plotter,
             versionLabel: 'план',
           }),
         ])

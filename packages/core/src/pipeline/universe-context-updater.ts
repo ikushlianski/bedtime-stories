@@ -1,9 +1,8 @@
 import { eq } from 'drizzle-orm'
 import { db } from '../db/client'
 import { storyGroups } from '../db/schema'
-import { claudeCliRunner } from '../ai'
-
-const MODEL = 'claude-sonnet-4-6'
+import { aiRunner } from '../ai'
+import { resolveStageModel } from './derivers/resolve-stage-model'
 
 export async function updateUniverseContext(
   groupId: number,
@@ -51,10 +50,14 @@ export async function updateUniverseContext(
     qaBlock,
   ].join('\n')
 
-  const updated = await claudeCliRunner.runText({
-    model: MODEL,
+  const choice = await resolveStageModel(groupId, 'universeContextUpdater')
+
+  const updated = await aiRunner.runText({
+    model: choice.model,
+    fallback: choice.fallback,
     prompt,
     label: 'universe-context-updater',
+    stage: 'universeContextUpdater',
   })
 
   await db
