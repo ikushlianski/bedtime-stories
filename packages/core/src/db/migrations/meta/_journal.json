@@ -141,6 +141,13 @@
       "when": 1776781951313,
       "tag": "0019_red_mandrill",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1777113455329,
+      "tag": "0020_famous_doctor_doom",
+      "breakpoints": true
     }
   ]
 }

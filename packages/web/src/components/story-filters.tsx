@@ -4,29 +4,38 @@ import type { StoryGroup } from '../lib/api'
 import StoryFilterTabs from './story-filter-tabs'
 
 export type StatusFilter = 'all' | 'draft' | 'ready' | 'read' | 'archived'
-export type ReadSort = 'default' | 'newest_read' | 'oldest_read'
+export type SortOption =
+  | 'custom'
+  | 'created_desc'
+  | 'created_asc'
+  | 'updated_desc'
+  | 'ready_desc'
+  | 'newest_read'
+  | 'oldest_read'
 
 export interface StoryFilterState {
   status: StatusFilter
   groupId: number | null
   tag: string | null
-  readSort: ReadSort
+  sort: SortOption
 }
 
 export const DEFAULT_FILTERS: StoryFilterState = {
   status: 'ready',
   groupId: null,
   tag: null,
-  readSort: 'default',
+  sort: 'custom',
 }
 
-const STORED_FILTERS_KEY = 'story-list-filters-v1'
+const STORED_FILTERS_KEY = 'story-list-filters-v2'
 
 const storedFiltersSchema = z.object({
   status: z.enum(['all', 'draft', 'ready', 'read', 'archived']),
   groupId: z.number().int().nullable(),
   tag: z.string().nullable(),
-  readSort: z.enum(['default', 'newest_read', 'oldest_read']).default('default'),
+  sort: z
+    .enum(['custom', 'created_desc', 'created_asc', 'updated_desc', 'ready_desc', 'newest_read', 'oldest_read'])
+    .default('custom'),
 })
 
 export function loadStoredFilters(): StoryFilterState {
@@ -55,6 +64,7 @@ interface StoryFiltersProps {
   onChange: (value: StoryFilterState) => void
   universes: StoryGroup[]
   availableTags: string[]
+  lockedStatus?: StatusFilter
 }
 
 export function activeFilterCount(f: StoryFilterState): number {
@@ -66,7 +76,7 @@ export function activeFilterCount(f: StoryFilterState): number {
 
   if (f.tag !== null) count++
 
-  if (f.readSort !== 'default') count++
+  if (f.sort !== 'custom') count++
 
   return count
 }
@@ -76,7 +86,7 @@ export function hasCustomFilters(f: StoryFilterState): boolean {
     f.status !== DEFAULT_FILTERS.status ||
     f.groupId !== DEFAULT_FILTERS.groupId ||
     f.tag !== DEFAULT_FILTERS.tag ||
-    f.readSort !== DEFAULT_FILTERS.readSort
+    f.sort !== DEFAULT_FILTERS.sort
   )
 }
 
@@ -88,10 +98,22 @@ const statusLabels: Record<StatusFilter, string> = {
   archived: 'Архив',
 }
 
-const readSortLabels: Record<ReadSort, string> = {
-  default: 'По дате',
+const sortLabels: Record<SortOption, string> = {
+  custom: 'Своя сортировка',
+  created_desc: 'Сначала новые идеи',
+  created_asc: 'Сначала старые идеи',
+  updated_desc: 'Недавно обновлялись',
+  ready_desc: 'Недавно готовые',
   newest_read: 'Недавно читалось',
   oldest_read: 'Давно читалось',
+}
+
+const sortOptionsByStatus: Record<StatusFilter, SortOption[]> = {
+  draft: ['custom', 'created_desc', 'created_asc', 'updated_desc'],
+  ready: ['custom', 'ready_desc', 'created_desc', 'created_asc'],
+  read: ['custom', 'newest_read', 'oldest_read'],
+  all: ['custom', 'created_desc', 'created_asc'],
+  archived: ['custom', 'created_desc'],
 }
 
 function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
@@ -112,7 +134,7 @@ function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }
   )
 }
 
-function StoryFilters({ value, onChange, universes, availableTags }: StoryFiltersProps) {
+function StoryFilters({ value, onChange, universes, availableTags, lockedStatus }: StoryFiltersProps) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -127,12 +149,19 @@ function StoryFilters({ value, onChange, universes, availableTags }: StoryFilter
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
-  const count = activeFilterCount(value)
-  const hasActive = hasCustomFilters(value)
+  const count = lockedStatus
+    ? (value.groupId !== null ? 1 : 0) + (value.tag !== null ? 1 : 0) + (value.sort !== 'custom' ? 1 : 0)
+    : activeFilterCount(value)
+  const hasActive = lockedStatus
+    ? value.groupId !== null || value.tag !== null || value.sort !== 'custom'
+    : hasCustomFilters(value)
   const activeUniverse = value.groupId !== null ? universes.find((u) => u.id === value.groupId) : null
 
+  const effectiveStatus = lockedStatus ?? value.status
+  const sortOptions = sortOptionsByStatus[effectiveStatus] ?? ['custom']
+
   function reset() {
-    onChange(DEFAULT_FILTERS)
+    onChange({ ...DEFAULT_FILTERS, status: lockedStatus ?? DEFAULT_FILTERS.status })
     setOpen(false)
   }
 
@@ -162,13 +191,15 @@ function StoryFilters({ value, onChange, universes, availableTags }: StoryFilter
               )}
             </div>
 
-            <div className="mb-4">
-              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-base-content/50">Статус</p>
-              <StoryFilterTabs
-                value={value.status}
-                onChange={(status) => onChange({ ...value, status })}
-              />
-            </div>
+            {!lockedStatus && (
+              <div className="mb-4">
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-base-content/50">Статус</p>
+                <StoryFilterTabs
+                  value={value.status}
+                  onChange={(status) => onChange({ ...value, status })}
+                />
+              </div>
+            )}
 
             {universes.length > 0 && (
               <div className="mb-4">
@@ -203,27 +234,25 @@ function StoryFilters({ value, onChange, universes, availableTags }: StoryFilter
               </div>
             )}
 
-            {value.status === 'read' && (
-              <div>
-                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-base-content/50">Сортировка по прочтению</p>
-                <div className="join flex">
-                  {(['default', 'newest_read', 'oldest_read'] as ReadSort[]).map((sort) => (
-                    <button
-                      key={sort}
-                      className={`btn join-item btn-sm whitespace-nowrap ${value.readSort === sort ? 'btn-secondary' : 'btn-outline'}`}
-                      onClick={() => onChange({ ...value, readSort: sort })}
-                    >
-                      {readSortLabels[sort]}
-                    </button>
-                  ))}
-                </div>
+            <div>
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-base-content/50">Сортировка</p>
+              <div className="join flex flex-wrap">
+                {sortOptions.map((opt) => (
+                  <button
+                    key={opt}
+                    className={`btn join-item btn-sm whitespace-nowrap ${value.sort === opt ? 'btn-secondary' : 'btn-outline'}`}
+                    onClick={() => onChange({ ...value, sort: opt })}
+                  >
+                    {sortLabels[opt]}
+                  </button>
+                ))}
               </div>
-            )}
+            </div>
           </div>
         )}
       </div>
 
-      {value.status !== 'all' && (
+      {!lockedStatus && value.status !== 'all' && (
         <FilterChip
           label={statusLabels[value.status]}
           onRemove={() => onChange({ ...value, status: 'all' })}
@@ -244,10 +273,10 @@ function StoryFilters({ value, onChange, universes, availableTags }: StoryFilter
         />
       )}
 
-      {value.readSort !== 'default' && (
+      {value.sort !== 'custom' && (
         <FilterChip
-          label={readSortLabels[value.readSort]}
-          onRemove={() => onChange({ ...value, readSort: 'default' })}
+          label={sortLabels[value.sort]}
+          onRemove={() => onChange({ ...value, sort: 'custom' })}
         />
       )}
     </div>

@@ -66,6 +66,7 @@ export const stories = pgTable('stories', {
   sortOrder: integer('sort_order'),
   seriesId: text('series_id'),
   updatedAt: timestamp('updated_at').defaultNow(),
+  readyAt: timestamp('ready_at'),
 })
 
 export const feedback = pgTable('feedback', {

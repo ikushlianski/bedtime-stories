@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   DndContext,
@@ -17,7 +17,25 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { api, type Story, type CreateStoryInput, type StoryGroup } from '../lib/api'
 import { AddExampleStoryModal, CreateStoryModal, PageHeader, StatusCallout, StoryCard, StoryFilters } from '../components'
-import { loadStoredFilters, saveStoredFilters, type StoryFilterState } from '../components/story-filters'
+import { loadStoredFilters, saveStoredFilters, type StoryFilterState, type StatusFilter } from '../components/story-filters'
+
+const PAGE_META: Record<string, { eyebrow: string; title: string; description: string }> = {
+  draft: {
+    eyebrow: 'В работе',
+    title: 'Черновики',
+    description: 'Истории в процессе создания — от идеи до одобрения.',
+  },
+  ready: {
+    eyebrow: 'К прочтению',
+    title: 'Непрочитанные',
+    description: 'Готовые истории, которые ещё не читали.',
+  },
+  read: {
+    eyebrow: 'Прочитанные',
+    title: 'Прочитанные',
+    description: 'История прочитана. Можно вспомнить и перечитать.',
+  },
+}
 
 interface SortableStoryCardProps {
   story: Story
@@ -64,15 +82,25 @@ function SortableStoryCard({ story, onTitleClick, onDelete }: SortableStoryCardP
   )
 }
 
-export function StoryListPage() {
+export function StoryListPage({ lockedStatus }: { lockedStatus?: StatusFilter }) {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const seedFromUrl = searchParams.get('seed')
   const groupIdFromUrl = searchParams.get('groupId')
+  const modalParam = searchParams.get('modal')
+
   const [stories, setStories] = useState<Story[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [filters, setFilters] = useState<StoryFilterState>(() => loadStoredFilters())
+  const [filters, setFilters] = useState<StoryFilterState>(() => {
+    const stored = loadStoredFilters()
+    return lockedStatus ? { ...stored, status: lockedStatus } : stored
+  })
+
+  const effectiveFilters = useMemo(
+    () => (lockedStatus ? { ...filters, status: lockedStatus } : filters),
+    [filters, lockedStatus],
+  )
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -83,13 +111,22 @@ export function StoryListPage() {
   useEffect(() => {
     saveStoredFilters(filters)
   }, [filters])
+
   const [universes, setUniverses] = useState<StoryGroup[]>([])
-  const [showModal, setShowModal] = useState(seedFromUrl !== null)
-  const [showExampleModal, setShowExampleModal] = useState(false)
+  const [showModal, setShowModal] = useState(modalParam === 'create' || seedFromUrl !== null)
+  const [showExampleModal, setShowExampleModal] = useState(modalParam === 'example')
 
   useEffect(() => {
     api.universes.list().then(setUniverses).catch(() => undefined)
   }, [])
+
+  useEffect(() => {
+    if (modalParam === 'create') {
+      setShowModal(true)
+    } else if (modalParam === 'example') {
+      setShowExampleModal(true)
+    }
+  }, [modalParam])
 
   const allTags = Array.from(
     new Set(stories.flatMap((s) => (s.tags as string[] | null) ?? []))
@@ -101,10 +138,10 @@ export function StoryListPage() {
 
     try {
       const data = await api.stories.list({
-        status: filters.status === 'all' ? undefined : filters.status,
-        groupId: filters.groupId ?? undefined,
-        tag: filters.tag ?? undefined,
-        readSort: filters.readSort !== 'default' ? filters.readSort : undefined,
+        status: effectiveFilters.status === 'all' ? undefined : effectiveFilters.status,
+        groupId: effectiveFilters.groupId ?? undefined,
+        tag: effectiveFilters.tag ?? undefined,
+        sort: effectiveFilters.sort !== 'custom' ? effectiveFilters.sort : undefined,
       })
 
       setStories(data)
@@ -113,7 +150,7 @@ export function StoryListPage() {
     } finally {
       setLoading(false)
     }
-  }, [filters])
+  }, [effectiveFilters])
 
   useEffect(() => {
     void fetchStories()
@@ -160,12 +197,20 @@ export function StoryListPage() {
       )
   }, [])
 
+  function clearModalParam(params: URLSearchParams) {
+    params.delete('modal')
+    params.delete('seed')
+    params.delete('groupId')
+  }
+
+  const meta = PAGE_META[lockedStatus ?? 'ready'] ?? PAGE_META.ready
+
   return (
     <div>
       <PageHeader
-        eyebrow="Библиотека"
-        title="Истории"
-        description="Следи за историями от черновика до прочтения и запускай новые идеи для сказок на ночь."
+        eyebrow={meta.eyebrow}
+        title={meta.title}
+        description={meta.description}
         action={
           <div className="flex flex-wrap gap-2">
             <button className="btn btn-secondary gap-2" onClick={() => setShowExampleModal(true)}>
@@ -186,10 +231,11 @@ export function StoryListPage() {
 
       <div className="mb-6">
         <StoryFilters
-          value={filters}
-          onChange={setFilters}
+          value={effectiveFilters}
+          onChange={(f) => setFilters(lockedStatus ? { ...f, status: lockedStatus } : f)}
           universes={universes}
           availableTags={allTags}
+          lockedStatus={lockedStatus}
         />
       </div>
 
@@ -204,13 +250,13 @@ export function StoryListPage() {
           {(() => {
             const labels: Record<string, string> = {
               draft: 'Черновиков',
-              ready: 'Готовых историй',
+              ready: 'Непрочитанных историй',
               read: 'Прочитанных историй',
               archived: 'Архивных историй',
               all: 'Историй',
             }
-            const label = labels[filters.status] ?? 'Историй'
-            const hasFilter = filters.status !== 'all' || filters.groupId != null || filters.tag != null
+            const label = labels[effectiveFilters.status] ?? 'Историй'
+            const hasFilter = effectiveFilters.groupId != null || effectiveFilters.tag != null
 
             return (
               <>
@@ -251,13 +297,9 @@ export function StoryListPage() {
         initialGroupId={groupIdFromUrl ? parseInt(groupIdFromUrl, 10) : null}
         onClose={() => {
           setShowModal(false)
-
-          if (seedFromUrl !== null) {
-            const next = new URLSearchParams(searchParams)
-            next.delete('seed')
-            next.delete('groupId')
-            setSearchParams(next, { replace: true })
-          }
+          const next = new URLSearchParams(searchParams)
+          clearModalParam(next)
+          setSearchParams(next, { replace: true })
         }}
         onSubmit={handleCreateStory}
         onSeriesCreated={() => void fetchStories()}
@@ -267,6 +309,9 @@ export function StoryListPage() {
         open={showExampleModal}
         onClose={() => {
           setShowExampleModal(false)
+          const next = new URLSearchParams(searchParams)
+          clearModalParam(next)
+          setSearchParams(next, { replace: true })
           void fetchStories()
         }}
       />

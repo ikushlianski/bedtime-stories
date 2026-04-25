@@ -1,4 +1,4 @@
-import { Routes, Route, Link, useLocation } from 'react-router-dom'
+import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom'
 import { StoryListPage } from './pages/story-list'
 import { StoryReaderPage } from './pages/story-reader'
 import { PlanReviewPage } from './pages/plan-review'
@@ -7,26 +7,44 @@ import { PipelineStatusPage } from './pages/pipeline-status'
 import { PlanQuestionsPage } from './pages/plan-questions'
 import { DashboardPage } from './pages/dashboard'
 import { IdeasPage } from './pages/ideas'
-import { InboxPage } from './pages/inbox'
 import { UniversesPage } from './pages/universes'
 import { UniverseDetailPage } from './pages/universe-detail'
 import { DiaryPage } from './pages/diary'
 import { ChildProfilePage } from './pages/child-profile'
 import { useTheme } from './lib/use-theme'
 
-const NAV_LINKS = [
-  { to: '/inbox', label: 'Входящие' },
-  { to: '/', label: 'Истории' },
+const OTHER_NAV = [
   { to: '/ideas', label: 'Идеи' },
   { to: '/child-profile', label: 'Мой ребёнок' },
   { to: '/dashboard', label: 'Панель' },
   { to: '/universes', label: 'Вселенные' },
 ]
 
+function NavLink({ to, label }: { to: string; label: string }) {
+  const { pathname } = useLocation()
+  const isActive = to === '/' ? pathname === '/' : pathname.startsWith(to)
+
+  return (
+    <Link
+      to={to}
+      className={`rounded-btn px-3 py-2 text-sm font-medium transition-colors ${
+        isActive
+          ? 'bg-primary/10 text-primary'
+          : 'text-base-content/70 hover:bg-base-200 hover:text-base-content'
+      }`}
+    >
+      {label}
+    </Link>
+  )
+}
+
 function Sidebar({ isDark, onToggle }: { isDark: boolean; onToggle: () => void }) {
   const { pathname } = useLocation()
+  const navigate = useNavigate()
 
-  const isActive = (to: string) => to === '/' ? pathname === '/' : pathname.startsWith(to)
+  function openModal(modal: 'create' | 'example') {
+    navigate({ pathname, search: `?modal=${modal}` })
+  }
 
   return (
     <aside className="flex min-h-full w-56 flex-col border-r border-base-300 bg-base-100 px-3 py-6">
@@ -37,18 +55,32 @@ function Sidebar({ isDark, onToggle }: { isDark: boolean; onToggle: () => void }
       </div>
 
       <nav className="flex flex-1 flex-col gap-1">
-        {NAV_LINKS.map(({ to, label }) => (
-          <Link
-            key={to}
-            to={to}
-            className={`rounded-btn px-3 py-2 text-sm font-medium transition-colors ${
-              isActive(to)
-                ? 'bg-primary/10 text-primary'
-                : 'text-base-content/70 hover:bg-base-200 hover:text-base-content'
-            }`}
-          >
-            {label}
-          </Link>
+        <NavLink to="/drafts" label="Черновики" />
+        <NavLink to="/" label="Непрочитанные" />
+
+        <div className="my-3 border-t border-base-300" />
+
+        <NavLink to="/read" label="Прочитанные" />
+
+        <div className="my-3 border-t border-base-300" />
+
+        <button
+          className="rounded-btn px-3 py-2 text-left text-sm font-medium text-primary/80 transition-colors hover:bg-primary/10 hover:text-primary"
+          onClick={() => openModal('create')}
+        >
+          + Новая история
+        </button>
+        <button
+          className="rounded-btn px-3 py-2 text-left text-sm font-medium text-base-content/70 transition-colors hover:bg-base-200 hover:text-base-content"
+          onClick={() => openModal('example')}
+        >
+          + Добавить пример
+        </button>
+
+        <div className="my-3 border-t border-base-300" />
+
+        {OTHER_NAV.map(({ to, label }) => (
+          <NavLink key={to} to={to} label={label} />
         ))}
       </nav>
 
@@ -96,7 +128,9 @@ function App() {
           >
             <div className="mx-auto max-w-4xl">
               <Routes>
-                <Route path="/" element={<StoryListPage />} />
+                <Route path="/" element={<StoryListPage lockedStatus="ready" />} />
+                <Route path="/drafts" element={<StoryListPage lockedStatus="draft" />} />
+                <Route path="/read" element={<StoryListPage lockedStatus="read" />} />
                 <Route path="/stories/:id" element={<StoryReaderPage />} />
                 <Route path="/stories/:id/plan-review" element={<PlanReviewPage />} />
                 <Route path="/stories/:id/text-review" element={<TextReviewPage />} />
@@ -106,7 +140,6 @@ function App() {
                 <Route path="/ideas" element={<IdeasPage />} />
                 <Route path="/diary" element={<DiaryPage />} />
                 <Route path="/child-profile" element={<ChildProfilePage />} />
-                <Route path="/inbox" element={<InboxPage />} />
                 <Route path="/universes" element={<UniversesPage />} />
                 <Route path="/universes/:id" element={<UniverseDetailPage />} />
               </Routes>

@@ -110,6 +110,7 @@ export interface Story {
   sort_order: number | null
   series_id: string | null
   updated_at: string | null
+  ready_at: string | null
 }
 
 export interface RunSnapshot {
@@ -304,13 +305,13 @@ export interface PipelineStatus {
 
 export const api = {
   stories: {
-    list: (filters?: { status?: string; groupId?: number; tag?: string; readSort?: string }) => {
+    list: (filters?: { status?: string; groupId?: number; tag?: string; sort?: string }) => {
       const params = new URLSearchParams()
 
       if (filters?.status) params.set('status', filters.status)
       if (filters?.groupId != null) params.set('groupId', String(filters.groupId))
       if (filters?.tag) params.set('tag', filters.tag)
-      if (filters?.readSort && filters.readSort !== 'default') params.set('readSort', filters.readSort)
+      if (filters?.sort && filters.sort !== 'custom') params.set('sort', filters.sort)
 
       const query = params.toString() ? `?${params.toString()}` : ''
 

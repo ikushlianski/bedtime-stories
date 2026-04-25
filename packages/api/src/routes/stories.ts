@@ -55,6 +55,7 @@ function toSnakeCase(row: Story) {
     sort_order: row.sortOrder ?? null,
     series_id: row.seriesId ?? null,
     updated_at: row.updatedAt ?? null,
+    ready_at: row.readyAt ?? null,
   }
 }
 
@@ -92,6 +93,7 @@ router.post('/', validate(createStorySchema), async (req, res) => {
         source: 'legacy',
         mode: 'manual',
         ...(resolved.groupId !== undefined ? { groupId: resolved.groupId } : {}),
+        ...(resolved.addToReadingList ? { readyAt: new Date() } : {}),
       }
       const [created] = await db.insert(stories).values(legacyStory).returning()
 
@@ -106,6 +108,7 @@ router.post('/', validate(createStorySchema), async (req, res) => {
         status: 'ready',
         source: 'user',
         mode: 'manual',
+        readyAt: new Date(),
         ...(resolved.groupId !== undefined ? { groupId: resolved.groupId } : {}),
       }
       const [created] = await db.insert(stories).values(userStory).returning()
@@ -159,7 +162,7 @@ router.post('/reorder', validate(reorderSchema), async (req, res) => {
 
 router.get('/', async (req, res) => {
   try {
-    const { status, groupId, tag, readSort } = req.query
+    const { status, groupId, tag, sort } = req.query
 
     if (status !== undefined && typeof status !== 'string') {
       res.status(400).json({ error: 'Invalid status filter' })
@@ -186,19 +189,26 @@ router.get('/', async (req, res) => {
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined
 
-    let result: Story[]
+    let orderExpr: ReturnType<typeof sql>
 
-    if (readSort === 'oldest_read' || readSort === 'newest_read') {
-      const dir = readSort === 'newest_read' ? sql`DESC` : sql`ASC`
-      const orderExpr = sql`(SELECT MAX(read_at) FROM story_readings WHERE story_id = stories.id) ${dir} NULLS LAST`
-      result = whereClause
-        ? await db.select().from(stories).where(whereClause).orderBy(orderExpr) as Story[]
-        : await db.select().from(stories).orderBy(orderExpr) as Story[]
+    if (sort === 'newest_read' || sort === 'oldest_read') {
+      const dir = sort === 'newest_read' ? sql`DESC` : sql`ASC`
+      orderExpr = sql`(SELECT MAX(read_at) FROM story_readings WHERE story_id = stories.id) ${dir} NULLS LAST`
+    } else if (sort === 'created_desc') {
+      orderExpr = sql`created_at DESC`
+    } else if (sort === 'created_asc') {
+      orderExpr = sql`created_at ASC`
+    } else if (sort === 'updated_desc') {
+      orderExpr = sql`updated_at DESC NULLS LAST`
+    } else if (sort === 'ready_desc') {
+      orderExpr = sql`ready_at DESC NULLS LAST`
     } else {
-      result = whereClause
-        ? await db.select().from(stories).where(whereClause).orderBy(sql`sort_order ASC NULLS LAST, created_at DESC`) as Story[]
-        : await db.select().from(stories).orderBy(sql`sort_order ASC NULLS LAST, created_at DESC`) as Story[]
+      orderExpr = sql`sort_order ASC NULLS LAST, created_at DESC`
     }
+
+    const result = whereClause
+      ? await db.select().from(stories).where(whereClause).orderBy(orderExpr) as Story[]
+      : await db.select().from(stories).orderBy(orderExpr) as Story[]
 
     res.json(result.map((row) => toSnakeCase(row)))
   } catch (err) {
@@ -573,7 +583,7 @@ router.post('/:id/approve-text', validate(approveTextSchema), async (req, res) =
 
     const [story] = await db
       .update(stories)
-      .set({ status: 'ready', textFinal: finalText })
+      .set({ status: 'ready', textFinal: finalText, readyAt: new Date(), updatedAt: new Date() })
       .where(eq(stories.id, storyId))
       .returning()
 
