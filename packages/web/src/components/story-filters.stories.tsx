@@ -23,7 +23,13 @@ const universes: StoryGroup[] = [
     systemPrompt: '',
     universeContext: null,
     styleGuide: null,
+    styleGuideWorks: null,
+    styleGuideDoesntWork: null,
+    styleGuideTechniques: null,
+    styleGuideMinimize: null,
     agentOverrides: null,
+    characters: [],
+    pendingSuggestionsCount: 0,
     createdAt: '2026-04-01T10:00:00Z',
   },
   {
@@ -33,7 +39,13 @@ const universes: StoryGroup[] = [
     systemPrompt: '',
     universeContext: null,
     styleGuide: null,
+    styleGuideWorks: null,
+    styleGuideDoesntWork: null,
+    styleGuideTechniques: null,
+    styleGuideMinimize: null,
     agentOverrides: null,
+    characters: [],
+    pendingSuggestionsCount: 0,
     createdAt: '2026-04-02T10:00:00Z',
   },
 ]
@@ -66,6 +78,7 @@ export const WithSelectedFilters: Story = {
         status: 'read',
         groupId: 1,
         tag: 'спокойная',
+        sort: 'custom',
       }}
     />
   ),

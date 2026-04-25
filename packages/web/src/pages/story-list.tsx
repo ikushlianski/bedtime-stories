@@ -63,7 +63,7 @@ function SortableStoryCard({ story, onTitleClick, onDelete }: SortableStoryCardP
         status={story.status}
         createdAt={story.created_at}
         seriesId={story.series_id}
-        totalUsd={story.total_usd ?? null}
+        totalUsdMicros={story.total_usd_micros ?? null}
         onTitleClick={onTitleClick}
         dragHandleProps={{ ...listeners, ...attributes }}
         actions={[

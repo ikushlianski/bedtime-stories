@@ -4,6 +4,8 @@ import { api, isReactionAnnotation, type Story, type Annotation, type Annotation
 import { AnnotationToolbar, PageHeader, StatusCallout, Toast, StoryTagEditor } from '../components'
 import ParentReviewForm from '../components/parent-review-form'
 import ChildReactionForm from '../components/child-reaction-form'
+import SwapModelModal from '../components/swap-model-modal'
+import { formatMicros } from '@bedtime/shared/money/micros'
 import { useToast } from '../lib/use-toast'
 import {
   annotationTypeLabel,
@@ -67,7 +69,7 @@ function StoryText({
   text: string
   editable?: boolean
   draftKey?: string
-  editRef?: RefObject<HTMLDivElement | null>
+  editRef?: RefObject<HTMLDivElement>
   onSelection: (sel: SelectionState | null) => void
   onInput?: () => void
 }) {
@@ -196,6 +198,7 @@ export function StoryReaderPage() {
   }, [storyId, showToast])
 
   const [storyTags, setStoryTags] = useState<string[]>([])
+  const [swapStage, setSwapStage] = useState<'plotter' | 'writer' | null>(null)
   const draftKey = `story-text-draft-${storyId}`
   const [isDirty, setIsDirty] = useState(() => !!localStorage.getItem(`story-text-draft-${storyId}`))
   const [savingText, setSavingText] = useState(false)
@@ -421,7 +424,7 @@ export function StoryReaderPage() {
         <div className="mb-6 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm">
           <div className="mb-2 flex items-baseline justify-between">
             <p className="text-xs font-medium uppercase tracking-wide text-base-content/50">Стоимость</p>
-            <p className="text-sm">Итого: <span className="font-mono">${story.cost.totalUsd.toFixed(5)}</span></p>
+            <p className="text-sm">Итого: <span className="font-mono">${formatMicros(story.cost.totalUsdMicros, 5)}</span></p>
           </div>
           <table className="table table-xs">
             <thead>
@@ -434,18 +437,58 @@ export function StoryReaderPage() {
               </tr>
             </thead>
             <tbody>
-              {story.cost.perStage.map((row, i) => (
-                <tr key={i}>
-                  <td className="font-mono text-xs">{row.stage}{row.attempt > 1 ? ` #${row.attempt}` : ''}</td>
-                  <td className="font-mono text-xs">{row.model}</td>
-                  <td className="text-right font-mono">{row.tokensIn}</td>
-                  <td className="text-right font-mono">{row.tokensOut}</td>
-                  <td className="text-right font-mono">${row.usd.toFixed(5)}</td>
-                </tr>
-              ))}
+              {story.cost.perStage.map((row, i) => {
+                const swappable = (['plotter', 'writer'] as const).includes(
+                  row.stage as 'plotter' | 'writer',
+                )
+                return (
+                  <tr key={i}>
+                    <td className="font-mono text-xs">
+                      {row.stage}{row.attempt > 1 ? ` #${row.attempt}` : ''}
+                      {swappable && (
+                        <button
+                          className="btn btn-ghost btn-xs ml-2"
+                          title="Сменить модель и пере-запустить эту стадию"
+                          onClick={() => setSwapStage(row.stage as 'plotter' | 'writer')}
+                        >
+                          ↻
+                        </button>
+                      )}
+                    </td>
+                    <td className="font-mono text-xs">{row.model}</td>
+                    <td className="text-right font-mono">{row.tokensIn}</td>
+                    <td className="text-right font-mono">{row.tokensOut}</td>
+                    <td className="text-right font-mono">${formatMicros(row.usdMicros, 5)}</td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
+          <div className="mt-3 text-right text-xs">
+            <button
+              className="link"
+              onClick={() => navigate(`/admin#story-${storyId}`)}
+            >
+              Оценить, стоила ли история своих денег →
+            </button>
+          </div>
         </div>
+      )}
+
+      {swapStage && (
+        <SwapModelModal
+          open={true}
+          storyId={storyId}
+          stage={swapStage}
+          currentModel={
+            story.cost?.perStage.find((p) => p.stage === swapStage)?.model ?? null
+          }
+          onClose={() => setSwapStage(null)}
+          onSubmitted={() => {
+            setSwapStage(null)
+            navigate(`/stories/${storyId}/pipeline`)
+          }}
+        />
       )}
 
       <div className="relative">

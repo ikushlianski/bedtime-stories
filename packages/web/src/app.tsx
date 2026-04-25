@@ -11,12 +11,14 @@ import { UniversesPage } from './pages/universes'
 import { UniverseDetailPage } from './pages/universe-detail'
 import { DiaryPage } from './pages/diary'
 import { ChildProfilePage } from './pages/child-profile'
+import { AdminPage } from './pages/admin'
 import { useTheme } from './lib/use-theme'
 
 const OTHER_NAV = [
   { to: '/ideas', label: 'Идеи' },
   { to: '/child-profile', label: 'Мой ребёнок' },
   { to: '/dashboard', label: 'Панель' },
+  { to: '/admin', label: 'Админ' },
   { to: '/universes', label: 'Вселенные' },
 ]
 
@@ -137,6 +139,7 @@ function App() {
                 <Route path="/stories/:id/pipeline" element={<PipelineStatusPage />} />
                 <Route path="/stories/:id/questions" element={<PlanQuestionsPage />} />
                 <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/admin" element={<AdminPage />} />
                 <Route path="/ideas" element={<IdeasPage />} />
                 <Route path="/diary" element={<DiaryPage />} />
                 <Route path="/child-profile" element={<ChildProfilePage />} />

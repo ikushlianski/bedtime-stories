@@ -14,10 +14,18 @@ import universeSuggestionsRouter from './routes/universe-suggestions'
 import diaryRouter from './routes/diary'
 import childProfileRouter from './routes/child-profile'
 import modelsRouter from './routes/models'
+import storiesSwapModelRouter from './routes/stories-swap-model'
+import storiesVfmRouter from './routes/stories-vfm'
+import adminRouter from './routes/admin'
 
 export const app = express()
 
-app.use(cors())
+const ALLOWED_ORIGINS = (process.env['ALLOWED_ORIGINS'] ?? 'http://localhost:8021,http://127.0.0.1:8021')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean)
+
+app.use(cors({ origin: ALLOWED_ORIGINS }))
 app.use(express.json())
 
 app.use('/api/stories/series', storiesSeriesRouter)
@@ -32,11 +40,14 @@ app.use('/api/universes/:universeId/suggestions', universeSuggestionsRouter)
 app.use('/api/diary', diaryRouter)
 app.use('/api/child-profile', childProfileRouter)
 app.use('/api/models', modelsRouter)
+app.use('/api/stories/:id/swap-model', storiesSwapModelRouter)
+app.use('/api/stories/:id/value-for-money', storiesVfmRouter)
+app.use('/api/admin', adminRouter)
 
 dns.setDefaultResultOrder('ipv6first')
 
 const PORT = Number(process.env['PORT'] ?? 8020)
-const HOST = process.env['HOST'] ?? '::'
+const HOST = process.env['HOST'] ?? '127.0.0.1'
 
 export function startServer(): void {
   app.listen(PORT, HOST, () => {

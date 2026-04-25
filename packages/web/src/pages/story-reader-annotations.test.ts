@@ -18,6 +18,8 @@ function mkAnnotation(partial: Partial<Annotation> & Pick<Annotation, 'id' | 'ty
     positionStart: partial.positionStart,
     positionEnd: partial.positionEnd ?? (partial.positionStart ?? 0) + 10,
     createdAt: partial.createdAt ?? '2026-04-15T20:00:00Z',
+    resolvedAt: partial.resolvedAt ?? null,
+    resolvedSummary: partial.resolvedSummary ?? null,
   }
 }
 

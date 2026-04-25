@@ -215,19 +215,19 @@ router.get('/', async (req, res) => {
     const totals = await db
       .select({
         storyId: modelCalls.storyId,
-        totalUsd: sql<string>`SUM(${modelCalls.usd})`,
+        totalUsdMicros: sql<number>`COALESCE(SUM(${modelCalls.usdMicros}), 0)::bigint`,
       })
       .from(modelCalls)
       .groupBy(modelCalls.storyId)
 
     const totalById = new Map<number, number>()
     for (const t of totals) {
-      if (t.storyId !== null) totalById.set(t.storyId, parseFloat(t.totalUsd ?? '0'))
+      if (t.storyId !== null) totalById.set(t.storyId, Number(t.totalUsdMicros ?? 0))
     }
 
     res.json(result.map((row) => {
       const total = totalById.get(row.id)
-      return { ...toSnakeCase(row), total_usd: total ?? null }
+      return { ...toSnakeCase(row), total_usd_micros: total ?? null }
     }))
   } catch (err) {
     console.error('GET /stories failed:', err)
@@ -290,13 +290,14 @@ router.get('/:id', async (req, res) => {
         attempt: modelCalls.attempt,
         tokensIn: modelCalls.tokensIn,
         tokensOut: modelCalls.tokensOut,
-        usd: modelCalls.usd,
+        usdMicros: modelCalls.usdMicros,
         createdAt: modelCalls.createdAt,
       })
       .from(modelCalls)
       .where(eq(modelCalls.storyId, storyId))
 
-    const cost = callRows.length > 0 ? deriveStoryCostBreakdown(callRows) : null
+    const validCallRows = callRows.filter((r): r is typeof r & { usdMicros: number; createdAt: Date } => r.usdMicros !== null && r.createdAt !== null)
+    const cost = validCallRows.length > 0 ? deriveStoryCostBreakdown(validCallRows) : null
 
     res.json({ ...toSnakeCase(story as Story), cost })
   } catch (err) {

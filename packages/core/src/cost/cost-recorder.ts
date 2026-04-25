@@ -1,5 +1,6 @@
 import { db } from '../db/client.js'
 import { modelCalls } from '../db/schema.js'
+import { toMicros } from '@bedtime/shared/money/micros'
 
 export interface RecordCallInput {
   storyId: number | null
@@ -21,6 +22,14 @@ export interface CostRecorder {
 export class DbCostRecorder implements CostRecorder {
   async record(input: RecordCallInput): Promise<void> {
     try {
+      const usdMicros = toMicros(input.usd)
+
+      if (usdMicros === null) {
+        console.error(
+          `[cost-recorder] invalid usd value for model=${input.modelId} stage=${input.stage} story=${input.storyId} usd=${JSON.stringify(input.usd)} — recording call with null cost`,
+        )
+      }
+
       await db.insert(modelCalls).values({
         storyId: input.storyId,
         stage: input.stage,
@@ -29,7 +38,7 @@ export class DbCostRecorder implements CostRecorder {
         fallbackUsed: input.fallbackUsed,
         tokensIn: input.tokensIn,
         tokensOut: input.tokensOut,
-        usd: input.usd.toString(),
+        usdMicros,
         latencyMs: input.latencyMs,
         success: input.success,
       })

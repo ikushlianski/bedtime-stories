@@ -43,7 +43,7 @@ describe('DbCostRecorder', () => {
       fallbackUsed: false,
       tokensIn: 1000,
       tokensOut: 200,
-      usd: '0.012',
+      usdMicros: 12000,
       latencyMs: 1500,
       success: true,
     })

@@ -1,4 +1,4 @@
-import { boolean, integer, jsonb, numeric, pgTable, serial, text, timestamp, unique } from 'drizzle-orm/pg-core'
+import { bigint, boolean, integer, jsonb, numeric, pgTable, serial, text, timestamp, unique } from 'drizzle-orm/pg-core'
 
 export const storyGroups = pgTable('story_groups', {
   id: serial('id').primaryKey(),
@@ -226,6 +226,25 @@ export const modelCatalog = pgTable('model_catalog', {
   deletedAt: timestamp('deleted_at'),
 })
 
+export const modelSwapEvents = pgTable('model_swap_events', {
+  id: serial('id').primaryKey(),
+  storyId: integer('story_id').references(() => stories.id),
+  stage: text('stage').notNull(),
+  fromModel: text('from_model').references(() => modelCatalog.id),
+  toModel: text('to_model').references(() => modelCatalog.id),
+  reasonChip: text('reason_chip').$type<'too_verbose' | 'too_short' | 'broke_format' | 'boring_prose' | 'off_topic' | 'repetitive' | 'not_calm' | 'weak_ending' | 'too_slow' | 'failed' | 'other'>(),
+  reasonText: text('reason_text'),
+  createdAt: timestamp('created_at').defaultNow(),
+})
+
+export const valueForMoneyFeedback = pgTable('value_for_money_feedback', {
+  id: serial('id').primaryKey(),
+  storyId: integer('story_id').references(() => stories.id).notNull(),
+  rating: integer('rating').notNull(),
+  note: text('note'),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (t) => [unique('value_for_money_feedback_story_id_unique').on(t.storyId)])
+
 export const modelCalls = pgTable('model_calls', {
   id: serial('id').primaryKey(),
   storyId: integer('story_id').references(() => stories.id),
@@ -235,7 +254,7 @@ export const modelCalls = pgTable('model_calls', {
   fallbackUsed: boolean('fallback_used').notNull().default(false),
   tokensIn: integer('tokens_in'),
   tokensOut: integer('tokens_out'),
-  usd: numeric('usd').notNull().default('0'),
+  usdMicros: bigint('usd_micros', { mode: 'number' }),
   latencyMs: integer('latency_ms'),
   success: boolean('success').notNull(),
   createdAt: timestamp('created_at').defaultNow(),

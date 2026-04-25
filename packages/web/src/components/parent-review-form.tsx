@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { api, type ParentReview } from '../lib/api'
+import { api } from '../lib/api'
 import FormField from './form-field'
 
 function StarRating({ value, onChange }: { value: number | null; onChange: (v: number) => void }) {

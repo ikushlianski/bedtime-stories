@@ -175,7 +175,7 @@ export function PipelineStatusPage() {
           if (step.name === event.name || step.agent === event.name) {
             return {
               ...step,
-              status: event.status === 'running' ? 'running' : 'completed',
+              status: (event.status === 'running' ? 'running' : 'completed') as 'running' | 'completed',
               ...(event.summary !== undefined ? { summary: event.summary } : {}),
             }
           }

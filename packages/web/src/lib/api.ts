@@ -111,7 +111,7 @@ export interface Story {
   series_id: string | null
   updated_at: string | null
   ready_at: string | null
-  total_usd?: number | null
+  total_usd_micros?: number | null
   cost?: StoryCostBreakdown | null
 }
 
@@ -277,14 +277,14 @@ export interface ModelCatalogEntry {
 }
 
 export interface StoryCostBreakdown {
-  totalUsd: number
+  totalUsdMicros: number
   perStage: Array<{
     stage: string
     model: string
     attempt: number
     tokensIn: number
     tokensOut: number
-    usd: number
+    usdMicros: number
   }>
 }
 
@@ -545,7 +545,7 @@ export const api = {
         systemPrompt: string
         description: string
         universeContext: string
-        styleGuide: string
+        styleGuide: string | null
         styleGuideWorks: string | null
         styleGuideDoesntWork: string | null
         styleGuideTechniques: string | null
@@ -594,5 +594,55 @@ export const api = {
 
   models: {
     list: () => request<{ models: ModelCatalogEntry[] }>('/api/models').then((r) => r.models),
+  },
+
+  swapModel: {
+    submit: (
+      storyId: number,
+      data: { stage: 'plotter' | 'writer'; toModel: string; reasonChip?: string; reasonText?: string },
+    ) =>
+      request<{ swapped: boolean; stage: string; fromModel: string | null; toModel: string }>(
+        `/api/stories/${storyId}/swap-model`,
+        { method: 'POST', body: JSON.stringify(data) },
+      ),
+  },
+
+  vfm: {
+    submit: (storyId: number, data: { rating: number; note?: string }) =>
+      request<{ id: number; storyId: number; rating: number; note: string | null; createdAt: string }>(
+        `/api/stories/${storyId}/value-for-money`,
+        { method: 'POST', body: JSON.stringify(data) },
+      ),
+  },
+
+  admin: {
+    spendOverTime: () =>
+      request<Array<{ date: string; totalUsdMicros: number; perModel: Array<{ model: string; usdMicros: number }> }>>(
+        '/api/admin/spend-over-time',
+      ),
+    awaitingFeedback: () =>
+      request<Array<{ storyId: number; title: string; status: string; readyAt: string | null }>>(
+        '/api/admin/awaiting-feedback',
+      ),
+    modelLeaderboard: () =>
+      request<{
+        joyPerDollar: Array<{ model: string; avgJoyPerMicro: number | null; sampleSize: number }>
+        planIterationsPerModel: Array<{ model: string; avgPlanIterations: number; sampleSize: number }>
+        swapRatePerModel: Array<{ model: string; swapsAway: number; totalUses: number; swapRate: number }>
+        tokensPerChar: Array<{ model: string; tokensPerChar: number | null }>
+        freeTierCompletionRate: { rate: number; freeOnlyStoryCount: number; totalStoryCount: number }
+      }>('/api/admin/model-leaderboard'),
+    storiesTable: () =>
+      request<Array<{
+        storyId: number
+        title: string
+        date: string | null
+        modelsPerStage: Record<string, string | null>
+        totalTokens: number
+        totalUsdMicros: number | null
+        parentRating: number | null
+        childRating: number | null
+        joyPerMicro: number | null
+      }>>('/api/admin/stories-table'),
   },
 }

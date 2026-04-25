@@ -14,12 +14,14 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "paths": {
-      "@bedtime/core/*": ["./packages/core/src/*"]
+      "@bedtime/core/*": ["./packages/core/src/*"],
+      "@bedtime/shared/*": ["./packages/shared/src/*"]
     }
   },
   "include": [
     "packages/core/src",
-    "packages/api/src"
+    "packages/api/src",
+    "packages/shared/src"
   ],
   "exclude": ["node_modules", "dist", "**/*.test.ts"]
 }

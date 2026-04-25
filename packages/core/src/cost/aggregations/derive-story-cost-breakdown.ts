@@ -1,10 +1,12 @@
+import type { UsdMicros } from '@bedtime/shared/money/micros'
+
 export interface ModelCallRow {
   stage: string
   modelId: string | null
   attempt: number
   tokensIn: number | null
   tokensOut: number | null
-  usd: string | number
+  usdMicros: UsdMicros
   createdAt: Date | null
 }
 
@@ -14,17 +16,12 @@ export interface PerStageCost {
   attempt: number
   tokensIn: number
   tokensOut: number
-  usd: number
+  usdMicros: UsdMicros
 }
 
 export interface StoryCostBreakdown {
-  totalUsd: number
+  totalUsdMicros: UsdMicros
   perStage: PerStageCost[]
-}
-
-function toNumber(v: string | number | null | undefined): number {
-  if (v === null || v === undefined) return 0
-  return typeof v === 'string' ? parseFloat(v) : v
 }
 
 export function deriveStoryCostBreakdown(rows: ModelCallRow[]): StoryCostBreakdown {
@@ -40,10 +37,10 @@ export function deriveStoryCostBreakdown(rows: ModelCallRow[]): StoryCostBreakdo
     attempt: r.attempt,
     tokensIn: r.tokensIn ?? 0,
     tokensOut: r.tokensOut ?? 0,
-    usd: toNumber(r.usd),
+    usdMicros: r.usdMicros,
   }))
 
-  const totalUsd = perStage.reduce((acc, r) => acc + r.usd, 0)
+  const totalUsdMicros = perStage.reduce((acc, r) => acc + r.usdMicros, 0)
 
-  return { totalUsd, perStage }
+  return { totalUsdMicros, perStage }
 }

@@ -162,6 +162,27 @@
       "when": 1777120204849,
       "tag": "0022_stories_agent_overrides",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1777140033429,
+      "tag": "0023_swap_events_and_vfm",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1777156000000,
+      "tag": "0024_model_calls_usd_micros",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1777158000000,
+      "tag": "0025_model_calls_usd_micros_nullable",
+      "breakpoints": true
     }
   ]
 }

@@ -84,7 +84,6 @@ function CharacterCard({ character, universeId, onUpdated, onDeleted }: Characte
     )
   }
 
-  const dateStr = character.updatedAt ?? character.createdAt
   const dateLabel = character.updatedAt
     ? `Изменён ${formatDate(character.updatedAt)}`
     : character.createdAt

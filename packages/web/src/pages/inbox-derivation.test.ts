@@ -38,6 +38,10 @@ function mkStory(overrides: Partial<Story>): Story {
     mode: 'auto',
     text_change_summary: null,
     story_analysis: null,
+    sort_order: null,
+    series_id: null,
+    updated_at: null,
+    ready_at: null,
     ...overrides,
   }
 }

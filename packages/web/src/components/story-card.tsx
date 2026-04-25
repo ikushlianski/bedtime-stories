@@ -1,5 +1,6 @@
 import type { HTMLAttributes } from 'react'
 import type { StoryStatus } from './types'
+import { formatMicros } from '@bedtime/shared/money/micros'
 
 type StoryCardActionTone = 'primary' | 'secondary' | 'tertiary' | 'quiet' | 'destructive'
 
@@ -16,7 +17,7 @@ interface StoryCardProps {
   createdAt: string
   rating?: number
   seriesId?: string | null
-  totalUsd?: number | null
+  totalUsdMicros?: number | null
   actions?: StoryCardAction[]
   onTitleClick?: () => void
   dragHandleProps?: HTMLAttributes<HTMLDivElement>
@@ -73,7 +74,7 @@ function GripIcon() {
   )
 }
 
-function StoryCard({ title, status, createdAt, rating, seriesId, totalUsd, actions = [], onTitleClick, dragHandleProps }: StoryCardProps) {
+function StoryCard({ title, status, createdAt, rating, seriesId, totalUsdMicros, actions = [], onTitleClick, dragHandleProps }: StoryCardProps) {
   const config = statusConfig[status]
   const isArchived = status === 'archived'
   const regularActions = actions.filter((action) => action.tone !== 'destructive')
@@ -122,7 +123,7 @@ function StoryCard({ title, status, createdAt, rating, seriesId, totalUsd, actio
 
             <span className="flex items-center gap-3">
               <span className="font-mono" title="Стоимость генерации">
-                {totalUsd !== undefined && totalUsd !== null ? `$${totalUsd.toFixed(4)}` : '—'}
+                {totalUsdMicros !== undefined && totalUsdMicros !== null ? `$${formatMicros(totalUsdMicros)}` : '—'}
               </span>
               {rating !== undefined && (
                 <span className="font-medium text-warning" aria-label={`Оценка: ${rating} из 5`}>
