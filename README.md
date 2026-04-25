@@ -15,6 +15,7 @@ A parent types a short seed: a setting, a character, a mood, or just a vibe. The
 5. **Writer** — turns the approved plan into story text
 6. **Writer's Critic + Psychologist** — a final quality pass on the text
 7. **Writer** — revises the text once more based on feedback
+8. **Title Generator + Story Analyzer** — titles the story and extracts analytical metadata
 
 The parent reads the story aloud. Afterwards they rate it and leave reactions on specific moments. Over time, an **Improver** agent clusters these patterns and proposes prompt edits — so the next story is a little better.
 
@@ -25,7 +26,7 @@ The parent reads the story aloud. Afterwards they rate it and leave reactions on
 | Frontend | React + Vite (port 8021) |
 | Backend | Express (port 8020) |
 | Database | Neon Postgres (cloud) |
-| AI pipeline | Anthropic Claude via `@anthropic-ai/claude-agent-sdk` |
+| AI pipeline | OpenRouter HTTP API |
 | ORM | Drizzle |
 
 ## Running locally
@@ -34,7 +35,7 @@ The parent reads the story aloud. Afterwards they rate it and leave reactions on
 
 - Node.js 20+
 - A [Neon](https://neon.tech) database (free tier works)
-- Claude CLI installed and authenticated (`claude` in PATH)
+- An [OpenRouter](https://openrouter.ai) API key
 
 ### Setup
 
@@ -54,6 +55,19 @@ cp .env.example .env
 
 ```
 DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
+OPENROUTER_API_KEY=sk-or-...
+JWT_SECRET=<at least 32 characters>
+```
+
+Optional:
+
+```
+NOTION_TOKEN=...
+NOTION_DATABASE_ID=...
+LANGFUSE_PUBLIC_KEY=...
+LANGFUSE_SECRET_KEY=...
+LANGFUSE_BASEURL=...
+SENTRY_DSN=...
 ```
 
 Run migrations:
@@ -81,3 +95,7 @@ npm run dev:debug
 ```
 
 App is at **http://localhost:8021**, API at **http://localhost:8020**.
+
+### Background processes
+
+On API startup the server automatically syncs the OpenRouter model catalog (all ~350+ models with pricing and capability metadata) and schedules a repeat every 24 hours. No manual action needed.
