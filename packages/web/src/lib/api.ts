@@ -4,6 +4,7 @@ const API_BASE = (import.meta as ImportMeta & { env: Record<string, string | und
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...init?.headers },
     ...init,
   })
@@ -25,6 +26,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 async function requestEmpty(path: string, init?: RequestInit): Promise<void> {
   const res = await fetch(`${API_BASE}${path}`, {
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...init?.headers },
     ...init,
   })
@@ -644,5 +646,17 @@ export const api = {
         childRating: number | null
         joyPerMicro: number | null
       }>>('/api/admin/stories-table'),
+  },
+
+  auth: {
+    login: (username: string, password: string) =>
+      request<{ username: string }>('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ username, password }),
+      }),
+    logout: () =>
+      requestEmpty('/api/auth/logout', { method: 'POST' }),
+    me: () =>
+      request<{ username: string }>('/api/auth/me'),
   },
 }

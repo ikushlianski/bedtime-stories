@@ -13,6 +13,9 @@ import { DiaryPage } from './pages/diary'
 import { ChildProfilePage } from './pages/child-profile'
 import { AdminPage } from './pages/admin'
 import { useTheme } from './lib/use-theme'
+import { AuthProvider, useAuth } from './auth/auth.context'
+import { LoginPage } from './pages/login/login.page'
+import { ProtectedRoute } from './components/protected-route'
 
 const OTHER_NAV = [
   { to: '/ideas', label: 'Идеи' },
@@ -43,9 +46,15 @@ function NavLink({ to, label }: { to: string; label: string }) {
 function Sidebar({ isDark, onToggle }: { isDark: boolean; onToggle: () => void }) {
   const { pathname } = useLocation()
   const navigate = useNavigate()
+  const { logout } = useAuth()
 
   function openModal(modal: 'create' | 'example') {
     navigate({ pathname, search: `?modal=${modal}` })
+  }
+
+  async function handleLogout() {
+    await logout()
+    navigate('/login', { replace: true })
   }
 
   return (
@@ -86,7 +95,7 @@ function Sidebar({ isDark, onToggle }: { isDark: boolean; onToggle: () => void }
         ))}
       </nav>
 
-      <div className="mt-4 px-3">
+      <div className="mt-4 flex items-center gap-2 px-3">
         <button
           className="btn btn-ghost btn-sm btn-square"
           onClick={onToggle}
@@ -94,12 +103,18 @@ function Sidebar({ isDark, onToggle }: { isDark: boolean; onToggle: () => void }
         >
           {isDark ? '☀️' : '🌙'}
         </button>
+        <button
+          className="btn btn-ghost btn-sm text-xs text-base-content/50"
+          onClick={handleLogout}
+        >
+          Выйти
+        </button>
       </div>
     </aside>
   )
 }
 
-function App() {
+function AppShell() {
   const { theme, toggleTheme, isDark } = useTheme()
 
   return (
@@ -130,21 +145,28 @@ function App() {
           >
             <div className="mx-auto max-w-4xl">
               <Routes>
-                <Route path="/" element={<StoryListPage lockedStatus="ready" />} />
-                <Route path="/drafts" element={<StoryListPage lockedStatus="draft" />} />
-                <Route path="/read" element={<StoryListPage lockedStatus="read" />} />
-                <Route path="/stories/:id" element={<StoryReaderPage />} />
-                <Route path="/stories/:id/plan-review" element={<PlanReviewPage />} />
-                <Route path="/stories/:id/text-review" element={<TextReviewPage />} />
-                <Route path="/stories/:id/pipeline" element={<PipelineStatusPage />} />
-                <Route path="/stories/:id/questions" element={<PlanQuestionsPage />} />
-                <Route path="/dashboard" element={<DashboardPage />} />
-                <Route path="/admin" element={<AdminPage />} />
-                <Route path="/ideas" element={<IdeasPage />} />
-                <Route path="/diary" element={<DiaryPage />} />
-                <Route path="/child-profile" element={<ChildProfilePage />} />
-                <Route path="/universes" element={<UniversesPage />} />
-                <Route path="/universes/:id" element={<UniverseDetailPage />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/*" element={
+                  <ProtectedRoute>
+                    <Routes>
+                      <Route path="/" element={<StoryListPage lockedStatus="ready" />} />
+                      <Route path="/drafts" element={<StoryListPage lockedStatus="draft" />} />
+                      <Route path="/read" element={<StoryListPage lockedStatus="read" />} />
+                      <Route path="/stories/:id" element={<StoryReaderPage />} />
+                      <Route path="/stories/:id/plan-review" element={<PlanReviewPage />} />
+                      <Route path="/stories/:id/text-review" element={<TextReviewPage />} />
+                      <Route path="/stories/:id/pipeline" element={<PipelineStatusPage />} />
+                      <Route path="/stories/:id/questions" element={<PlanQuestionsPage />} />
+                      <Route path="/dashboard" element={<DashboardPage />} />
+                      <Route path="/admin" element={<AdminPage />} />
+                      <Route path="/ideas" element={<IdeasPage />} />
+                      <Route path="/diary" element={<DiaryPage />} />
+                      <Route path="/child-profile" element={<ChildProfilePage />} />
+                      <Route path="/universes" element={<UniversesPage />} />
+                      <Route path="/universes/:id" element={<UniverseDetailPage />} />
+                    </Routes>
+                  </ProtectedRoute>
+                } />
               </Routes>
             </div>
           </main>
@@ -156,6 +178,14 @@ function App() {
         </div>
       </div>
     </div>
+  )
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppShell />
+    </AuthProvider>
   )
 }
 

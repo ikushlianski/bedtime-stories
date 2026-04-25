@@ -1,5 +1,12 @@
 import { bigint, boolean, integer, jsonb, numeric, pgTable, serial, text, timestamp, unique } from 'drizzle-orm/pg-core'
 
+export const users = pgTable('users', {
+  id: serial('id').primaryKey(),
+  username: text('username').notNull().unique(),
+  passwordHash: text('password_hash').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+})
+
 export const storyGroups = pgTable('story_groups', {
   id: serial('id').primaryKey(),
   name: text('name').notNull(),

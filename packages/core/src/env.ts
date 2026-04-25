@@ -13,6 +13,7 @@ const envSchema = z.object({
   NOTION_TOKEN: z.string().optional(),
   NOTION_DATABASE_ID: z.string().optional(),
   OPENROUTER_API_KEY: z.string().min(1),
+  JWT_SECRET: z.string().min(32),
 })
 
 export const env = envSchema.parse(process.env)
