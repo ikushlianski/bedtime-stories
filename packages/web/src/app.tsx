@@ -116,6 +116,7 @@ function Sidebar({ isDark, onToggle }: { isDark: boolean; onToggle: () => void }
 
 function AppShell() {
   const { theme, toggleTheme, isDark } = useTheme()
+  const { username, loading } = useAuth()
 
   return (
     <div data-theme={theme} className="min-h-screen bg-base-200 text-base-content">
@@ -172,10 +173,12 @@ function AppShell() {
           </main>
         </div>
 
-        <div className="drawer-side z-40">
-          <label htmlFor="sidebar-drawer" aria-label="Закрыть меню" className="drawer-overlay" />
-          <Sidebar isDark={isDark} onToggle={toggleTheme} />
-        </div>
+        {!loading && username && (
+          <div className="drawer-side z-40">
+            <label htmlFor="sidebar-drawer" aria-label="Закрыть меню" className="drawer-overlay" />
+            <Sidebar isDark={isDark} onToggle={toggleTheme} />
+          </div>
+        )}
       </div>
     </div>
   )

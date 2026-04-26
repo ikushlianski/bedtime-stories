@@ -16,7 +16,7 @@ export async function verifyPassword(hash: string, password: string): Promise<bo
 }
 
 export function signToken(payload: AuthTokenPayload): string {
-  return jwt.sign(payload, env.JWT_SECRET, { expiresIn: '8h', algorithm: 'HS256' })
+  return jwt.sign(payload, env.JWT_SECRET, { expiresIn: '30d', algorithm: 'HS256' })
 }
 
 export function decodeToken(token: string): AuthTokenPayload {
