@@ -39,11 +39,12 @@ const PAGE_META: Record<string, { eyebrow: string; title: string; description: s
 
 interface SortableStoryCardProps {
   story: Story
+  universeName?: string
   onTitleClick: () => void
   onDelete: () => void
 }
 
-function SortableStoryCard({ story, onTitleClick, onDelete }: SortableStoryCardProps) {
+function SortableStoryCard({ story, universeName, onTitleClick, onDelete }: SortableStoryCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: story.id,
   })
@@ -64,6 +65,7 @@ function SortableStoryCard({ story, onTitleClick, onDelete }: SortableStoryCardP
         createdAt={story.created_at}
         seriesId={story.series_id}
         totalUsdMicros={story.total_usd_micros ?? null}
+        universeName={universeName}
         onTitleClick={onTitleClick}
         dragHandleProps={{ ...listeners, ...attributes }}
         actions={[
@@ -283,6 +285,7 @@ export function StoryListPage({ lockedStatus }: { lockedStatus?: StatusFilter })
                 <SortableStoryCard
                   key={story.id}
                   story={story}
+                  universeName={universes.find((u) => u.id === story.group_id)?.name}
                   onTitleClick={() => navigate(`/stories/${story.id}`)}
                   onDelete={() => handleDeleteStory(story)}
                 />

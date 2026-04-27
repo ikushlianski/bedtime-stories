@@ -18,6 +18,7 @@ interface StoryCardProps {
   rating?: number
   seriesId?: string | null
   totalUsdMicros?: number | null
+  universeName?: string
   actions?: StoryCardAction[]
   onTitleClick?: () => void
   dragHandleProps?: HTMLAttributes<HTMLDivElement>
@@ -74,7 +75,7 @@ function GripIcon() {
   )
 }
 
-function StoryCard({ title, status, createdAt, rating, seriesId, totalUsdMicros, actions = [], onTitleClick, dragHandleProps }: StoryCardProps) {
+function StoryCard({ title, status, createdAt, rating, seriesId, totalUsdMicros, universeName, actions = [], onTitleClick, dragHandleProps }: StoryCardProps) {
   const config = statusConfig[status]
   const isArchived = status === 'archived'
   const regularActions = actions.filter((action) => action.tone !== 'destructive')
@@ -119,7 +120,10 @@ function StoryCard({ title, status, createdAt, rating, seriesId, totalUsdMicros,
           </div>
 
           <div className="flex items-center justify-between gap-3 text-xs text-base-content/65">
-            <span>{formatDate(createdAt)}</span>
+            <span>
+              {formatDate(createdAt)}
+              {universeName && <span className="ml-1.5 text-base-content/40">{universeName}</span>}
+            </span>
 
             <span className="flex items-center gap-3">
               <span className="font-mono" title="Стоимость генерации">

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api, type Story } from '../lib/api'
+import { api, type Story, type StoryGroup } from '../lib/api'
 import { PageHeader, StatusCallout, StoryCard } from '../components'
 import {
   buildInbox,
@@ -19,11 +19,13 @@ function Section({
   items,
   onPick,
   tone,
+  universes,
 }: {
   title: string
   items: InboxItem[]
   onPick: (href: string) => void
   tone: 'primary' | 'secondary'
+  universes: StoryGroup[]
 }) {
   if (items.length === 0) return null
 
@@ -39,6 +41,7 @@ function Section({
               title={item.story.title}
               status={item.story.status}
               createdAt={item.story.created_at}
+              universeName={universes.find((u) => u.id === item.story.group_id)?.name}
               actions={[
                 {
                   label: actionLabel(item.action),
@@ -57,6 +60,7 @@ function Section({
 export function InboxPage() {
   const navigate = useNavigate()
   const [stories, setStories] = useState<Story[]>([])
+  const [universes, setUniverses] = useState<StoryGroup[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -76,6 +80,7 @@ export function InboxPage() {
 
   useEffect(() => {
     void fetchStories()
+    api.universes.list().then(setUniverses).catch(() => undefined)
   }, [fetchStories])
 
   const inbox = buildInbox(stories)
@@ -116,36 +121,11 @@ export function InboxPage() {
             </div>
           )}
 
-          <Section
-            title="Нужна проверка"
-            items={groups.review_plan ?? []}
-            onPick={(href) => navigate(href)}
-            tone="primary"
-          />
-          <Section
-            title="Нужно финальное одобрение"
-            items={groups.review_text ?? []}
-            onPick={(href) => navigate(href)}
-            tone="primary"
-          />
-          <Section
-            title="Готово к чтению"
-            items={groups.read_to_sasha ?? []}
-            onPick={(href) => navigate(href)}
-            tone="primary"
-          />
-          <Section
-            title="В обработке"
-            items={groups.pending_plan ?? []}
-            onPick={(href) => navigate(href)}
-            tone="secondary"
-          />
-          <Section
-            title="Ждём твоего отзыва"
-            items={groups.leave_feedback ?? []}
-            onPick={(href) => navigate(href)}
-            tone="secondary"
-          />
+          <Section title="Нужна проверка" items={groups.review_plan ?? []} onPick={(href) => navigate(href)} tone="primary" universes={universes} />
+          <Section title="Нужно финальное одобрение" items={groups.review_text ?? []} onPick={(href) => navigate(href)} tone="primary" universes={universes} />
+          <Section title="Готово к чтению" items={groups.read_to_sasha ?? []} onPick={(href) => navigate(href)} tone="primary" universes={universes} />
+          <Section title="В обработке" items={groups.pending_plan ?? []} onPick={(href) => navigate(href)} tone="secondary" universes={universes} />
+          <Section title="Ждём твоего отзыва" items={groups.leave_feedback ?? []} onPick={(href) => navigate(href)} tone="secondary" universes={universes} />
         </>
       )}
     </div>

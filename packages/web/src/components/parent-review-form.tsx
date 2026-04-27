@@ -1,24 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api } from '../lib/api'
 import FormField from './form-field'
-
-function StarRating({ value, onChange }: { value: number | null; onChange: (v: number) => void }) {
-  return (
-    <div className="flex gap-1">
-      {[1, 2, 3, 4, 5].map((star) => (
-        <button
-          key={star}
-          type="button"
-          onClick={() => onChange(star)}
-          className={`btn btn-ghost btn-sm px-1 text-2xl ${star <= (value ?? 0) ? 'text-warning' : 'text-base-content/25'}`}
-          aria-label={`Оценить ${star} из 5`}
-        >
-          ★
-        </button>
-      ))}
-    </div>
-  )
-}
+import StarRating from './star-rating'
 
 function ToggleButton({ value, onChange }: { value: boolean | null; onChange: (v: boolean) => void }) {
   return (
@@ -93,7 +76,7 @@ function ParentReviewForm({ storyId }: ParentReviewFormProps) {
     <div className="space-y-5">
       <div className="space-y-2">
         <span className="text-sm font-medium text-base-content/70">Общая оценка истории</span>
-        <StarRating value={rating} onChange={setRating} />
+        <StarRating value={rating} onChange={setRating} name="parent-rating" />
       </div>
 
       <div className="flex flex-wrap gap-6">
