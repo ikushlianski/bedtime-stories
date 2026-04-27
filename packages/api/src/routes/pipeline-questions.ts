@@ -184,6 +184,7 @@ router.get('/conversations/:storyId', async (req, res) => {
 
 const sendMessageSchema = z.object({
   message: z.string().min(1),
+  selectedText: z.string().optional(),
 })
 
 router.post('/conversations/:storyId', validate(sendMessageSchema), async (req, res) => {
@@ -195,7 +196,7 @@ router.post('/conversations/:storyId', validate(sendMessageSchema), async (req, 
       return
     }
 
-    const { message } = req.body as z.infer<typeof sendMessageSchema>
+    const { message, selectedText } = req.body as z.infer<typeof sendMessageSchema>
 
     const [storyRow] = await db.select().from(stories).where(eq(stories.id, storyIdRaw))
 
@@ -220,15 +221,35 @@ router.post('/conversations/:storyId', validate(sendMessageSchema), async (req, 
       .where(eq(planConversations.storyId, storyIdRaw))
       .orderBy(asc(planConversations.createdAt))
 
-    const planFinal = storyRow.planFinal ?? ''
+    const currentPlan = storyRow.planV1 ?? storyRow.planFinal ?? ''
 
     const conversationContext = priorMessages
       .map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
       .join('\n\n')
 
+    const selectionBlock = selectedText
+      ? [
+          ``,
+          `The user is focusing on this specific passage from the plan:`,
+          `"""`,
+          selectedText,
+          `"""`,
+          ``,
+          `If you arrive at a concrete replacement for this passage, output it using this exact format at the end of your response:`,
+          `<<<PATCH>>>`,
+          `[replacement text]`,
+          `<<<END PATCH>>>`,
+          `<<<SUMMARY>>>`,
+          `[1-2 sentence summary of what changed and why, for future story generation memory]`,
+          `<<<END SUMMARY>>>`,
+          `Only include a PATCH block when you have a clear, agreed improvement. Skip it if you are still exploring options.`,
+        ].join('\n')
+      : ''
+
     const prompt = [
-      `You are helping refine a story plan. Here is the current plan:\n${planFinal}`,
-      `Discuss and suggest improvements conversationally. Be concise.`,
+      `You are helping refine a bedtime story plan. Here is the current plan:\n${currentPlan}`,
+      `Discuss and suggest improvements conversationally. Be concise and direct.`,
+      selectionBlock,
       ``,
       `Conversation so far:`,
       conversationContext,
@@ -251,7 +272,12 @@ router.post('/conversations/:storyId', validate(sendMessageSchema), async (req, 
       return
     }
 
-    res.json({ userMessage, assistantMessage })
+    const patchMatch = aiResponse.match(/<<<PATCH>>>([\s\S]*?)<<<END PATCH>>>/)
+    const summaryMatch = aiResponse.match(/<<<SUMMARY>>>([\s\S]*?)<<<END SUMMARY>>>/)
+    const patch = patchMatch?.[1]?.trim()
+    const patchSummary = summaryMatch?.[1]?.trim()
+
+    res.json({ userMessage, assistantMessage, patch, patchSummary })
   } catch (err) {
     console.error('POST /pipeline/conversations/:storyId failed:', err)
     res.status(500).json({ error: 'Failed to send conversation message' })

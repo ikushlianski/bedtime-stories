@@ -435,6 +435,12 @@ export const api = {
         body: JSON.stringify(data),
       }),
 
+    applyPlanPatch: (id: number, data: { find: string; replace: string; summary: string }) =>
+      request<Story>(`/api/stories/${id}/apply-plan-patch`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
     reorder: (orders: Array<{ id: number; sort_order: number }>) =>
       request<{ ok: boolean }>('/api/stories/reorder', {
         method: 'POST',
@@ -500,10 +506,10 @@ export const api = {
 
     conversations: (storyId: number) => request<ConversationMessage[]>(`/api/pipeline/conversations/${storyId}`),
 
-    sendConversationMessage: (storyId: number, message: string) =>
-      request<{ userMessage: ConversationMessage; assistantMessage: ConversationMessage }>(
+    sendConversationMessage: (storyId: number, message: string, selectedText?: string) =>
+      request<{ userMessage: ConversationMessage; assistantMessage: ConversationMessage; patch?: string; patchSummary?: string }>(
         `/api/pipeline/conversations/${storyId}`,
-        { method: 'POST', body: JSON.stringify({ message }) },
+        { method: 'POST', body: JSON.stringify({ message, selectedText }) },
       ),
   },
 

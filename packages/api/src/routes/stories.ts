@@ -989,6 +989,65 @@ router.put('/:id/child-reaction', validate(childReactionSchema), async (req, res
   }
 })
 
+const applyPlanPatchSchema = z.object({
+  find: z.string().min(1),
+  replace: z.string().min(1),
+  summary: z.string(),
+})
+
+router.post('/:id/apply-plan-patch', validate(applyPlanPatchSchema), async (req, res) => {
+  try {
+    const storyId = parseIntParam(req.params['id'])
+
+    if (isNaN(storyId) || storyId <= 0) {
+      res.status(400).json({ error: 'Invalid story id' })
+      return
+    }
+
+    const { find, replace, summary } = req.body as z.infer<typeof applyPlanPatchSchema>
+
+    const [storyRow] = await db.select().from(stories).where(eq(stories.id, storyId))
+
+    if (!storyRow) {
+      res.status(404).json({ error: 'Story not found' })
+      return
+    }
+
+    const currentPlan = storyRow.planV1 ?? storyRow.planFinal ?? ''
+
+    if (!currentPlan.includes(find)) {
+      res.status(422).json({ error: 'Patch target not found in plan — plan may have changed' })
+      return
+    }
+
+    const newPlan = currentPlan.replace(find, replace)
+    const [updated] = await db
+      .update(stories)
+      .set({ planV1: newPlan })
+      .where(eq(stories.id, storyId))
+      .returning()
+
+    if (summary && storyRow.groupId) {
+      const [universe] = await db.select().from(storyGroups).where(eq(storyGroups.id, storyRow.groupId))
+
+      if (universe) {
+        const existing = universe.styleGuideWorks ?? ''
+        const appended = existing ? `${existing}\n- ${summary}` : `- ${summary}`
+
+        await db
+          .update(storyGroups)
+          .set({ styleGuideWorks: appended })
+          .where(eq(storyGroups.id, storyRow.groupId))
+      }
+    }
+
+    res.json(toSnakeCase(updated as Story))
+  } catch (err) {
+    console.error('POST /stories/:id/apply-plan-patch failed:', err)
+    res.status(500).json({ error: 'Failed to apply patch' })
+  }
+})
+
 router.delete('/:id', async (req, res) => {
   try {
     const storyId = parseIntParam(req.params['id'])

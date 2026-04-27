@@ -13,6 +13,7 @@ interface SelectionPopover {
 interface PlanAnnotatorProps {
   storyId: number
   planText: string
+  onChatAboutThis?: (selectedText: string) => void
 }
 
 function RedoPlanButton({ storyId, disabled }: { storyId: number; disabled: boolean }) {
@@ -75,7 +76,7 @@ function ResolvedAnnotations({ annotations }: { annotations: Annotation[] }) {
   )
 }
 
-function PlanAnnotator({ storyId, planText }: PlanAnnotatorProps) {
+function PlanAnnotator({ storyId, planText, onChatAboutThis }: PlanAnnotatorProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [popover, setPopover] = useState<SelectionPopover | null>(null)
   const [comment, setComment] = useState('')
@@ -194,17 +195,30 @@ function PlanAnnotator({ storyId, planText }: PlanAnnotatorProps) {
 
               {saveError && <p className="mt-1 text-xs text-error">{saveError}</p>}
 
-              <div className="mt-2 flex justify-end gap-2">
+              <div className="mt-2 flex justify-between gap-2">
                 <button className="btn btn-ghost btn-xs" onClick={handleDismiss}>
                   Отмена
                 </button>
-                <button
-                  className="btn btn-primary btn-xs"
-                  onClick={() => void handleSave()}
-                  disabled={!comment.trim() || saving}
-                >
-                  {saving ? '...' : 'Сохранить'}
-                </button>
+                <div className="flex gap-2">
+                  {onChatAboutThis && (
+                    <button
+                      className="btn btn-secondary btn-xs"
+                      onClick={() => {
+                        onChatAboutThis(popover.text)
+                        handleDismiss()
+                      }}
+                    >
+                      Обсудить →
+                    </button>
+                  )}
+                  <button
+                    className="btn btn-primary btn-xs"
+                    onClick={() => void handleSave()}
+                    disabled={!comment.trim() || saving}
+                  >
+                    {saving ? '...' : 'Сохранить'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

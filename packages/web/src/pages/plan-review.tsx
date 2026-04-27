@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { api, type Story } from '../lib/api'
 import { PageHeader, StatusCallout } from '../components'
 import PlanAnnotator from '../components/plan-annotator'
+import { PlanConversationPanel } from './plan-conversation-panel'
 
 function usePlanReviewStory(id: number) {
   const [story, setStory] = useState<Story | null>(null)
@@ -20,7 +21,7 @@ function usePlanReviewStory(id: number) {
       .finally(() => setLoading(false))
   }, [id])
 
-  return { story, setStory, loading, error }
+  return { story, loading, error }
 }
 
 export function PlanReviewPage() {
@@ -30,6 +31,14 @@ export function PlanReviewPage() {
   const { story, loading, error } = usePlanReviewStory(storyId)
   const [approving, setApproving] = useState(false)
   const [approveError, setApproveError] = useState<string | null>(null)
+  const [chatSelectedText, setChatSelectedText] = useState<string | null>(null)
+  const [localPlanText, setLocalPlanText] = useState<string>('')
+
+  useEffect(() => {
+    if (story) {
+      setLocalPlanText(story.plan_v1 ?? story.plan_final ?? '')
+    }
+  }, [story])
 
   const handleApprove = async () => {
     setApproving(true)
@@ -57,9 +66,7 @@ export function PlanReviewPage() {
     return <StatusCallout tone="warning" title="История не найдена" message="Запрошенная история не существует." />
   }
 
-  const planText = story.plan_v1 ?? story.plan_final ?? ''
-
-  if (!planText) {
+  if (!localPlanText && !(story.plan_v1 ?? story.plan_final)) {
     return <StatusCallout tone="warning" title="План ещё не готов" message="Дождись завершения фазы планирования." />
   }
 
@@ -105,7 +112,11 @@ export function PlanReviewPage() {
             </button>
           </div>
 
-          <PlanAnnotator storyId={storyId} planText={planText} />
+          <PlanAnnotator
+            storyId={storyId}
+            planText={localPlanText}
+            onChatAboutThis={(text) => setChatSelectedText(text)}
+          />
 
           <div className="flex justify-end">
             <button
@@ -118,6 +129,26 @@ export function PlanReviewPage() {
           </div>
         </div>
       </section>
+
+      {chatSelectedText !== null && (
+        <div className="mt-6">
+          <PlanConversationPanel
+            storyId={storyId}
+            selectedText={chatSelectedText}
+            onPatchApplied={(newText) => {
+              setLocalPlanText(newText)
+              setChatSelectedText(null)
+            }}
+            onClose={() => setChatSelectedText(null)}
+          />
+        </div>
+      )}
+
+      {chatSelectedText === null && (
+        <div className="mt-6">
+          <PlanConversationPanel storyId={storyId} />
+        </div>
+      )}
     </div>
   )
 }
