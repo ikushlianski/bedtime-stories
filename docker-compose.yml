@@ -1,0 +1,32 @@
+services:
+  api:
+    build:
+      context: .
+      target: development
+    ports:
+      - "8020:8020"
+    env_file:
+      - .env
+    environment:
+      PORT: "8020"
+      HOST: "0.0.0.0"
+      NODE_ENV: development
+    volumes:
+      - ./packages:/app/packages
+      - ./node_modules:/app/node_modules:ro
+
+  web:
+    build:
+      context: .
+      target: web-dev
+    ports:
+      - "8021:8021"
+    env_file:
+      - .env
+    environment:
+      VITE_API_URL: "http://localhost:8020"
+    volumes:
+      - ./packages:/app/packages
+      - ./node_modules:/app/node_modules:ro
+    depends_on:
+      - api

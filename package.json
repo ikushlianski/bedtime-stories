@@ -13,7 +13,12 @@
     "test:watch": "vitest",
     "notion-import": "tsx packages/core/src/scripts/notion-import.ts",
     "db:migrate": "tsx packages/core/src/db/migrate.ts",
-    "create-user": "tsx packages/core/src/scripts/create-user.ts"
+    "create-user": "tsx packages/core/src/scripts/create-user.ts",
+    "build:web": "npm run build -w @bedtime/web",
+    "docker:up": "docker compose up",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "docker:build": "docker compose build"
   },
   "keywords": [],
   "author": "",

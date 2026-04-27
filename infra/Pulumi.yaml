@@ -1,0 +1,6 @@
+name: bedtime-infra
+runtime:
+  name: nodejs
+  options:
+    typescript: true
+description: GCP infrastructure for bedtime-agent

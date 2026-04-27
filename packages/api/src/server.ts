@@ -2,6 +2,8 @@ import express from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import dns from 'node:dns'
+import { fileURLToPath } from 'url'
+import { dirname, resolve } from 'path'
 import { Sentry } from '@bedtime/observability'
 import { scheduleDailyCatalogSync } from '@bedtime/core/queue'
 import storiesRouter from './routes/stories'
@@ -54,6 +56,16 @@ app.use('/api/stories/:id/value-for-money', storiesVfmRouter)
 app.use('/api/admin', adminRouter)
 
 Sentry.setupExpressErrorHandler(app)
+
+if (process.env['NODE_ENV'] === 'production') {
+  const __dirname = dirname(fileURLToPath(import.meta.url))
+  const webDist = resolve(__dirname, '../../../web/dist')
+
+  app.use(express.static(webDist))
+  app.get('*', (_req, res) => {
+    res.sendFile(resolve(webDist, 'index.html'))
+  })
+}
 
 dns.setDefaultResultOrder('ipv6first')
 

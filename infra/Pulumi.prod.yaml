@@ -1,0 +1,6 @@
+config:
+  bedtime-infra:region: us-central1
+  bedtime-infra:githubRepo: ikushlianski/bedtime-stories
+  # Set before running pulumi up:
+  # pulumi config set billingAccount <YOUR_BILLING_ACCOUNT_ID>
+  # pulumi config set --secret orgId <YOUR_ORG_ID>  (optional, for Workspace accounts)

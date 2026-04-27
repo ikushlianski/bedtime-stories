@@ -1,0 +1,16 @@
+.env
+*.env.local
+*.env.*.local
+node_modules/
+dist/
+.git/
+.github/
+logs/
+*.tsbuildinfo
+.DS_Store
+.claude/
+infra/
+docs/
+.bmad/
+.inbox/
+storybook-static/
