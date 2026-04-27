@@ -162,6 +162,24 @@ router.post('/reorder', validate(reorderSchema), async (req, res) => {
   }
 })
 
+router.get('/tags', async (_req, res) => {
+  try {
+    const rows = await db
+      .select({ tags: stories.tags })
+      .from(stories)
+      .where(sql`tags is not null and jsonb_array_length(tags::jsonb) > 0`)
+
+    const all = Array.from(
+      new Set(rows.flatMap((r) => (r.tags as string[] | null) ?? []))
+    ).sort()
+
+    res.json(all)
+  } catch (err) {
+    console.error('GET /stories/tags failed:', err)
+    res.status(500).json({ error: 'Failed to fetch tags' })
+  }
+})
+
 router.get('/', async (req, res) => {
   try {
     const { status, groupId, tag, sort } = req.query

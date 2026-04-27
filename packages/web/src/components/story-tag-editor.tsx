@@ -7,10 +7,11 @@ const SUGGESTED_TAGS = [
 
 interface StoryTagEditorProps {
   tags: string[]
+  allTags?: string[]
   onSave: (tags: string[]) => Promise<void>
 }
 
-function StoryTagEditor({ tags, onSave }: StoryTagEditorProps) {
+function StoryTagEditor({ tags, allTags = [], onSave }: StoryTagEditorProps) {
   const [current, setCurrent] = useState<string[]>(tags)
   const [input, setInput] = useState('')
 
@@ -20,7 +21,9 @@ function StoryTagEditor({ tags, onSave }: StoryTagEditorProps) {
   const [saving, setSaving] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const suggestions = SUGGESTED_TAGS.filter(
+  const mergedTags = Array.from(new Set([...SUGGESTED_TAGS, ...allTags]))
+
+  const suggestions = mergedTags.filter(
     (t) => !current.includes(t) && t.toLowerCase().includes(input.toLowerCase()),
   )
 
@@ -105,10 +108,10 @@ function StoryTagEditor({ tags, onSave }: StoryTagEditorProps) {
         </div>
       )}
 
-      {!input && SUGGESTED_TAGS.filter((t) => !current.includes(t)).length > 0 && (
+      {!input && mergedTags.filter((t) => !current.includes(t)).length > 0 && (
         <div className="flex flex-wrap gap-1">
           <span className="text-xs text-base-content/40 self-center">Предложения:</span>
-          {SUGGESTED_TAGS.filter((t) => !current.includes(t)).slice(0, 6).map((tag) => (
+          {mergedTags.filter((t) => !current.includes(t)).slice(0, 6).map((tag) => (
             <button
               key={tag}
               className="badge badge-outline badge-sm cursor-pointer hover:badge-primary"

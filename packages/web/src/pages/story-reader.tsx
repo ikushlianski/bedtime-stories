@@ -198,6 +198,7 @@ export function StoryReaderPage() {
   }, [storyId, showToast])
 
   const [storyTags, setStoryTags] = useState<string[]>([])
+  const [allTags, setAllTags] = useState<string[]>([])
   const [swapStage, setSwapStage] = useState<'plotter' | 'writer' | null>(null)
   const draftKey = `story-text-draft-${storyId}`
   const [isDirty, setIsDirty] = useState(() => !!localStorage.getItem(`story-text-draft-${storyId}`))
@@ -212,6 +213,10 @@ export function StoryReaderPage() {
       setStoryTags((story.tags as string[] | null) ?? [])
     }
   }, [story])
+
+  useEffect(() => {
+    api.stories.allTags().then(setAllTags).catch(() => undefined)
+  }, [])
 
   useEffect(() => {
     if (isNaN(storyId)) return
@@ -412,6 +417,7 @@ export function StoryReaderPage() {
         <p className="mb-3 text-xs font-medium uppercase tracking-wide text-base-content/50">Категории</p>
         <StoryTagEditor
           tags={storyTags}
+          allTags={allTags}
           onSave={async (tags) => {
             const updated = await api.stories.updateTags(storyId, tags)
             setStoryTags((updated.tags as string[] | null) ?? [])

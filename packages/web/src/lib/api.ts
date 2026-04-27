@@ -403,6 +403,8 @@ export const api = {
         body: JSON.stringify({ storyAnalysis }),
       }),
 
+    allTags: () => request<string[]>('/api/stories/tags'),
+
     updateTags: (id: number, tags: string[]) =>
       request<Story>(`/api/stories/${id}/tags`, {
         method: 'PATCH',
