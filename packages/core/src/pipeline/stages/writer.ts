@@ -18,6 +18,7 @@ Write the full story text in Russian based on the plan provided. Requirements:
 - Include at least one physical/bodily sensation (touch, warmth, sound, taste) — not internal monologue.
 - Dialogue — alive, not explanatory: Adults must NOT use dialogue to deliver wisdom or explanations. If a parent has something important to say, they say it sideways, briefly, or through action — never in a speech. Dialogue should have unexpected tangents, interruptions, and topic changes. Characters respond to something adjacent to what was asked, not to the question itself. At least one exchange should go in a completely unexpected direction (funny, absurd, or both). Kids talking to kids should feel especially quick and alive — short lines, interruptions, non-sequiturs.
 - Cultural: Use Russian language and Belarusian language idioms, folklore references, or cultural elements that feel natural to the story.
+- Science hook (optional but welcome): if the story's theme touches anything in the natural world — animals, plants, weather, physics, the human body, space — weave in one real, surprising scientific fact. It should land as part of the world, not as a lesson. A fact that makes a child pause and think "wait, really?" is perfect. Don't force it if it doesn't fit; and never more than one per story.
 - Ending must match the plan's ending type (open, hopeful, or resolved).
 Return only the story text in Russian, no commentary or meta-discussion.`
 

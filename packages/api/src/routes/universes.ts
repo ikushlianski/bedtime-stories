@@ -26,7 +26,7 @@ const updateGroupSchema = z.object({
   systemPrompt: z.string().min(1).optional(),
   description: z.string().optional(),
   universeContext: z.string().optional(),
-  styleGuide: z.string().optional(),
+  styleGuide: z.string().nullable().optional(),
   styleGuideWorks: z.string().nullable().optional(),
   styleGuideDoesntWork: z.string().nullable().optional(),
   styleGuideTechniques: z.string().nullable().optional(),

@@ -65,6 +65,7 @@ A small unanswered question or unexplained detail is welcome — something the c
 Rules:
 - Do NOT write story text, dialogue, or descriptions — only the outline.
 - Do NOT state the moral explicitly. The child discovers it through events.
+- Science hook (optional but welcome): if the story's theme touches anything in the natural world — animals, plants, weather, physics, the human body, space — plant one real, surprising scientific fact into the outline. It should feel like a natural part of the world, not a lesson. A fact that makes a child say "wait, really?" works best. Not every story needs one; only use it when it fits organically.
 - Write in Russian.
 - Return only the outline, no meta-commentary.`
 
