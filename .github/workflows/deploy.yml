@@ -5,6 +5,20 @@ run-name: Deploy to ${{ github.ref_name == 'main' && 'Prod' || 'Dev' }}
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        default: prod
+        type: choice
+        options:
+          - prod
+      pulumi_refresh:
+        description: Run pulumi refresh before up (syncs state from GCP)
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -57,7 +71,7 @@ jobs:
           command: up
           stack-name: prod
           work-dir: infra
-          refresh: true
+          refresh: ${{ github.event_name != 'workflow_dispatch' || inputs.pulumi_refresh }}
         env:
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PROD_PULUMI_CONFIG_PASSPHRASE }}
 

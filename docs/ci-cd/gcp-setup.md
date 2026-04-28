@@ -1,105 +1,202 @@
 # GCP First-Time Setup
 
-Do this once to provision all cloud infrastructure. After this, GitHub Actions handles all future deploys automatically.
+This is a one-time process. After it is done, all future infrastructure changes go through Pulumi (via GitHub Actions or locally), and all deploys go through GitHub Actions automatically.
 
 ## Prerequisites
 
 ```bash
-# Install tools
 brew install pulumi
 brew install --cask google-cloud-sdk
 
-# Authenticate with GCP
+# Authenticate as yourself
+gcloud auth login
 gcloud auth application-default login
-
-# Install infra dependencies
-cd infra && npm install
 ```
 
 You also need:
-- A GCP billing account ID — find it at https://console.cloud.google.com/billing
-- A Pulumi account (free tier is fine) — https://app.pulumi.com
+- A GCP billing account ID — https://console.cloud.google.com/billing
+- `roles/owner` on the billing account (to link it to the new project)
+- A GCP "bootstrap" project that already exists and has billing enabled — Pulumi uses this project's credentials to create `bedtime-prod`
 
-## Bootstrap
+## Step 1: Create the Pulumi state bucket
+
+Pulumi state is stored in GCS, not Pulumi Cloud. This bucket must exist before any `pulumi up` runs.
+
+```bash
+# Create the bucket in the bootstrap project (it lives there, not in bedtime-prod)
+gsutil mb -p <BOOTSTRAP_PROJECT_ID> -l europe-west3 gs://bedtime-pulumi-state
+gsutil versioning set on gs://bedtime-pulumi-state
+```
+
+## Step 2: Enable Service Usage API on the target project
+
+Pulumi needs `serviceusage.googleapis.com` to list and enable other APIs. This must be enabled before the first `pulumi up`.
+
+```bash
+# First create the project if it doesn't exist yet, or skip if already exists
+gcloud projects create bedtime-prod --name="bedtime-prod"
+gcloud billing projects link bedtime-prod --billing-account=<BILLING_ACCOUNT_ID>
+
+# Enable Service Usage so Pulumi can manage other APIs
+gcloud services enable serviceusage.googleapis.com --project=bedtime-prod
+```
+
+## Step 3: Set up Workload Identity Federation
+
+This allows GitHub Actions to authenticate to GCP without a service account JSON key.
+
+```bash
+# Create the WIF pool
+gcloud iam workload-identity-pools create github \
+  --project=bedtime-prod \
+  --location=global \
+  --display-name="GitHub Actions"
+
+# Create the OIDC provider
+gcloud iam workload-identity-pools providers create-oidc github-actions \
+  --project=bedtime-prod \
+  --location=global \
+  --workload-identity-pool=github \
+  --display-name="GitHub Actions provider" \
+  --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.actor=assertion.actor" \
+  --issuer-uri="https://token.actions.githubusercontent.com"
+
+# Get the provider resource name (you'll need this in deploy.yml)
+gcloud iam workload-identity-pools providers describe github-actions \
+  --project=bedtime-prod \
+  --location=global \
+  --workload-identity-pool=github \
+  --format="value(name)"
+```
+
+The provider resource name looks like:
+`projects/28324530789/locations/global/workloadIdentityPools/github/providers/github-actions`
+
+This value is hardcoded in `.github/workflows/deploy.yml`. If you recreate the provider, update the workflow file.
+
+## Step 4: Create the github-ci service account and bind WIF
+
+Pulumi creates the `github-ci` SA, but WIF binding must be set up after the SA exists.
+
+If running the bootstrap from scratch:
+
+```bash
+# Create the SA (Pulumi will also try to create it — skip if already exists)
+gcloud iam service-accounts create github-ci \
+  --project=bedtime-prod \
+  --display-name="GitHub Actions CI SA"
+
+# Bind WIF: allow the GitHub repo to impersonate this SA
+PROJECT_NUMBER=$(gcloud projects describe bedtime-prod --format="value(projectNumber)")
+gcloud iam service-accounts add-iam-policy-binding \
+  github-ci@bedtime-prod.iam.gserviceaccount.com \
+  --project=bedtime-prod \
+  --role="roles/iam.workloadIdentityUser" \
+  --member="principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/github/attribute.repository/ikushlianski/bedtime-stories"
+```
+
+## Step 5: Grant the CI SA owner rights
+
+Pulumi needs broad permissions to create and manage IAM policies, enable APIs, and provision all resources.
+
+```bash
+gcloud projects add-iam-policy-binding bedtime-prod \
+  --member="serviceAccount:github-ci@bedtime-prod.iam.gserviceaccount.com" \
+  --role="roles/owner"
+```
+
+## Step 6: Initialize the Pulumi stack
 
 ```bash
 cd infra
+npm install
 
-# Log in to Pulumi (state is stored in Pulumi Cloud)
-pulumi login
+# Point Pulumi at the GCS backend
+export PULUMI_BACKEND_URL=gs://bedtime-pulumi-state
 
-# Create the prod stack
+# Init the stack (choose a passphrase — save it as GitHub secret PROD_PULUMI_CONFIG_PASSPHRASE)
 pulumi stack init prod
 
-# Set required config
-pulumi config set billingAccount <YOUR_BILLING_ACCOUNT_ID>
-pulumi config set region us-central1
+# Set config
+pulumi config set billingAccount <BILLING_ACCOUNT_ID> --secret
+pulumi config set region europe-west3
 pulumi config set githubRepo ikushlianski/bedtime-stories
-
-# Optional: if you have a GCP org (Workspace account)
-# pulumi config set orgId <YOUR_ORG_ID>
+pulumi config set gcp:project <BOOTSTRAP_PROJECT_ID>
 ```
 
-## Provision
+## Step 7: First pulumi up
 
 ```bash
-pulumi up
+cd infra
+PULUMI_BACKEND_URL=gs://bedtime-pulumi-state \
+  PULUMI_CONFIG_PASSPHRASE="<passphrase>" \
+  pulumi up --stack prod
 ```
 
-This creates: GCP project, enables APIs, Artifact Registry, GCS bucket, Cloud Run service, service accounts, and Workload Identity Federation for GitHub Actions.
+This creates all GCP resources: APIs, Artifact Registry, GCS bucket, service accounts, IAM bindings, Cloud Run service.
 
-First run takes ~3 minutes. Review the preview and confirm with `yes`.
-
-## After provisioning — add GitHub secrets
-
-Grab the output values:
+After it succeeds, check the outputs:
 
 ```bash
-pulumi stack output projectId
-pulumi stack output registryUrl
-pulumi stack output ciSaEmail
-pulumi stack output wifProviderName
-pulumi stack output apiUrl
+pulumi stack output --stack prod
 ```
 
-Go to https://github.com/ikushlianski/bedtime-stories/settings/secrets/actions and add:
+Expected outputs: `projectId`, `registryUrl`, `ciSaEmail`, `apiUrl`, `bucketName`.
 
-| Secret name | Value |
-|-------------|-------|
-| `GCP_PROJECT_ID` | output of `projectId` |
-| `GCP_REGION` | `us-central1` |
-| `ARTIFACT_REGISTRY_URL` | output of `registryUrl` |
-| `WIF_SA_EMAIL` | output of `ciSaEmail` |
-| `WIF_PROVIDER` | output of `wifProviderName` |
+## Step 8: Configure GitHub Actions
 
-Then add all runtime secrets (DATABASE_URL, JWT_SECRET, OPENROUTER_API_KEY, etc.) — see [README.md](./README.md) for the full list.
+Go to `https://github.com/ikushlianski/bedtime-stories/settings/environments` and create a `prod` environment.
 
-## Trigger first deploy
+Add these **variables**:
+
+| Variable | Value (from pulumi output or known) |
+|----------|-------------------------------------|
+| `PROD_REGION` | `europe-west3` |
+| `PROD_PROJECT_ID` | `bedtime-prod` |
+| `PROD_REGISTRY` | output of `pulumi stack output registryUrl` + `/api` |
+| `PROD_SENTRY_ORG` | your Sentry org slug |
+| `PROD_SENTRY_PROJECT` | your Sentry project slug |
+| `PROD_LANGFUSE_BASE_URL` | `https://cloud.langfuse.com` |
+
+Add these **secrets**:
+
+| Secret | Description |
+|--------|-------------|
+| `PROD_PULUMI_CONFIG_PASSPHRASE` | The passphrase chosen in Step 6 |
+| `PROD_DATABASE_URL` | Neon PostgreSQL connection string |
+| `PROD_JWT_SECRET` | Min 32-char random string |
+| `PROD_OPENROUTER_API_KEY` | OpenRouter API key |
+| `PROD_SENTRY_DSN` | Sentry DSN |
+| `PROD_VITE_SENTRY_DSN` | Same Sentry DSN (embedded in frontend bundle) |
+| `PROD_SENTRY_AUTH_TOKEN` | Sentry auth token for source map upload |
+| `PROD_LANGFUSE_SECRET_KEY` | Langfuse secret key |
+| `PROD_LANGFUSE_PUBLIC_KEY` | Langfuse public key |
+
+## Step 9: Push to main
 
 ```bash
 git push origin main
 ```
 
-Watch the Actions tab. The first build takes ~5 minutes (installs deps, builds Vite, pushes Docker image).
+The GitHub Actions pipeline runs: test → infra (pulumi up) → deploy (docker build + cloud run).
 
-## Update Cloud Run env vars after provisioning
+The first build takes ~5 minutes. Watch progress at:
+`https://github.com/ikushlianski/bedtime-stories/actions`
 
-The Cloud Run service is created with placeholder env vars. After adding GitHub secrets, push to main — the deploy workflow sets all env vars correctly via `gcloud run deploy --set-env-vars`.
+After the first successful deploy, the Cloud Run URL is available in the GCP Console and via:
+```bash
+PULUMI_BACKEND_URL=gs://bedtime-pulumi-state \
+  PULUMI_CONFIG_PASSPHRASE="<passphrase>" \
+  pulumi stack output apiUrl --stack prod
+```
 
 ## Tear down
 
 ```bash
-cd infra && pulumi destroy
-```
-
-This deletes all GCP resources. The GCP project itself may need manual deletion from the console.
-
-## Updating infrastructure
-
-Edit `infra/index.ts`, then:
-
-```bash
 cd infra
-pulumi preview   # see what will change
-pulumi up        # apply changes
+PULUMI_BACKEND_URL=gs://bedtime-pulumi-state \
+  PULUMI_CONFIG_PASSPHRASE="<passphrase>" \
+  pulumi destroy --stack prod
 ```
+
+This deletes all Pulumi-managed resources. The GCS state bucket and WIF setup must be deleted manually. The GCP project itself requires manual deletion from the console.
