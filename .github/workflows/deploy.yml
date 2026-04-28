@@ -115,7 +115,7 @@ jobs:
             --region ${{ vars.PROD_REGION }} \
             --platform managed \
             --allow-unauthenticated \
-            --set-env-vars="NODE_ENV=production,HOST=0.0.0.0,PORT=8080" \
+            --set-env-vars="NODE_ENV=production,HOST=0.0.0.0" \
             --set-env-vars="DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}" \
             --set-env-vars="JWT_SECRET=${{ secrets.PROD_JWT_SECRET }}" \
             --set-env-vars="OPENROUTER_API_KEY=${{ secrets.PROD_OPENROUTER_API_KEY }}" \

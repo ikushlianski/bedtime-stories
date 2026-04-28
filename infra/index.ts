@@ -109,7 +109,6 @@ const apiService = new gcp.cloudrun.Service(
             envs: [
               { name: 'NODE_ENV', value: 'production' },
               { name: 'HOST', value: '0.0.0.0' },
-              { name: 'PORT', value: '8080' },
             ],
             resources: {
               limits: { memory: '512Mi', cpu: '1' },
