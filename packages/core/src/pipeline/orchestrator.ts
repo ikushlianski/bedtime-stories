@@ -1,7 +1,5 @@
 import { runPlotter, PLOTTER_SYSTEM_PROMPT_DEFAULT } from './stages/plotter'
-import { runPlotCritic } from './stages/plot-critic'
 import { runWriter, WRITER_SYSTEM_PROMPT_DEFAULT } from './stages/writer'
-import { runWriterCritic } from './stages/writer-critic'
 import { runPlotterQuestions, type PlotterQuestionItem } from './stages/plotter-questions'
 import { generateStoryTitle } from './stages/title-generator'
 import { resolvePrompt, type ResolvedPrompt } from './prompt-resolver'
@@ -107,8 +105,7 @@ export async function runPlanPhase(options: {
   }
 
   const userFeedbackArg = options.userFeedback ? { userFeedback: options.userFeedback } : {}
-
-  const MAX_PLAN_ITERATIONS = 3
+  const storyIdArg = { storyId: options.storyId }
 
   notify('Plotter')
   const planV1 = await runPlotter({
@@ -121,68 +118,23 @@ export async function runPlanPhase(options: {
     ...styleGuideArg,
     ...sashaContextArg,
     ...userFeedbackArg,
+    ...storyIdArg,
   })
-
-  let currentPlan = planV1
-  let iterationsCount = 1
-  let criticOutput: CriticOutput = { issues: [], improvement_needed: false }
-
-  notify('PlotCritic')
-  criticOutput = await runPlotCritic({
-    plan: currentPlan,
-    iterationNumber: iterationsCount,
-    model: models.plotCritic,
-    ...cwdArg,
-    ...universeArg,
-    ...universeContextArg,
-    ...styleGuideArg,
-    ...sashaContextArg,
-  })
-
-  while (criticOutput.improvement_needed && iterationsCount < MAX_PLAN_ITERATIONS) {
-    notify('Plotter')
-    currentPlan = await runPlotter({
-      seed,
-      model: models.plotter,
-      resolvedPrompt: plotterPrompt,
-      previousPlan: currentPlan,
-      criticNotes: criticOutput,
-      ...cwdArg,
-      ...universeArg,
-      ...universeContextArg,
-      ...styleGuideArg,
-      ...sashaContextArg,
-    })
-
-    iterationsCount++
-
-    notify('PlotCritic')
-    criticOutput = await runPlotCritic({
-      plan: currentPlan,
-      iterationNumber: iterationsCount,
-      model: models.plotCritic,
-      ...cwdArg,
-      ...universeArg,
-      ...universeContextArg,
-      ...styleGuideArg,
-      ...sashaContextArg,
-    })
-  }
 
   notify('TitleGenerator')
   const titleSuggested = await generateStoryTitle({
-    plan: currentPlan,
+    plan: planV1,
     seed,
-    model: models.plotter,
     ...cwdArg,
+    ...storyIdArg,
   })
 
   return {
     planV1,
-    planFinal: currentPlan,
-    planIterationsCount: iterationsCount,
+    planFinal: planV1,
+    planIterationsCount: 1,
     titleSuggested,
-    plotCriticOutput: criticOutput,
+    plotCriticOutput: { issues: [], improvement_needed: false } as CriticOutput,
     models,
     promptVersions: resolvedVersions,
     sashaContext: options.sashaContext ?? null,
@@ -230,6 +182,9 @@ export async function runTextPhase(options: {
   }
 
   notify('Writer')
+  const storyIdArg = { storyId: options.storyId }
+
+  notify('Writer')
   const textV1 = await runWriter({
     plan: planFinal,
     model: models.writer,
@@ -239,37 +194,13 @@ export async function runTextPhase(options: {
     ...universeContextArg,
     ...styleGuideArg,
     ...sashaContextArg,
-  })
-
-  notify('WriterCritic')
-  const writerCriticOutput = await runWriterCritic({
-    textV1,
-    finalPlan: planFinal,
-    model: models.writerCritic,
-    ...cwdArg,
-    ...universeArg,
-    ...universeContextArg,
-    ...styleGuideArg,
-    ...sashaContextArg,
-  })
-
-  notify('Improver')
-  const textV2 = await runWriter({
-    plan: planFinal,
-    criticNotes: writerCriticOutput,
-    model: models.writer,
-    resolvedPrompt: writerPrompt,
-    ...cwdArg,
-    ...universeArg,
-    ...universeContextArg,
-    ...styleGuideArg,
-    ...sashaContextArg,
+    ...storyIdArg,
   })
 
   return {
     textV1,
-    textV2,
-    writerCriticOutput,
+    textV2: textV1,
+    writerCriticOutput: { issues: [], improvement_needed: false } as CriticOutput,
     models,
     promptVersions: resolvedVersions,
   }
@@ -304,6 +235,8 @@ export async function runPlotterOnly(options: {
     plotter: plotterPrompt.version,
   }
 
+  const storyIdArg = { storyId: options.storyId }
+
   notify('Plotter')
   const planV1 = await runPlotter({
     seed,
@@ -315,14 +248,15 @@ export async function runPlotterOnly(options: {
     ...styleGuideArg,
     ...sashaContextArg,
     ...userFeedbackArg,
+    ...storyIdArg,
   })
 
   notify('TitleGenerator')
   const titleSuggested = await generateStoryTitle({
     plan: planV1,
     seed,
-    model: models.plotter,
     ...cwdArg,
+    ...storyIdArg,
   })
 
   return {
@@ -366,6 +300,8 @@ export async function runWriterOnly(options: {
     writer: writerPrompt.version,
   }
 
+  const storyIdArg = { storyId: options.storyId }
+
   notify('Writer')
   const textV1 = await runWriter({
     plan: planFinal,
@@ -378,6 +314,7 @@ export async function runWriterOnly(options: {
     ...sashaContextArg,
     ...onChunkArg,
     ...onChunkResetArg,
+    ...storyIdArg,
   })
 
   return { textV1, models, promptVersions: resolvedVersions }
@@ -417,24 +354,12 @@ export async function runTextCritique(options: {
     writer: writerPrompt.version,
   }
 
-  notify('WriterCritic')
-  const writerCriticOutput = await runWriterCritic({
-    textV1,
-    finalPlan: planFinal,
-    model: models.writerCritic,
-    ...cwdArg,
-    ...universeArg,
-    ...universeContextArg,
-    ...styleGuideArg,
-    ...sashaContextArg,
-    ...userAnnotationsArg,
-  })
+  const storyIdArg = { storyId: options.storyId }
 
   notify('Writer')
   const textV2 = await runWriter({
     plan: planFinal,
     previousText: textV1,
-    criticNotes: writerCriticOutput,
     model: models.writer,
     resolvedPrompt: writerPrompt,
     ...cwdArg,
@@ -442,9 +367,13 @@ export async function runTextCritique(options: {
     ...universeContextArg,
     ...styleGuideArg,
     ...sashaContextArg,
+    ...userAnnotationsArg,
     ...onChunkArg,
     ...onChunkResetArg,
+    ...storyIdArg,
   })
+
+  const writerCriticOutput: CriticOutput = { issues: [], improvement_needed: false }
 
   return { textV2, writerCriticOutput, models, promptVersions: resolvedVersions }
 }
@@ -484,6 +413,8 @@ export async function runAnnotatedRewrite(options: {
 
   notify('Writer')
 
+  const storyIdArg = { storyId: options.storyId }
+
   const textV2 = await runWriter({
     plan: planFinal,
     previousText: options.currentText,
@@ -497,6 +428,7 @@ export async function runAnnotatedRewrite(options: {
     ...sashaContextArg,
     ...onChunkArg,
     ...onChunkResetArg,
+    ...storyIdArg,
   })
 
   return { textV2, models, promptVersions: resolvedVersions }
@@ -526,6 +458,7 @@ export async function runQuestionsPhase(options: {
   return runPlotterQuestions({
     seed,
     model: models.plotter,
+    storyId: options.storyId,
     ...cwdArg,
     ...universeArg,
     ...universeContextArg,

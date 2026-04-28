@@ -2,20 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, type ModelCatalogEntry, type PerStageOverrides } from '../lib/api'
 
 const STAGES: Array<{ key: string; label: string; fallbackSupported: boolean }> = [
-  { key: 'plotter', label: 'Plotter', fallbackSupported: false },
-  { key: 'plotCritic', label: 'Plot Critic', fallbackSupported: false },
-  { key: 'writer', label: 'Writer', fallbackSupported: false },
-  { key: 'writerCritic', label: 'Writer Critic', fallbackSupported: false },
-  { key: 'psychologistPlan', label: 'Psychologist (plan)', fallbackSupported: true },
-  { key: 'psychologistText', label: 'Psychologist (text)', fallbackSupported: true },
-  { key: 'plotterQuestions', label: 'Plotter Questions', fallbackSupported: true },
-  { key: 'improver', label: 'Improver', fallbackSupported: true },
-  { key: 'titleGenerator', label: 'Title Generator', fallbackSupported: true },
-  { key: 'storyAnalyzer', label: 'Story Analyzer', fallbackSupported: true },
-  { key: 'universeFactExtractor', label: 'Universe Fact Extractor', fallbackSupported: true },
-  { key: 'feedbackSynthesizer', label: 'Feedback Synthesizer', fallbackSupported: true },
-  { key: 'styleGuideUpdater', label: 'Style Guide Updater', fallbackSupported: true },
-  { key: 'universeContextUpdater', label: 'Universe Context Updater', fallbackSupported: true },
+  { key: 'plotter', label: 'Сюжетник', fallbackSupported: true },
+  { key: 'writer', label: 'Писатель', fallbackSupported: true },
+  { key: 'plotterQuestions', label: 'Вопросы к сиду', fallbackSupported: true },
 ]
 
 interface ModelPickerProps {

@@ -656,6 +656,15 @@ export const api = {
       }>>('/api/admin/stories-table'),
   },
 
+  settings: {
+    get: () => request<{ stageModels: Record<string, { model?: string; fallback?: string }> }>('/api/settings'),
+    update: (stageModels: Record<string, { model?: string; fallback?: string }>) =>
+      request<{ stageModels: Record<string, { model?: string; fallback?: string }> }>('/api/settings', {
+        method: 'PATCH',
+        body: JSON.stringify({ stageModels }),
+      }),
+  },
+
   auth: {
     login: (username: string, password: string) =>
       request<{ username: string }>('/api/auth/login', {

@@ -6,7 +6,6 @@ import { db } from '@bedtime/core/db/client'
 import { planQuestions, planConversations, stories, storyGroups } from '@bedtime/core/db/schema'
 import { loadUniverseContext } from './load-universe-context'
 import { aiRunner } from '@bedtime/core/ai'
-import { updateUniverseContext } from '@bedtime/core/pipeline/universe-context-updater'
 import { triggerPlanPhaseFromAnswers } from './pipeline-plan-trigger'
 
 const router = Router()
@@ -103,10 +102,6 @@ router.post('/questions/:storyId/submit', validate(submitAnswersSchema), async (
       .map((q) => ({ question: q.questionText, answer: q.answerText ?? '' }))
 
     triggerPlanPhaseFromAnswers(storyIdRaw, seed, qaArray, universeSystemPrompt, universeContext, styleGuide, storyRow.groupId ?? null)
-
-    if (storyRow.groupId !== null && storyRow.groupId !== undefined) {
-      void updateUniverseContext(storyRow.groupId, qaArray, seed)
-    }
 
     res.json({ ok: true })
   } catch (err) {

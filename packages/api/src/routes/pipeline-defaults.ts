@@ -1,9 +1,9 @@
 import { eq } from 'drizzle-orm'
 import type { PipelineModels, PipelinePromptVersions } from '@bedtime/core/pipeline/orchestrator'
 import { db } from '@bedtime/core/db/client'
-import { storyGroups, stories } from '@bedtime/core/db/schema'
-import { derivePerStageModels, type StageOverrides } from '@bedtime/core/pipeline/derivers/per-stage-models'
-import { DEFAULT_STAGE_MODELS } from '@bedtime/core/pipeline/derivers/stage-defaults'
+import { storyGroups, stories, appSettings } from '@bedtime/core/db/schema'
+import { derivePerStageModels, type StageOverrides, type PerStageModels } from '@bedtime/core/pipeline/derivers/per-stage-models'
+import { DEFAULT_STAGE_MODELS, isPipelineStage } from '@bedtime/core/pipeline/derivers/stage-defaults'
 
 export async function loadStoryOverrides(storyId: number | null): Promise<StageOverrides | null> {
   if (storyId === null) return null
@@ -31,26 +31,42 @@ export const defaultPromptVersions: PipelinePromptVersions = {
   writerCritic: 1,
 }
 
+async function loadEffectiveDefaults(): Promise<PerStageModels> {
+  const [row] = await db.select({ stageModels: appSettings.stageModels }).from(appSettings).where(eq(appSettings.id, 1)).limit(1)
+  const globalOverrides = row?.stageModels ?? {}
+
+  const effective = { ...DEFAULT_STAGE_MODELS } as Record<string, { model: string; fallback: string }>
+
+  for (const [stage, override] of Object.entries(globalOverrides)) {
+    if (isPipelineStage(stage) && override) {
+      const o = override as { model?: string; fallback?: string }
+      effective[stage] = {
+        model: o.model ?? effective[stage]?.model ?? '',
+        fallback: o.fallback ?? effective[stage]?.fallback ?? '',
+      }
+    }
+  }
+
+  return effective as PerStageModels
+}
+
 export async function resolvePipelineModels(
   universeId: number | null,
   perStoryOverrides: StageOverrides | null = null,
 ): Promise<PipelineModels> {
-  let universeOverrides: StageOverrides | null = null
+  const [universeRow, effectiveDefaults] = await Promise.all([
+    universeId !== null
+      ? db.select({ agentOverrides: storyGroups.agentOverrides }).from(storyGroups).where(eq(storyGroups.id, universeId)).limit(1)
+      : Promise.resolve([]),
+    loadEffectiveDefaults(),
+  ])
 
-  if (universeId !== null) {
-    const [row] = await db
-      .select({ agentOverrides: storyGroups.agentOverrides })
-      .from(storyGroups)
-      .where(eq(storyGroups.id, universeId))
-      .limit(1)
-
-    universeOverrides = (row?.agentOverrides as StageOverrides | null) ?? null
-  }
+  const universeOverrides = (universeRow[0]?.agentOverrides as StageOverrides | null) ?? null
 
   const resolved = derivePerStageModels({
     universeAgentOverrides: universeOverrides,
     perStoryOverrides,
-    defaultFallbackMap: DEFAULT_STAGE_MODELS,
+    defaultFallbackMap: effectiveDefaults,
   })
 
   return {

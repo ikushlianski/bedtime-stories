@@ -12,6 +12,7 @@ import { UniverseDetailPage } from './pages/universe-detail'
 import { DiaryPage } from './pages/diary'
 import { ChildProfilePage } from './pages/child-profile'
 import { AdminPage } from './pages/admin'
+import { SettingsPage } from './pages/settings'
 import { useTheme } from './lib/use-theme'
 import { AuthProvider, useAuth } from './auth/auth.context'
 import { LoginPage } from './pages/login/login.page'
@@ -23,6 +24,7 @@ const OTHER_NAV = [
   { to: '/dashboard', label: 'Панель' },
   { to: '/admin', label: 'Админ' },
   { to: '/universes', label: 'Вселенные' },
+  { to: '/settings', label: 'Настройки' },
 ]
 
 function NavLink({ to, label }: { to: string; label: string }) {
@@ -165,6 +167,7 @@ function AppShell() {
                       <Route path="/child-profile" element={<ChildProfilePage />} />
                       <Route path="/universes" element={<UniversesPage />} />
                       <Route path="/universes/:id" element={<UniverseDetailPage />} />
+                      <Route path="/settings" element={<SettingsPage />} />
                     </Routes>
                   </ProtectedRoute>
                 } />

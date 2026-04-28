@@ -22,6 +22,7 @@ import storiesSwapModelRouter from './routes/stories-swap-model'
 import storiesVfmRouter from './routes/stories-vfm'
 import adminRouter from './routes/admin'
 import authRouter from './routes/auth.routes'
+import settingsRouter from './routes/settings'
 import { requireAuth } from './middleware/auth.middleware'
 
 export const app = express()
@@ -54,6 +55,7 @@ app.use('/api/models', modelsRouter)
 app.use('/api/stories/:id/swap-model', storiesSwapModelRouter)
 app.use('/api/stories/:id/value-for-money', storiesVfmRouter)
 app.use('/api/admin', adminRouter)
+app.use('/api/settings', settingsRouter)
 
 Sentry.setupExpressErrorHandler(app)
 

@@ -36,6 +36,7 @@ export async function runWriter(options: {
   onChunk?: (chunk: string) => void
   onChunkReset?: () => void
   cwd?: string
+  storyId?: number
 }): Promise<string> {
   const { plan, criticNotes, model } = options
   const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
@@ -111,5 +112,7 @@ export async function runWriter(options: {
   const onChunkArg = options.onChunk !== undefined ? { onChunk: options.onChunk } : {}
   const onChunkResetArg = options.onChunkReset !== undefined ? { onChunkReset: options.onChunkReset } : {}
 
-  return aiRunner.runText({ model, prompt, label: `writer:v${resolved.version}`, ...cwdArg, ...onChunkArg, ...onChunkResetArg })
+  const storyIdArg = options.storyId !== undefined ? { storyId: options.storyId } : {}
+
+  return aiRunner.runText({ model, prompt, label: `writer:v${resolved.version}`, stage: 'writer', ...cwdArg, ...onChunkArg, ...onChunkResetArg, ...storyIdArg })
 }

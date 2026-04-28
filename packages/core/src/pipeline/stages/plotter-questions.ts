@@ -18,9 +18,11 @@ export async function runPlotterQuestions(options: {
   universeSystemPrompt?: string
   sashaContext?: string | null
   cwd?: string
+  storyId?: number
 }): Promise<PlotterQuestionItem[]> {
   const { seed, model } = options
   const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
+  const storyIdArg = options.storyId !== undefined ? { storyId: options.storyId } : {}
 
   const sashaContextBlock = options.sashaContext
     ? `\n\n---\nКОНТЕКСТ САШИ (используй для вдохновения, не копируй буквально):\n${options.sashaContext}\n---\n`
@@ -38,7 +40,9 @@ export async function runPlotterQuestions(options: {
     prompt,
     outputSchema: PlotterQuestionsOutputSchema,
     thinking: { type: 'enabled', budgetTokens: 8000 },
+    stage: 'plotterQuestions',
     ...cwdArg,
+    ...storyIdArg,
   })
 
   return result.questions

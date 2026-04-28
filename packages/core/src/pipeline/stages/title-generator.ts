@@ -1,13 +1,16 @@
 import { aiRunner } from '../../ai'
 
+const TITLE_GENERATOR_MODEL = 'google/gemini-2.0-flash-lite'
+
 export async function generateStoryTitle(options: {
   plan: string
   seed: string
-  model: string
   cwd?: string
+  storyId?: number
 }): Promise<string> {
-  const { plan, seed, model } = options
+  const { plan, seed } = options
   const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
+  const storyIdArg = options.storyId !== undefined ? { storyId: options.storyId } : {}
 
   const prompt = [
     'You are a creative children\'s book title writer.',
@@ -25,7 +28,7 @@ export async function generateStoryTitle(options: {
     `STORY PLAN:\n${plan}`,
   ].join('\n')
 
-  const raw = await aiRunner.runText({ model, prompt, label: 'title-generator', ...cwdArg })
+  const raw = await aiRunner.runText({ model: TITLE_GENERATOR_MODEL, prompt, label: 'title-generator', stage: 'titleGenerator', ...cwdArg, ...storyIdArg })
 
   return raw.trim().replace(/^["«»""]|["«»""]$/g, '').trim()
 }

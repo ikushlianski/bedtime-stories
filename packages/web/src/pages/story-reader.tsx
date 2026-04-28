@@ -176,11 +176,6 @@ export function StoryReaderPage() {
   const [approvingText, setApprovingText] = useState(false)
   const [redoingText, setRedoingText] = useState(false)
   const [reviewActionError, setReviewActionError] = useState<string | null>(null)
-  const [analysisText, setAnalysisText] = useState('')
-  const [analyzing, setAnalyzing] = useState(false)
-  const [analysisSaving, setAnalysisSaving] = useState(false)
-  const [analysisError, setAnalysisError] = useState<string | null>(null)
-  const [analysisReactionsCount, setAnalysisReactionsCount] = useState<number | null>(null)
   const { message: toastMessage, showToast } = useToast()
 
   const handleMarkRead = useCallback(() => {
@@ -209,8 +204,7 @@ export function StoryReaderPage() {
   useEffect(() => {
     if (story) {
       setCurrentStatus(story.status)
-      setAnalysisText(story.story_analysis ?? '')
-      setStoryTags((story.tags as string[] | null) ?? [])
+setStoryTags((story.tags as string[] | null) ?? [])
     }
   }, [story])
 
@@ -679,67 +673,6 @@ export function StoryReaderPage() {
         </section>
       )}
 
-      {story.source === 'legacy' && (
-        <section className="mt-10">
-          <h3 className="mb-1 text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
-            Анализ примерной истории
-          </h3>
-          <p className="mb-3 text-sm text-base-content/50">
-            ИИ извлекает стилистические паттерны и реакции ребёнка. Эти данные используются при генерации новых историй.
-          </p>
-
-          <div className="flex gap-2 mb-3">
-            <button
-              className={`btn btn-sm btn-outline ${analyzing ? 'loading' : ''}`}
-              disabled={analyzing || analysisSaving}
-              onClick={() => {
-                setAnalyzing(true)
-                setAnalysisError(null)
-                api.stories.analyze(storyId)
-                  .then((result) => {
-                    setAnalysisText(result.storyAnalysis)
-                    setAnalysisReactionsCount(result.reactionsExtracted)
-                  })
-                  .catch((err) => setAnalysisError(err instanceof Error ? err.message : 'Ошибка анализа'))
-                  .finally(() => setAnalyzing(false))
-              }}
-            >
-              {analyzing ? 'Анализируем...' : analysisText ? 'Перезапустить анализ ИИ' : 'Проанализировать с ИИ'}
-            </button>
-          </div>
-
-          {analysisReactionsCount !== null && (
-            <p className="mb-2 text-xs text-success">
-              Извлечено реакций: {analysisReactionsCount}
-            </p>
-          )}
-
-          <textarea
-            className="textarea textarea-bordered min-h-40 w-full bg-base-200"
-            placeholder="Заметки об этой истории — добавь свои наблюдения..."
-            value={analysisText}
-            onChange={(e) => setAnalysisText(e.target.value)}
-            disabled={analyzing}
-          />
-
-          <div className="mt-2 flex items-center gap-3">
-            <button
-              className={`btn btn-sm btn-primary ${analysisSaving ? 'loading' : ''}`}
-              disabled={analysisSaving || analyzing}
-              onClick={() => {
-                setAnalysisSaving(true)
-                setAnalysisError(null)
-                api.stories.updateAnalysis(storyId, analysisText)
-                  .catch((err) => setAnalysisError(err instanceof Error ? err.message : 'Не удалось сохранить'))
-                  .finally(() => setAnalysisSaving(false))
-              }}
-            >
-              {analysisSaving ? 'Сохраняем...' : 'Сохранить заметки'}
-            </button>
-            {analysisError && <span className="text-sm text-error">{analysisError}</span>}
-          </div>
-        </section>
-      )}
 
       {((currentStatus ?? story.status) === 'ready' || (currentStatus ?? story.status) === 'read') && (
         <div className="mt-10 flex justify-center">

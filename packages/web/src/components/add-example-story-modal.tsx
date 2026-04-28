@@ -13,7 +13,6 @@ function AddExampleStoryModal({ open, onClose }: AddExampleStoryModalProps) {
   const [title, setTitle] = useState('')
   const [textFinal, setTextFinal] = useState('')
   const [groupId, setGroupId] = useState<number | null>(null)
-  const [analyzeAfterCreate, setAnalyzeAfterCreate] = useState(true)
   const [addToReadingList, setAddToReadingList] = useState(false)
   const [universes, setUniverses] = useState<StoryGroup[]>([])
   const [submitting, setSubmitting] = useState(false)
@@ -29,7 +28,6 @@ function AddExampleStoryModal({ open, onClose }: AddExampleStoryModalProps) {
     setTitle('')
     setTextFinal('')
     setGroupId(null)
-    setAnalyzeAfterCreate(true)
     setAddToReadingList(false)
     setError(null)
     onClose()
@@ -52,10 +50,6 @@ function AddExampleStoryModal({ open, onClose }: AddExampleStoryModalProps) {
         addToReadingList,
         ...(groupId !== null ? { groupId } : {}),
       })
-
-      if (analyzeAfterCreate) {
-        await api.stories.analyze(created.id)
-      }
 
       handleClose()
       navigate(`/stories/${created.id}`)
@@ -121,17 +115,6 @@ function AddExampleStoryModal({ open, onClose }: AddExampleStoryModalProps) {
               <input
                 type="checkbox"
                 className="checkbox checkbox-sm"
-                checked={analyzeAfterCreate}
-                onChange={(e) => setAnalyzeAfterCreate(e.target.checked)}
-                disabled={submitting}
-              />
-              Проанализировать с ИИ сразу после добавления
-            </label>
-
-            <label className="flex cursor-pointer items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                className="checkbox checkbox-sm"
                 checked={addToReadingList}
                 onChange={(e) => setAddToReadingList(e.target.checked)}
                 disabled={submitting}
@@ -155,11 +138,7 @@ function AddExampleStoryModal({ open, onClose }: AddExampleStoryModalProps) {
               onClick={() => void handleSubmit()}
               disabled={submitting}
             >
-              {submitting
-                ? analyzeAfterCreate
-                  ? 'Сохраняем и анализируем...'
-                  : 'Сохраняем...'
-                : 'Добавить'}
+              {submitting ? 'Сохраняем...' : 'Добавить'}
             </button>
           </div>
         </div>

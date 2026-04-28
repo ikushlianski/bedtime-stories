@@ -276,3 +276,9 @@ export const modelCalls = pgTable('model_calls', {
   success: boolean('success').notNull(),
   createdAt: timestamp('created_at').defaultNow(),
 })
+
+export const appSettings = pgTable('app_settings', {
+  id: integer('id').primaryKey().default(1),
+  stageModels: jsonb('stage_models').$type<Record<string, { model?: string; fallback?: string }>>(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+})

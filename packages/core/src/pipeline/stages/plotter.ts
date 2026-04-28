@@ -81,6 +81,7 @@ export async function runPlotter(options: {
   styleGuide?: string
   sashaContext?: string | null
   cwd?: string
+  storyId?: number
 }): Promise<string> {
   const { seed, previousPlan, criticNotes, userFeedback, model } = options
   const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
@@ -141,5 +142,7 @@ export async function runPlotter(options: {
 
   const prompt = parts.join('\n')
 
-  return aiRunner.runText({ model, prompt, label: `plotter:v${resolved.version}`, ...cwdArg })
+  const storyIdArg = options.storyId !== undefined ? { storyId: options.storyId } : {}
+
+  return aiRunner.runText({ model, prompt, label: `plotter:v${resolved.version}`, stage: 'plotter', ...cwdArg, ...storyIdArg })
 }
