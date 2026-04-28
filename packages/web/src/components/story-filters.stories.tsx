@@ -30,6 +30,7 @@ const universes: StoryGroup[] = [
     agentOverrides: null,
     characters: [],
     pendingSuggestionsCount: 0,
+    pendingIdeasCount: 0,
     createdAt: '2026-04-01T10:00:00Z',
   },
   {
@@ -46,6 +47,7 @@ const universes: StoryGroup[] = [
     agentOverrides: null,
     characters: [],
     pendingSuggestionsCount: 0,
+    pendingIdeasCount: 0,
     createdAt: '2026-04-02T10:00:00Z',
   },
 ]

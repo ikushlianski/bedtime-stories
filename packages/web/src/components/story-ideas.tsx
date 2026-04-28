@@ -34,7 +34,7 @@ export function StoryIdeas({ universeId, onIdeasChange, onStoryCreated }: StoryI
     setIsGenerating(true)
     setError(null)
     try {
-      const result = await api.universes.suggestIdeas(universeId)
+      await api.universes.suggestIdeas(universeId)
       await loadIdeas()
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Ошибка при генерировании идей'
