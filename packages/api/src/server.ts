@@ -38,7 +38,7 @@ app.use(cookieParser())
 
 app.use('/api/auth', authRouter)
 
-app.use(requireAuth)
+app.use('/api', requireAuth)
 
 app.use('/api/stories/series', storiesSeriesRouter)
 app.use('/api/stories', storiesRouter)
