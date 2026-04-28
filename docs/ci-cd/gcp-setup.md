@@ -205,6 +205,8 @@ Then create an A record in Route53 for `bedtime-agent.ilya.online` pointing to t
 
 This is a one-time step. The static IP is reserved and never changes unless the Pulumi stack is destroyed.
 
+After the domain is live, add `PROD_APP_URL = https://bedtime-agent.ilya.online` as a **variable** in the GitHub `prod` environment. The health check step in the deploy job will then verify the custom domain on every deploy.
+
 ---
 
 ## Tear down

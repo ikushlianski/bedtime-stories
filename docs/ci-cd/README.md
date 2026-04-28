@@ -83,6 +83,7 @@ The workflow uses both **variables** (non-secret config) and **secrets** (sensit
 | `PROD_SENTRY_ORG` | `ilya-org-jo` |
 | `PROD_SENTRY_PROJECT` | `bedtime-agent` |
 | `PROD_LANGFUSE_BASE_URL` | `https://cloud.langfuse.com` |
+| `PROD_APP_URL` | `https://bedtime-agent.ilya.online` — set after DNS is wired up; until then the health check falls back to the raw Cloud Run URL |
 ### Secrets (Settings → Environments → prod → Secrets)
 
 | Secret | Description |

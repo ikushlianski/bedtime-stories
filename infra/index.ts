@@ -124,7 +124,10 @@ const apiService = new gcp.cloudrun.Service(
       },
     },
   },
-  { dependsOn: [registry, apiSa, ...enabledApis] },
+  {
+    dependsOn: [registry, apiSa, ...enabledApis],
+    ignoreChanges: ['template'],
+  },
 )
 
 new gcp.cloudrun.IamMember('api-public-invoker', {

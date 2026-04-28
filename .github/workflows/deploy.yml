@@ -128,10 +128,13 @@ jobs:
 
       - name: Verify deployment health
         run: |
-          URL=$(gcloud run services describe bedtime-api \
-            --project ${{ vars.PROD_PROJECT_ID }} \
-            --region ${{ vars.PROD_REGION }} \
-            --format="value(status.url)")
+          URL="${{ vars.PROD_APP_URL }}"
+          if [ -z "$URL" ]; then
+            URL=$(gcloud run services describe bedtime-api \
+              --project ${{ vars.PROD_PROJECT_ID }} \
+              --region ${{ vars.PROD_REGION }} \
+              --format="value(status.url)")
+          fi
           echo "Health check: $URL/healthz"
           for i in $(seq 1 12); do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/healthz")
