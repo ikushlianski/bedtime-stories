@@ -1,5 +1,7 @@
 name: Deploy
 
+run-name: Deploy to ${{ github.ref_name == 'main' && 'Prod' || 'Dev' }}
+
 on:
   push:
     branches: [main]

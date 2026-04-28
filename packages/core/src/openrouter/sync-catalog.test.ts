@@ -21,7 +21,6 @@ vi.mock('../db/client.js', () => {
         set: vi.fn((s: { deletedAt: Date | null }) => ({
           where: vi.fn(async (clause: unknown) => {
             const ids = (clause as { __ids?: string[] }).__ids ?? []
-
             if (s.deletedAt === null) updateCalls.undelete.push(ids)
             else updateCalls.soft.push(ids)
           }),
@@ -41,12 +40,18 @@ vi.mock('drizzle-orm', async (orig) => {
 
 vi.mock('../env.js', () => ({ env: { OPENROUTER_API_KEY: 'k' } }))
 
-import { syncOpenRouterCatalog, parseUpstreamModels } from './sync-catalog'
-import type { OpenRouterClient } from './openrouter.client'
+vi.mock('./openrouter-catalog-fetcher.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./openrouter-catalog-fetcher')>()
+  return { ...actual, fetchOpenRouterCatalog: vi.fn() }
+})
 
-describe('parseUpstreamModels', () => {
+import { syncOpenRouterCatalog } from './sync-catalog'
+import { parseOpenRouterModels } from './openrouter-catalog-fetcher'
+import { fetchOpenRouterCatalog } from './openrouter-catalog-fetcher'
+
+describe('parseOpenRouterModels', () => {
   it('converts per-token pricing to per-million USD', () => {
-    const out = parseUpstreamModels({
+    const out = parseOpenRouterModels({
       data: [
         {
           id: 'a/b',
@@ -66,7 +71,7 @@ describe('parseUpstreamModels', () => {
   })
 
   it('marks isFree when both prices are zero', () => {
-    const out = parseUpstreamModels({
+    const out = parseOpenRouterModels({
       data: [{ id: 'free/x', name: 'Free', pricing: { prompt: '0', completion: '0' } }],
     })
 
@@ -86,18 +91,16 @@ describe('syncOpenRouterCatalog', () => {
       { id: 'returning', deletedAt: new Date() },
     )
 
-    const client = {
-      listModels: vi.fn(async () => ({
+    vi.mocked(fetchOpenRouterCatalog).mockResolvedValue(
+      parseOpenRouterModels({
         data: [
           { id: 'returning', name: 'R', pricing: { prompt: '0', completion: '0' } },
           { id: 'new/x', name: 'X', pricing: { prompt: '0', completion: '0' }, supported_features: ['structured_outputs'] },
         ],
-      })),
-      chatStream: vi.fn(),
-      chatNonStream: vi.fn(),
-    } as unknown as OpenRouterClient
+      }),
+    )
 
-    const result = await syncOpenRouterCatalog(client)
+    const result = await syncOpenRouterCatalog()
 
     expect(result).toEqual({ fetched: 2, upserted: 2, softDeleted: 1, undeleted: 1 })
     expect(updateCalls.soft).toEqual([['old/gone']])
