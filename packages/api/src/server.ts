@@ -64,7 +64,7 @@ if (process.env['NODE_ENV'] === 'production') {
   const webDist = resolve(__dirname, '../../../web/dist')
 
   app.use(express.static(webDist))
-  app.get('*', (_req, res) => {
+  app.get('{*path}', (_req, res) => {
     res.sendFile(resolve(webDist, 'index.html'))
   })
 }
