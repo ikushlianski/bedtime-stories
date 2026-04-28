@@ -37,7 +37,7 @@ app.use(cors({ origin: ALLOWED_ORIGINS, credentials: true }))
 app.use(express.json())
 app.use(cookieParser())
 
-app.get('/healthz', (_req, res) => res.json({ status: 'ok' }))
+app.get('/_healthz', (_req, res) => res.json({ status: 'ok' }))
 
 app.use('/api/auth', authRouter)
 
