@@ -3,22 +3,18 @@ import * as gcp from '@pulumi/gcp'
 
 const config = new pulumi.Config()
 const region = config.get('region') ?? 'us-central1'
-const githubRepo = config.get('githubRepo') ?? 'ikushlianski/bedtime-stories'
 const billingAccount = config.require('billingAccount')
-const orgId = config.get('orgId')
 
-const project = new gcp.organizations.Project('bedtime-agent', {
-  name: 'bedtime-agent',
-  projectId: `bedtime-agent-${pulumi.getStack()}`,
+const project = new gcp.organizations.Project('bedtime-prod', {
+  name: 'bedtime-prod',
+  projectId: 'bedtime-prod',
   billingAccount,
-  ...(orgId ? { orgId } : {}),
 })
 
 const requiredApis = [
   'run.googleapis.com',
   'artifactregistry.googleapis.com',
   'storage.googleapis.com',
-  'secretmanager.googleapis.com',
   'iam.googleapis.com',
   'cloudresourcemanager.googleapis.com',
   'iamcredentials.googleapis.com',
@@ -41,17 +37,17 @@ const registry = new gcp.artifactregistry.Repository(
     location: region,
     repositoryId: 'bedtime-api',
     format: 'DOCKER',
-    description: 'Docker images for bedtime-agent API',
+    description: 'Docker images for bedtime-api',
   },
   { dependsOn: enabledApis },
 )
 
 const storageBucket = new gcp.storage.Bucket(
-  'bedtime-storage',
+  'bedtime-prod-storage',
   {
     project: project.projectId,
-    location: 'US',
-    name: pulumi.interpolate`bedtime-storage-${project.projectId}`,
+    location: 'EUROPE-WEST3',
+    name: 'bedtime-prod-storage',
     uniformBucketLevelAccess: true,
     versioning: { enabled: true },
   },
@@ -72,8 +68,8 @@ const ciSa = new gcp.serviceaccount.Account(
   'ci-sa',
   {
     project: project.projectId,
-    accountId: 'github-actions',
-    displayName: 'GitHub Actions CI/CD SA',
+    accountId: 'github-ci',
+    displayName: 'GitHub Actions CI SA',
   },
   { dependsOn: enabledApis },
 )
@@ -88,51 +84,13 @@ const ciRoles = [
 ciRoles.forEach(
   (role) =>
     new gcp.projects.IAMMember(
-      `ci-sa-${role.replace(/\//g, '-').replace(/\./g, '-')}`,
+      `ci-${role.replace(/\//g, '-').replace(/\./g, '-')}`,
       {
         project: project.projectId,
         role,
         member: pulumi.interpolate`serviceAccount:${ciSa.email}`,
       },
     ),
-)
-
-const wifPool = new gcp.iam.WorkloadIdentityPool(
-  'github-pool',
-  {
-    project: project.projectId,
-    workloadIdentityPoolId: 'github-actions',
-    displayName: 'GitHub Actions Pool',
-  },
-  { dependsOn: enabledApis },
-)
-
-const wifProvider = new gcp.iam.WorkloadIdentityPoolProvider(
-  'github-provider',
-  {
-    project: project.projectId,
-    workloadIdentityPoolId: wifPool.workloadIdentityPoolId,
-    workloadIdentityPoolProviderId: 'github',
-    displayName: 'GitHub OIDC',
-    oidc: { issuerUri: 'https://token.actions.githubusercontent.com' },
-    attributeMapping: {
-      'google.subject': 'assertion.sub',
-      'attribute.repository': 'assertion.repository',
-      'attribute.actor': 'assertion.actor',
-    },
-    attributeCondition: `attribute.repository == "${githubRepo}"`,
-  },
-  { dependsOn: [wifPool] },
-)
-
-new gcp.serviceaccount.IAMMember(
-  'wif-ci-sa-binding',
-  {
-    serviceAccountId: ciSa.name,
-    role: 'roles/iam.workloadIdentityUser',
-    member: pulumi.interpolate`principalSet://iam.googleapis.com/${wifPool.name}/attribute.repository/${githubRepo}`,
-  },
-  { dependsOn: [wifPool, wifProvider, ciSa] },
 )
 
 const apiService = new gcp.cloudrun.Service(
@@ -146,7 +104,7 @@ const apiService = new gcp.cloudrun.Service(
         serviceAccountName: apiSa.email,
         containers: [
           {
-            image: pulumi.interpolate`${region}-docker.pkg.dev/${project.projectId}/${registry.repositoryId}/api:latest`,
+            image: 'us-docker.pkg.dev/cloudrun/container/hello:latest',
             ports: [{ containerPort: 8080 }],
             envs: [
               { name: 'NODE_ENV', value: 'production' },
@@ -181,5 +139,4 @@ export const projectId = project.projectId
 export const apiUrl = apiService.statuses[0].url
 export const registryUrl = pulumi.interpolate`${region}-docker.pkg.dev/${project.projectId}/${registry.repositoryId}`
 export const ciSaEmail = ciSa.email
-export const wifProviderName = wifProvider.name
 export const bucketName = storageBucket.name

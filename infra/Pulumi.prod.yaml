@@ -1,6 +1,7 @@
+encryptionsalt: v1:O3ix+WTW4qs=:v1:SO7IMnrxP8v9Vplc:JLHx+H9JY9/44Oema00M0P+qQjgl6A==
 config:
-  bedtime-infra:region: us-central1
+  bedtime-infra:billingAccount:
+    secure: v1:NAqiuuZkGlca70P7:dris7F2LEpTHfyS1N/B0Woa9VFWnCj3Ti5PnIlYM8eeARoka
+  bedtime-infra:region: europe-west3
   bedtime-infra:githubRepo: ikushlianski/bedtime-stories
-  # Set before running pulumi up:
-  # pulumi config set billingAccount <YOUR_BILLING_ACCOUNT_ID>
-  # pulumi config set --secret orgId <YOUR_ORG_ID>  (optional, for Workspace accounts)
+  gcp:project: bedtime-bootstrap

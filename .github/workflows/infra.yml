@@ -1,0 +1,44 @@
+name: Infra
+
+on:
+  push:
+    branches: [main]
+    paths: [infra/**]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  pulumi:
+    name: Pulumi up
+    runs-on: ubuntu-latest
+    environment: prod
+
+    env:
+      PULUMI_BACKEND_URL: gs://bedtime-pulumi-state
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: infra/package-lock.json
+
+      - run: npm ci
+        working-directory: infra
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/28324530789/locations/global/workloadIdentityPools/github/providers/github-actions
+          service_account: github-ci@bedtime-prod.iam.gserviceaccount.com
+
+      - uses: pulumi/actions@v6
+        with:
+          command: up
+          stack-name: prod
+          work-dir: infra
+        env:
+          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PROD_PULUMI_CONFIG_PASSPHRASE }}

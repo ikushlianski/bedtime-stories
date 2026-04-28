@@ -30,54 +30,48 @@ jobs:
     name: Deploy
     needs: test
     runs-on: ubuntu-latest
-
-    env:
-      REGION: ${{ secrets.GCP_REGION }}
-      PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-      REGISTRY: ${{ secrets.ARTIFACT_REGISTRY_URL }}
-      SERVICE_NAME: bedtime-api
+    environment: prod
 
     steps:
       - uses: actions/checkout@v4
 
-      - id: auth
-        uses: google-github-actions/auth@v2
+      - uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
-          service_account: ${{ secrets.WIF_SA_EMAIL }}
+          workload_identity_provider: projects/28324530789/locations/global/workloadIdentityPools/github/providers/github-actions
+          service_account: github-ci@bedtime-prod.iam.gserviceaccount.com
 
       - uses: google-github-actions/setup-gcloud@v2
 
       - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+        run: gcloud auth configure-docker ${{ vars.PROD_REGION }}-docker.pkg.dev --quiet
 
       - name: Build and push image
         run: |
-          IMAGE=${{ env.REGISTRY }}/api:${{ github.sha }}
+          IMAGE=${{ vars.PROD_REGISTRY }}/api:${{ github.sha }}
           docker build \
             --target production \
-            --build-arg VITE_SENTRY_DSN=${{ secrets.VITE_SENTRY_DSN }} \
-            --build-arg SENTRY_ORG=${{ secrets.SENTRY_ORG }} \
-            --build-arg SENTRY_PROJECT=${{ secrets.SENTRY_PROJECT }} \
-            --build-arg SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }} \
+            --build-arg VITE_SENTRY_DSN=${{ secrets.PROD_VITE_SENTRY_DSN }} \
+            --build-arg SENTRY_ORG=${{ vars.PROD_SENTRY_ORG }} \
+            --build-arg SENTRY_PROJECT=${{ vars.PROD_SENTRY_PROJECT }} \
+            --build-arg SENTRY_AUTH_TOKEN=${{ secrets.PROD_SENTRY_AUTH_TOKEN }} \
             -t $IMAGE .
           docker push $IMAGE
 
       - name: Deploy to Cloud Run
         run: |
-          IMAGE=${{ env.REGISTRY }}/api:${{ github.sha }}
-          gcloud run deploy ${{ env.SERVICE_NAME }} \
+          IMAGE=${{ vars.PROD_REGISTRY }}/api:${{ github.sha }}
+          gcloud run deploy bedtime-api \
             --image $IMAGE \
-            --project ${{ env.PROJECT_ID }} \
-            --region ${{ env.REGION }} \
+            --project ${{ vars.PROD_PROJECT_ID }} \
+            --region ${{ vars.PROD_REGION }} \
             --platform managed \
             --allow-unauthenticated \
             --set-env-vars="NODE_ENV=production,HOST=0.0.0.0,PORT=8080" \
-            --set-env-vars="DATABASE_URL=${{ secrets.DATABASE_URL }}" \
-            --set-env-vars="JWT_SECRET=${{ secrets.JWT_SECRET }}" \
-            --set-env-vars="OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}" \
-            --set-env-vars="SENTRY_DSN=${{ secrets.SENTRY_DSN }}" \
-            --set-env-vars="LANGFUSE_SECRET_KEY=${{ secrets.LANGFUSE_SECRET_KEY }}" \
-            --set-env-vars="LANGFUSE_PUBLIC_KEY=${{ secrets.LANGFUSE_PUBLIC_KEY }}" \
-            --set-env-vars="LANGFUSE_BASE_URL=${{ secrets.LANGFUSE_BASE_URL }}" \
+            --set-env-vars="DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}" \
+            --set-env-vars="JWT_SECRET=${{ secrets.PROD_JWT_SECRET }}" \
+            --set-env-vars="OPENROUTER_API_KEY=${{ secrets.PROD_OPENROUTER_API_KEY }}" \
+            --set-env-vars="SENTRY_DSN=${{ secrets.PROD_SENTRY_DSN }}" \
+            --set-env-vars="LANGFUSE_SECRET_KEY=${{ secrets.PROD_LANGFUSE_SECRET_KEY }}" \
+            --set-env-vars="LANGFUSE_PUBLIC_KEY=${{ secrets.PROD_LANGFUSE_PUBLIC_KEY }}" \
+            --set-env-vars="LANGFUSE_BASE_URL=${{ vars.PROD_LANGFUSE_BASE_URL }}" \
             --quiet
