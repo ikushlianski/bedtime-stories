@@ -83,8 +83,6 @@ The workflow uses both **variables** (non-secret config) and **secrets** (sensit
 | `PROD_SENTRY_ORG` | `ilya-org-jo` |
 | `PROD_SENTRY_PROJECT` | `bedtime-agent` |
 | `PROD_LANGFUSE_BASE_URL` | `https://cloud.langfuse.com` |
-| `PROD_ROUTE53_ZONE_ID` | Route53 hosted zone ID for `ilya.online` (enables automatic DNS A record upsert) |
-
 ### Secrets (Settings → Environments → prod → Secrets)
 
 | Secret | Description |
@@ -98,8 +96,6 @@ The workflow uses both **variables** (non-secret config) and **secrets** (sensit
 | `PROD_SENTRY_AUTH_TOKEN` | Sentry auth token for source map upload |
 | `PROD_LANGFUSE_SECRET_KEY` | Langfuse secret key |
 | `PROD_LANGFUSE_PUBLIC_KEY` | Langfuse public key |
-| `PROD_AWS_ACCESS_KEY_ID` | AWS access key with Route53 write access (for DNS automation) |
-| `PROD_AWS_SECRET_ACCESS_KEY` | AWS secret key for the above |
 
 ---
 

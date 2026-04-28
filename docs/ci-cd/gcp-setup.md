@@ -190,6 +190,23 @@ PULUMI_BACKEND_URL=gs://bedtime-pulumi-state \
   pulumi stack output apiUrl --stack prod
 ```
 
+## Step 10: Point bedtime-agent.ilya.online to the load balancer (one-time)
+
+Pulumi creates a reserved global static IP for the HTTPS load balancer. After the first `pulumi up` succeeds, get the IP:
+
+```bash
+cd infra
+PULUMI_BACKEND_URL=gs://bedtime-pulumi-state \
+  PULUMI_CONFIG_PASSPHRASE="<passphrase>" \
+  pulumi stack output lbIp --stack prod
+```
+
+Then create an A record in Route53 for `bedtime-agent.ilya.online` pointing to that IP (TTL 300). The GCP-managed SSL certificate for the domain provisions automatically once DNS resolves — allow 15–60 minutes.
+
+This is a one-time step. The static IP is reserved and never changes unless the Pulumi stack is destroyed.
+
+---
+
 ## Tear down
 
 ```bash

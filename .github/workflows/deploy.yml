@@ -75,20 +75,6 @@ jobs:
         env:
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PROD_PULUMI_CONFIG_PASSPHRASE }}
 
-      - name: Upsert Route53 A record for bedtime-agent.ilya.online
-        if: ${{ vars.PROD_ROUTE53_ZONE_ID != '' }}
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.PROD_AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.PROD_AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: us-east-1
-          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PROD_PULUMI_CONFIG_PASSPHRASE }}
-          PULUMI_BACKEND_URL: gs://bedtime-pulumi-state
-        run: |
-          LB_IP=$(cd infra && pulumi stack output lbIp --stack prod)
-          echo "LB IP: $LB_IP"
-          aws route53 change-resource-record-sets \
-            --hosted-zone-id ${{ vars.PROD_ROUTE53_ZONE_ID }} \
-            --change-batch "{\"Changes\":[{\"Action\":\"UPSERT\",\"ResourceRecordSet\":{\"Name\":\"bedtime-agent.ilya.online\",\"Type\":\"A\",\"TTL\":300,\"ResourceRecords\":[{\"Value\":\"$LB_IP\"}]}}]}"
 
   deploy:
     name: Deploy
