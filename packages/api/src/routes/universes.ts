@@ -6,6 +6,7 @@ import { storyGroups, stories, universeCharacters } from '@bedtime/core/db/schem
 import type { StoryGroup, NewStoryGroup } from '@bedtime/core/db/types'
 import { validate } from '../middleware/validate'
 import { getPendingSuggestionsCount } from './universe-suggestions'
+import { getPendingIdeasCount } from './story-ideas'
 
 const router = Router()
 
@@ -45,9 +46,10 @@ const updateCharacterSchema = z.object({
 })
 
 async function toPublic(row: StoryGroup) {
-  const [characters, pendingSuggestionsCount] = await Promise.all([
+  const [characters, pendingSuggestionsCount, pendingIdeasCount] = await Promise.all([
     db.select().from(universeCharacters).where(eq(universeCharacters.universeId, row.id)),
     getPendingSuggestionsCount(row.id),
+    getPendingIdeasCount(row.id),
   ])
 
   return {
@@ -65,6 +67,7 @@ async function toPublic(row: StoryGroup) {
     createdAt: row.createdAt,
     characters,
     pendingSuggestionsCount,
+    pendingIdeasCount,
   }
 }
 

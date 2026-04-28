@@ -15,6 +15,7 @@ import dashboardRouter from './routes/dashboard'
 import improverRouter from './routes/improver'
 import universesRouter from './routes/universes'
 import universeSuggestionsRouter from './routes/universe-suggestions'
+import storyIdeasRouter from './routes/story-ideas'
 import diaryRouter from './routes/diary'
 import childProfileRouter from './routes/child-profile'
 import modelsRouter from './routes/models'
@@ -51,6 +52,7 @@ app.use('/api/dashboard', dashboardRouter)
 app.use('/api/improver', improverRouter)
 app.use('/api/universes', universesRouter)
 app.use('/api/universes/:universeId/suggestions', universeSuggestionsRouter)
+app.use('/api/universes/:universeId/ideas', storyIdeasRouter)
 app.use('/api/diary', diaryRouter)
 app.use('/api/child-profile', childProfileRouter)
 app.use('/api/models', modelsRouter)

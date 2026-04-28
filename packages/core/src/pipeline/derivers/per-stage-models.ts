@@ -13,6 +13,7 @@ export const PIPELINE_STAGES = [
   'feedbackSynthesizer',
   'styleGuideUpdater',
   'universeContextUpdater',
+  'ideaSuggester',
 ] as const
 
 export type PipelineStage = (typeof PIPELINE_STAGES)[number]

@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { api, type StoryGroup, type UniverseCharacter, type UniverseSuggestion } from '../lib/api'
+import { api, type StoryGroup, type UniverseCharacter, type UniverseSuggestion, type StoryIdea } from '../lib/api'
 import FormField from '../components/form-field'
 import UniverseCharacters from '../components/universe-characters'
 import UniverseSuggestions from '../components/universe-suggestions'
+import { StoryIdeas } from '../components/story-ideas'
 import { compileStyleGuide } from '../lib/compile-style-guide'
 
 interface StyleGuideEditorProps {
@@ -78,6 +79,7 @@ export function UniverseDetailPage() {
   const [styleGuideMinimize, setStyleGuideMinimize] = useState('')
   const [characters, setCharacters] = useState<UniverseCharacter[]>([])
   const [suggestions, setSuggestions] = useState<UniverseSuggestion[]>([])
+  const [ideas, setIdeas] = useState<StoryIdea[]>([])
 
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -94,8 +96,9 @@ export function UniverseDetailPage() {
     Promise.all([
       api.universes.get(universeId),
       api.universes.listSuggestions(universeId),
+      api.universes.listIdeas(universeId, 'pending').catch(() => []),
     ])
-      .then(([u, sugg]) => {
+      .then(([u, sugg, ides]) => {
         setUniverse(u)
         setName(u.name)
         setDescription(u.description)
@@ -107,6 +110,7 @@ export function UniverseDetailPage() {
         setStyleGuideMinimize(u.styleGuideMinimize ?? '')
         setCharacters(u.characters)
         setSuggestions(sugg)
+        setIdeas(ides)
       })
       .catch((err) => {
         setLoadError(err instanceof Error ? err.message : 'Ошибка загрузки')
@@ -260,6 +264,21 @@ export function UniverseDetailPage() {
           />
         </section>
       )}
+
+      <section className="flex flex-col gap-4">
+        <h2 className="text-lg font-semibold">
+          Идеи для историй
+          {ideas.length > 0 && <span className="ml-2 badge badge-info badge-sm">{ideas.length}</span>}
+        </h2>
+        <p className="text-sm text-base-content/50">AI генерирует идеи на основе предыдущих историй. Утверждённые идеи можно использовать как основу для новой истории.</p>
+        <StoryIdeas
+          universeId={universeId}
+          onIdeasChange={setIdeas}
+          onStoryCreated={(storyId) => {
+            navigate(`/stories/${storyId}`)
+          }}
+        />
+      </section>
 
       {saveError && <p className="text-sm text-error">{saveError}</p>}
 

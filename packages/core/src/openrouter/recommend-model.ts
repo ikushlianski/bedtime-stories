@@ -23,6 +23,7 @@ const STAGE_REQUIREMENTS: Record<PipelineStage, ModelRequirements> = {
   feedbackSynthesizer:   { needsJsonSchema: false, minOutputTokens: 1000 },
   styleGuideUpdater:     { needsJsonSchema: false, minOutputTokens: 1000 },
   universeContextUpdater:{ needsJsonSchema: false, minOutputTokens: 1000 },
+  ideaSuggester:         { needsJsonSchema: true,  minOutputTokens: 1000 },
 }
 
 export async function recommendModelForStage(stage: PipelineStage): Promise<string | null> {

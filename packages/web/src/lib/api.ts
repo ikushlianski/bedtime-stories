@@ -63,6 +63,20 @@ export interface UniverseSuggestion {
   updatedAt: string | null
 }
 
+export interface StoryIdea {
+  id: number
+  universeId: number
+  topic: string
+  seedText: string
+  rationale: string
+  status: 'pending' | 'approved' | 'rejected'
+  rejectionReason: string | null
+  approvedAt: string | null
+  rejectedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 export interface StoryGroup {
   id: number
   name: string
@@ -78,6 +92,7 @@ export interface StoryGroup {
   createdAt: string
   characters: UniverseCharacter[]
   pendingSuggestionsCount: number
+  pendingIdeasCount: number
 }
 
 export interface Story {
@@ -600,6 +615,30 @@ export const api = {
 
     rejectSuggestion: (universeId: number, suggestionId: number) =>
       requestEmpty(`/api/universes/${universeId}/suggestions/${suggestionId}/reject`, { method: 'POST' }),
+
+    listIdeas: (universeId: number, status?: 'pending' | 'approved' | 'rejected' | 'all') =>
+      request<StoryIdea[]>(`/api/universes/${universeId}/ideas${status ? `?status=${status}` : ''}`),
+
+    suggestIdeas: (universeId: number) =>
+      request<{ ideaCount: number; createdIds: number[] }>(`/api/universes/${universeId}/ideas/suggest`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      }),
+
+    approveIdea: (universeId: number, ideaId: number, createStory?: boolean) =>
+      request<{ success: boolean; createdStoryId: number | null }>(
+        `/api/universes/${universeId}/ideas/${ideaId}/approve`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ createStory: createStory ?? false }),
+        },
+      ),
+
+    rejectIdea: (universeId: number, ideaId: number, rejectionReason?: string) =>
+      requestEmpty(`/api/universes/${universeId}/ideas/${ideaId}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({ rejectionReason: rejectionReason ?? null }),
+      }),
   },
 
   models: {

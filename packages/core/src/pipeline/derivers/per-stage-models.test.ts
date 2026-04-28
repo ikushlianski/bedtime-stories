@@ -52,7 +52,7 @@ describe('derivePerStageModels', () => {
     expect(result.writer).toEqual({ model: 's/writer', fallback: 's/writer-fb' })
   })
 
-  it('emits all 14 pipeline stages', () => {
-    expect(PIPELINE_STAGES).toHaveLength(14)
+  it('emits all 15 pipeline stages', () => {
+    expect(PIPELINE_STAGES).toHaveLength(15)
   })
 })

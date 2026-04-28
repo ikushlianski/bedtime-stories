@@ -277,6 +277,20 @@ export const modelCalls = pgTable('model_calls', {
   createdAt: timestamp('created_at').defaultNow(),
 })
 
+export const storyIdeas = pgTable('story_ideas', {
+  id: serial('id').primaryKey(),
+  universeId: integer('universe_id').references(() => storyGroups.id).notNull(),
+  topic: text('topic').notNull(),
+  seedText: text('seed_text').notNull(),
+  rationale: text('rationale').notNull(),
+  status: text('status').$type<'pending' | 'approved' | 'rejected'>().default('pending').notNull(),
+  rejectionReason: text('rejection_reason'),
+  approvedAt: timestamp('approved_at'),
+  rejectedAt: timestamp('rejected_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+})
+
 export const appSettings = pgTable('app_settings', {
   id: integer('id').primaryKey().default(1),
   stageModels: jsonb('stage_models').$type<Record<string, { model?: string; fallback?: string }>>(),
