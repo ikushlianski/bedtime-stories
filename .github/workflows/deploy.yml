@@ -57,6 +57,7 @@ jobs:
           command: up
           stack-name: prod
           work-dir: infra
+          refresh: true
         env:
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PROD_PULUMI_CONFIG_PASSPHRASE }}
 
