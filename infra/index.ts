@@ -19,6 +19,7 @@ const requiredApis = [
   'cloudresourcemanager.googleapis.com',
   'iamcredentials.googleapis.com',
   'sts.googleapis.com',
+  'compute.googleapis.com',
 ]
 
 const enabledApis = requiredApis.map(
@@ -134,8 +135,126 @@ new gcp.cloudrun.IamMember('api-public-invoker', {
   member: 'allUsers',
 })
 
+// Global HTTPS Load Balancer for bedtime-agent.ilya.online
+// (Cloud Run domain mappings are not available in europe-west3)
+
+const lbStaticIp = new gcp.compute.GlobalAddress(
+  'api-lb-ip',
+  {
+    project: project.projectId,
+    name: 'bedtime-api-lb-ip',
+  },
+  { dependsOn: enabledApis },
+)
+
+const neg = new gcp.compute.RegionNetworkEndpointGroup(
+  'api-neg',
+  {
+    project: project.projectId,
+    name: 'bedtime-api-neg',
+    region: region,
+    networkEndpointType: 'SERVERLESS',
+    cloudRun: { service: apiService.name },
+  },
+  { dependsOn: [apiService] },
+)
+
+const backendService = new gcp.compute.BackendService(
+  'api-backend',
+  {
+    project: project.projectId,
+    name: 'bedtime-api-backend',
+    protocol: 'HTTPS',
+    backends: [{ group: neg.id }],
+    loadBalancingScheme: 'EXTERNAL_MANAGED',
+  },
+  { dependsOn: [neg] },
+)
+
+const urlMap = new gcp.compute.URLMap(
+  'api-url-map',
+  {
+    project: project.projectId,
+    name: 'bedtime-api-url-map',
+    defaultService: backendService.id,
+  },
+  { dependsOn: [backendService] },
+)
+
+const sslCert = new gcp.compute.ManagedSslCertificate(
+  'api-ssl-cert',
+  {
+    project: project.projectId,
+    name: 'bedtime-api-ssl-cert',
+    managed: { domains: ['bedtime-agent.ilya.online'] },
+  },
+  { dependsOn: enabledApis },
+)
+
+const httpsProxy = new gcp.compute.TargetHttpsProxy(
+  'api-https-proxy',
+  {
+    project: project.projectId,
+    name: 'bedtime-api-https-proxy',
+    urlMap: urlMap.id,
+    sslCertificates: [sslCert.id],
+  },
+  { dependsOn: [urlMap, sslCert] },
+)
+
+new gcp.compute.GlobalForwardingRule(
+  'api-https-fw',
+  {
+    project: project.projectId,
+    name: 'bedtime-api-https-fw',
+    target: httpsProxy.id,
+    ipAddress: lbStaticIp.address,
+    portRange: '443',
+    loadBalancingScheme: 'EXTERNAL_MANAGED',
+  },
+  { dependsOn: [httpsProxy, lbStaticIp] },
+)
+
+const httpRedirectUrlMap = new gcp.compute.URLMap(
+  'api-http-redirect',
+  {
+    project: project.projectId,
+    name: 'bedtime-api-http-redirect',
+    defaultUrlRedirect: {
+      httpsRedirect: true,
+      redirectResponseCode: 'MOVED_PERMANENTLY_DEFAULT',
+      stripQuery: false,
+    },
+  },
+  { dependsOn: enabledApis },
+)
+
+const httpProxy = new gcp.compute.TargetHttpProxy(
+  'api-http-proxy',
+  {
+    project: project.projectId,
+    name: 'bedtime-api-http-proxy',
+    urlMap: httpRedirectUrlMap.id,
+  },
+  { dependsOn: [httpRedirectUrlMap] },
+)
+
+new gcp.compute.GlobalForwardingRule(
+  'api-http-fw',
+  {
+    project: project.projectId,
+    name: 'bedtime-api-http-fw',
+    target: httpProxy.id,
+    ipAddress: lbStaticIp.address,
+    portRange: '80',
+    loadBalancingScheme: 'EXTERNAL_MANAGED',
+  },
+  { dependsOn: [httpProxy, lbStaticIp] },
+)
+
 export const projectId = project.projectId
 export const apiUrl = apiService.statuses[0].url
 export const registryUrl = pulumi.interpolate`${region}-docker.pkg.dev/${project.projectId}/${registry.repositoryId}`
 export const ciSaEmail = ciSa.email
 export const bucketName = storageBucket.name
+export const lbIp = lbStaticIp.address

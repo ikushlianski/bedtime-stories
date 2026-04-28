@@ -36,6 +36,8 @@ app.use(cors({ origin: ALLOWED_ORIGINS, credentials: true }))
 app.use(express.json())
 app.use(cookieParser())
 
+app.get('/healthz', (_req, res) => res.json({ status: 'ok' }))
+
 app.use('/api/auth', authRouter)
 
 app.use('/api', requireAuth)
@@ -61,7 +63,7 @@ Sentry.setupExpressErrorHandler(app)
 
 if (process.env['NODE_ENV'] === 'production') {
   const __dirname = dirname(fileURLToPath(import.meta.url))
-  const webDist = resolve(__dirname, '../../../web/dist')
+  const webDist = resolve(__dirname, '../../web/dist')
 
   app.use(express.static(webDist))
   app.get('{*path}', (_req, res) => {
