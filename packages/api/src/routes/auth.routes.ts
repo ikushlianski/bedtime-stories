@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { OAuth2Client } from 'google-auth-library'
 import { db } from '@bedtime/core/db/client.js'
 import { users } from '@bedtime/core/db/schema.js'
-import { eq } from 'drizzle-orm'
+import { eq, or } from 'drizzle-orm'
 import { verifyPassword, signToken, decodeToken } from '@bedtime/core/auth/auth.utils.js'
 import type { Request, Response } from 'express'
 
@@ -172,16 +172,24 @@ router.get('/google/callback', async (req: Request, res: Response): Promise<void
 
     const email = payload.email
 
-    const [existingUser] = await db.select().from(users).where(eq(users.username, email)).limit(1)
+    const [existingUser] = await db
+      .select()
+      .from(users)
+      .where(or(eq(users.email, email), eq(users.username, email)))
+      .limit(1)
 
     let userId: number
     let username: string
 
     if (existingUser) {
+      if (!existingUser.email) {
+        await db.update(users).set({ email }).where(eq(users.id, existingUser.id))
+      }
+
       userId = existingUser.id
       username = existingUser.username
     } else {
-      const [newUser] = await db.insert(users).values({ username: email, passwordHash: '' }).returning()
+      const [newUser] = await db.insert(users).values({ username: email, passwordHash: '', email }).returning()
 
       if (!newUser) {
         res.redirect('/login?error=auth_failed')
