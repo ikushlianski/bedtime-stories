@@ -202,7 +202,7 @@ const httpsProxy = new gcp.compute.TargetHttpsProxy(
     urlMap: urlMap.id,
     sslCertificates: [sslCert.id],
   },
-  { dependsOn: [urlMap, sslCert] },
+  { dependsOn: [urlMap, sslCert], ignoreChanges: ['sslCertificates'] },
 )
 
 new gcp.compute.GlobalForwardingRule(
