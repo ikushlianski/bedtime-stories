@@ -11,6 +11,9 @@ services:
       PORT: "8020"
       HOST: "0.0.0.0"
       NODE_ENV: development
+      GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID:-}"
+      GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET:-}"
+      GOOGLE_REDIRECT_URI: "http://localhost:8020/api/auth/google/callback"
     volumes:
       - ./packages:/app/packages
       - ./node_modules:/app/node_modules:ro
@@ -25,6 +28,7 @@ services:
       - .env
     environment:
       VITE_API_URL: "http://localhost:8020"
+      VITE_SHOW_PASSWORD_LOGIN: "${VITE_SHOW_PASSWORD_LOGIN:-true}"
     volumes:
       - ./packages:/app/packages
       - ./node_modules:/app/node_modules:ro

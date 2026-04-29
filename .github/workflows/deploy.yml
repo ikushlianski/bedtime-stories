@@ -104,6 +104,7 @@ jobs:
             --build-arg SENTRY_ORG=${{ vars.PROD_SENTRY_ORG }} \
             --build-arg SENTRY_PROJECT=${{ vars.PROD_SENTRY_PROJECT }} \
             --build-arg SENTRY_AUTH_TOKEN=${{ secrets.PROD_SENTRY_AUTH_TOKEN }} \
+            --build-arg VITE_SHOW_PASSWORD_LOGIN="" \
             -t $IMAGE .
           docker push $IMAGE
 
@@ -124,6 +125,9 @@ jobs:
             --set-env-vars="LANGFUSE_SECRET_KEY=${{ secrets.PROD_LANGFUSE_SECRET_KEY }}" \
             --set-env-vars="LANGFUSE_PUBLIC_KEY=${{ secrets.PROD_LANGFUSE_PUBLIC_KEY }}" \
             --set-env-vars="LANGFUSE_BASE_URL=${{ vars.PROD_LANGFUSE_BASE_URL }}" \
+            --set-env-vars="GOOGLE_CLIENT_ID=${{ secrets.PROD_GOOGLE_CLIENT_ID }}" \
+            --set-env-vars="GOOGLE_CLIENT_SECRET=${{ secrets.PROD_GOOGLE_CLIENT_SECRET }}" \
+            --set-env-vars="GOOGLE_REDIRECT_URI=https://bedtime-agent.ilya.online/api/auth/google/callback" \
             --quiet
 
       - name: Verify deployment health

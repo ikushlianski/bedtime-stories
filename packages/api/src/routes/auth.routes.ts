@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { z } from 'zod'
+import { OAuth2Client } from 'google-auth-library'
 import { db } from '@bedtime/core/db/client.js'
 import { users } from '@bedtime/core/db/schema.js'
 import { eq } from 'drizzle-orm'
@@ -92,6 +93,110 @@ router.get('/me', (req: Request, res: Response): void => {
     res.json({ username: payload.username })
   } catch {
     res.status(401).json({ error: 'Unauthorized' })
+  }
+})
+
+const GOOGLE_REDIRECT_URI = process.env['GOOGLE_REDIRECT_URI'] ?? 'http://localhost:8020/api/auth/google/callback'
+
+function getOAuthClient(): OAuth2Client | null {
+  const clientId = process.env['GOOGLE_CLIENT_ID']
+  const clientSecret = process.env['GOOGLE_CLIENT_SECRET']
+
+  if (!clientId || !clientSecret) {
+    return null
+  }
+
+  return new OAuth2Client(clientId, clientSecret, GOOGLE_REDIRECT_URI)
+}
+
+router.get('/google', (req: Request, res: Response): void => {
+  const client = getOAuthClient()
+
+  if (!client) {
+    res.status(503).json({ error: 'Google OAuth is not configured on this server.' })
+    return
+  }
+
+  const url = client.generateAuthUrl({
+    access_type: 'online',
+    scope: ['openid', 'email', 'profile'],
+  })
+
+  res.redirect(url)
+})
+
+router.get('/google/callback', async (req: Request, res: Response): Promise<void> => {
+  const client = getOAuthClient()
+
+  if (!client) {
+    res.redirect('/login?error=auth_failed')
+    return
+  }
+
+  const code = req.query['code']
+
+  if (typeof code !== 'string') {
+    res.redirect('/login?error=auth_failed')
+    return
+  }
+
+  try {
+    const { tokens } = await client.getToken(code)
+    client.setCredentials(tokens)
+
+    const idToken = tokens.id_token
+
+    if (!idToken) {
+      res.redirect('/login?error=auth_failed')
+      return
+    }
+
+    const clientId = process.env['GOOGLE_CLIENT_ID']
+
+    if (!clientId) {
+      res.redirect('/login?error=auth_failed')
+      return
+    }
+
+    const loginTicket = await client.verifyIdToken({
+      idToken,
+      audience: clientId,
+    })
+
+    const payload = loginTicket.getPayload()
+
+    if (!payload?.email) {
+      res.redirect('/login?error=auth_failed')
+      return
+    }
+
+    const email = payload.email
+
+    const [existingUser] = await db.select().from(users).where(eq(users.username, email)).limit(1)
+
+    let userId: number
+    let username: string
+
+    if (existingUser) {
+      userId = existingUser.id
+      username = existingUser.username
+    } else {
+      const [newUser] = await db.insert(users).values({ username: email, passwordHash: '' }).returning()
+
+      if (!newUser) {
+        res.redirect('/login?error=auth_failed')
+        return
+      }
+
+      userId = newUser.id
+      username = newUser.username
+    }
+
+    const token = signToken({ sub: userId, username })
+    res.cookie('auth_token', token, COOKIE_OPTIONS)
+    res.redirect('/')
+  } catch {
+    res.redirect('/login?error=auth_failed')
   }
 })
 

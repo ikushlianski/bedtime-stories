@@ -291,6 +291,7 @@ export interface ModelCatalogEntry {
   supportsJsonSchema: boolean | null
   isFree: boolean | null
   isRecommendedForProse: boolean | null
+  expirationDate: string | null
 }
 
 export interface StoryCostBreakdown {

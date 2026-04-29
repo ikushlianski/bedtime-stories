@@ -17,6 +17,7 @@ router.get('/', async (_req, res) => {
         supportsJsonSchema: modelCatalog.supportsJsonSchema,
         isFree: modelCatalog.isFree,
         isRecommendedForProse: modelCatalog.isRecommendedForProse,
+        expirationDate: modelCatalog.expirationDate,
       })
       .from(modelCatalog)
       .where(isNull(modelCatalog.deletedAt))
