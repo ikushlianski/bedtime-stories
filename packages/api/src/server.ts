@@ -25,6 +25,8 @@ import adminRouter from './routes/admin'
 import authRouter from './routes/auth.routes'
 import settingsRouter from './routes/settings'
 import { requireAuth } from './middleware/auth.middleware'
+import { bot } from './routes/telegram'
+import { webhookCallback } from 'grammy'
 
 export const app = express()
 
@@ -40,6 +42,10 @@ app.use(cookieParser())
 app.get('/_healthz', (_req, res) => res.json({ status: 'ok' }))
 
 app.use('/api/auth', authRouter)
+
+if (bot) {
+  app.post('/api/telegram/webhook', webhookCallback(bot, 'express'))
+}
 
 app.use('/api', requireAuth)
 
@@ -82,5 +88,19 @@ export function startServer(): void {
   app.listen(PORT, HOST, () => {
     console.log(`Server running on [${HOST}]:${PORT}`)
     scheduleDailyCatalogSync()
+
+    if (!bot) {
+      console.log('Telegram bot disabled (no TELEGRAM_BOT_TOKEN)')
+      return
+    }
+
+    if (process.env['NODE_ENV'] === 'production') {
+      const webhookUrl = 'https://bedtime-agent.ilya.online/api/telegram/webhook'
+      bot.api.setWebhook(webhookUrl)
+        .then(() => console.log('Telegram webhook set:', webhookUrl))
+        .catch((e: unknown) => console.error('Telegram webhook setup failed:', e))
+    } else {
+      bot.start()
+    }
   })
 }

@@ -3,10 +3,23 @@ import { createStorySchema, resolveCreateStoryMode } from './create-story-schema
 
 describe('createStorySchema', () => {
   describe('seed-only input', () => {
-    it('accepts a valid seed', () => {
-      const result = createStorySchema.safeParse({ seed: 'A hero learns patience' })
+    it('accepts a valid seed with models for all stages', () => {
+      const result = createStorySchema.safeParse({
+        seed: 'A hero learns patience',
+        perStageOverrides: {
+          plotter: { model: 'gpt-4' },
+          writer: { model: 'claude-3' },
+          plotterQuestions: { model: 'gpt-4-turbo' },
+        },
+      })
 
       expect(result.success).toBe(true)
+    })
+
+    it('rejects a seed without models', () => {
+      const result = createStorySchema.safeParse({ seed: 'A hero learns patience' })
+
+      expect(result.success).toBe(false)
     })
 
     it('rejects an empty seed', () => {
@@ -114,16 +127,29 @@ describe('resolveCreateStoryMode', () => {
   })
 
   describe('perStageOverrides', () => {
-    it('accepts a partial map of stage overrides', () => {
+    it('accepts models for all required stages', () => {
       const result = createStorySchema.safeParse({
         seed: 'hero',
         perStageOverrides: {
           writer: { model: 'free/writer', fallback: 'paid/writer' },
           plotter: { model: 'free/plotter' },
+          plotterQuestions: { model: 'gpt-4-turbo' },
         },
       })
 
       expect(result.success).toBe(true)
+    })
+
+    it('rejects when a required stage is missing', () => {
+      const result = createStorySchema.safeParse({
+        seed: 'hero',
+        perStageOverrides: {
+          writer: { model: 'free/writer' },
+          plotter: { model: 'free/plotter' },
+        },
+      })
+
+      expect(result.success).toBe(false)
     })
 
     it('forwards perStageOverrides into agent mode', () => {

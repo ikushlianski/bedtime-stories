@@ -110,7 +110,7 @@ export default function ModelSelectDropdown({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 w-80 rounded-box border border-base-300 bg-base-100 shadow-lg">
+        <div className="absolute left-0 top-full z-50 mt-1 max-h-96 w-full min-w-max overflow-hidden rounded-box border border-base-300 bg-base-100 shadow-lg sm:w-80">
           <div className="space-y-2 p-2">
             <input
               ref={searchRef}
@@ -124,21 +124,21 @@ export default function ModelSelectDropdown({
             <div className="flex flex-wrap gap-1">
               <button
                 type="button"
-                className={`btn btn-xs ${priceDir === 'asc' ? 'btn-primary' : 'btn-ghost'}`}
+                className={`btn btn-xs flex-1 sm:flex-initial ${priceDir === 'asc' ? 'btn-primary' : 'btn-ghost'}`}
                 onClick={() => setPriceDir('asc')}
               >
                 цена ↑
               </button>
               <button
                 type="button"
-                className={`btn btn-xs ${priceDir === 'desc' ? 'btn-primary' : 'btn-ghost'}`}
+                className={`btn btn-xs flex-1 sm:flex-initial ${priceDir === 'desc' ? 'btn-primary' : 'btn-ghost'}`}
                 onClick={() => setPriceDir('desc')}
               >
                 цена ↓
               </button>
               <button
                 type="button"
-                className={`btn btn-xs ${permFirst ? 'btn-secondary' : 'btn-ghost'}`}
+                className={`btn btn-xs flex-1 sm:flex-initial ${permFirst ? 'btn-secondary' : 'btn-ghost'}`}
                 onClick={() => setPermFirst((p) => !p)}
               >
                 {permFirst ? 'постоянные ↑' : 'временные ↑'}

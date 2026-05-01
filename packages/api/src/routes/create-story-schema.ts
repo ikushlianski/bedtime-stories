@@ -1,11 +1,22 @@
 import { z } from 'zod'
+import { PIPELINE_STAGES, PipelineStage } from '@bedtime/core/pipeline/pipeline-stages'
 
 const stageOverrideSchema = z.object({
-  model: z.string().min(1).optional(),
+  model: z.string().min(1),
   fallback: z.string().min(1).optional(),
-}).partial()
+})
 
-export const perStageOverridesSchema = z.record(z.string(), stageOverrideSchema)
+export const perStageOverridesSchema = z.record(
+  z.nativeEnum(PipelineStage),
+  stageOverrideSchema,
+).refine(
+  (stages) => {
+    return PIPELINE_STAGES.every((stage) => stage in stages && stages[stage as keyof typeof stages]?.model)
+  },
+  {
+    message: 'Model selection is required for all stages: plotter, writer, and plotterQuestions',
+  },
+)
 
 export const createStorySchema = z
   .object({
@@ -28,6 +39,17 @@ export const createStorySchema = z
     {
       message:
         'Provide either seed (for pipeline generation) or textFinal (for user-authored story), not both',
+    },
+  )
+  .refine(
+    (value) => {
+      if (value.seed !== undefined) {
+        return value.perStageOverrides !== undefined
+      }
+      return true
+    },
+    {
+      message: 'Model selection is required for all stages when creating a story from a seed',
     },
   )
 

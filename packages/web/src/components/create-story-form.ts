@@ -1,4 +1,5 @@
 import type { CreateStoryInput, PerStageOverrides } from '../lib/api'
+import { PIPELINE_STAGES } from '@bedtime/core/pipeline/pipeline-stages'
 
 export interface CreateStoryFormState {
   seed: string
@@ -32,15 +33,18 @@ export function validateCreateStoryForm(state: CreateStoryFormState): CreateStor
     return { valid: false, reason: 'Universe is required' }
   }
 
+  const missingStages = PIPELINE_STAGES.filter((stage) => !state.perStageOverrides?.[stage]?.model)
+  if (missingStages.length > 0) {
+    return { valid: false, reason: 'Select a model for each stage: plotter, writer, plotterQuestions' }
+  }
+
   return {
     valid: true,
     input: {
       seed,
       pipelineMode: state.pipelineMode,
       groupId: state.groupId,
-      ...(state.perStageOverrides !== undefined && Object.keys(state.perStageOverrides).length > 0
-        ? { perStageOverrides: state.perStageOverrides }
-        : {}),
+      perStageOverrides: state.perStageOverrides,
     },
   }
 }

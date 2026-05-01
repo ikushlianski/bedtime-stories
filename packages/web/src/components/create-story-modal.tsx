@@ -5,7 +5,7 @@ import {
   type CreateStoryFormState,
 } from './create-story-form'
 import FormField from './form-field'
-import ModelPicker from './model-picker'
+import ModelPicker, { validateStageModels } from './model-picker'
 
 interface CreateStoryModalProps {
   open: boolean
@@ -265,15 +265,17 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
             </div>
           </FormField>
 
-          <details className="collapse collapse-arrow border border-base-300 bg-base-200">
-            <summary className="collapse-title text-sm font-medium">Модели по стадиям (опционально)</summary>
-            <div className="collapse-content">
-              <ModelPicker
-                value={form.perStageOverrides ?? {}}
-                onChange={(next) => setForm((prev) => ({ ...prev, perStageOverrides: next }))}
-              />
-            </div>
-          </details>
+          <FormField
+            label="Модели по стадиям"
+            hint="Выбери модель для каждой стадии: сюжетник, писатель и вопросы к семени"
+            required
+          >
+            <ModelPicker
+              value={form.perStageOverrides ?? {}}
+              onChange={(next) => setForm((prev) => ({ ...prev, perStageOverrides: next }))}
+              required={true}
+            />
+          </FormField>
         </div>
 
         {error && <p className="mt-3 text-sm text-error">{error}</p>}

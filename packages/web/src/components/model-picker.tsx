@@ -1,22 +1,31 @@
 import { useEffect, useState } from 'react'
 import { api, type ModelCatalogEntry, type PerStageOverrides } from '../lib/api'
+import { PipelineStage, PIPELINE_STAGES, PIPELINE_STAGE_LABELS } from '@bedtime/core/pipeline/pipeline-stages'
 import ModelSelectDropdown from './model-select-dropdown'
 
-const STAGES: Array<{ key: string; label: string; fallbackSupported: boolean }> = [
-  { key: 'plotter', label: 'Сюжетник', fallbackSupported: true },
-  { key: 'writer', label: 'Писатель', fallbackSupported: true },
-  { key: 'plotterQuestions', label: 'Вопросы к сиду', fallbackSupported: true },
-]
+const STAGES: Array<{ key: PipelineStage; label: string; fallbackSupported: boolean }> = PIPELINE_STAGES.map((stage) => ({
+  key: stage,
+  label: PIPELINE_STAGE_LABELS[stage],
+  fallbackSupported: true,
+}))
 
 interface ModelPickerProps {
   value: PerStageOverrides
   onChange: (next: PerStageOverrides) => void
+  required?: boolean
 }
 
-export default function ModelPicker({ value, onChange }: ModelPickerProps) {
+export function validateStageModels(value: PerStageOverrides): boolean {
+  return PIPELINE_STAGES.every((stage) => value[stage]?.model)
+}
+
+export default function ModelPicker({ value, onChange, required = false }: ModelPickerProps) {
   const [models, setModels] = useState<ModelCatalogEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  const missingStages = required ? PIPELINE_STAGES.filter((stage) => !value[stage]?.model) : []
+  const isComplete = missingStages.length === 0
 
   useEffect(() => {
     setLoading(true)
@@ -49,45 +58,50 @@ export default function ModelPicker({ value, onChange }: ModelPickerProps) {
 
   return (
     <div className="space-y-3">
-      <div className="rounded border border-base-300">
-        <table className="table table-xs">
-          <thead>
-            <tr>
-              <th>Стадия</th>
-              <th>Модель</th>
-              <th>Фоллбэк</th>
-            </tr>
-          </thead>
-          <tbody>
-            {STAGES.map((stage) => {
-              const stageValue = value[stage.key] ?? {}
-              return (
-                <tr key={stage.key}>
-                  <td className="font-mono text-xs">{stage.label}</td>
-                  <td className="min-w-48">
+      <div className="space-y-4 md:space-y-0 md:rounded md:border md:border-base-300">
+        {STAGES.map((stage, idx) => {
+          const stageValue = value[stage.key] ?? {}
+          const isMissing = missingStages.includes(stage.key)
+          return (
+            <div
+              key={stage.key}
+              className={`px-3 py-3 md:px-4 ${idx % 2 === 0 ? '' : 'md:bg-base-50'} ${isMissing ? 'bg-error/10' : ''} ${idx > 0 ? 'border-t border-base-300 md:border-t' : ''}`}
+            >
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">
+                  {stage.label}
+                  {required && <span className="text-error ml-1">*</span>}
+                </label>
+                <div className="space-y-2">
+                  <div>
+                    <span className="text-xs text-base-content/60">Модель</span>
                     <ModelSelectDropdown
                       models={models}
                       value={stageValue.model ?? ''}
                       onChange={(id) => setStageField(stage.key, 'model', id)}
                     />
-                  </td>
-                  <td className="min-w-48">
-                    {stage.fallbackSupported ? (
+                  </div>
+                  {stage.fallbackSupported && (
+                    <div>
+                      <span className="text-xs text-base-content/60">Фоллбэк (опционально)</span>
                       <ModelSelectDropdown
                         models={models}
                         value={stageValue.fallback ?? ''}
                         onChange={(id) => setStageField(stage.key, 'fallback', id)}
                       />
-                    ) : (
-                      <span className="text-xs text-base-content/40">—</span>
-                    )}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )
+        })}
       </div>
+      {required && missingStages.length > 0 && (
+        <p className="text-sm text-error">
+          Выбери модель для: {missingStages.map((s) => STAGES.find((st) => st.key === s)?.label).filter(Boolean).join(', ')}
+        </p>
+      )}
     </div>
   )
 }

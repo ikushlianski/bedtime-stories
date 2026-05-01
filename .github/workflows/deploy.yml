@@ -128,6 +128,8 @@ jobs:
             --set-env-vars="GOOGLE_CLIENT_ID=${{ secrets.PROD_GOOGLE_CLIENT_ID }}" \
             --set-env-vars="GOOGLE_CLIENT_SECRET=${{ secrets.PROD_GOOGLE_CLIENT_SECRET }}" \
             --set-env-vars="GOOGLE_REDIRECT_URI=https://bedtime-agent.ilya.online/api/auth/google/callback" \
+            --set-env-vars="TELEGRAM_BOT_TOKEN=${{ secrets.PROD_TELEGRAM_BOT_TOKEN }}" \
+            --set-env-vars="TELEGRAM_ALLOWED_USER_ID=${{ secrets.PROD_TELEGRAM_ALLOWED_USER_ID }}" \
             --quiet
 
       - name: Verify deployment health

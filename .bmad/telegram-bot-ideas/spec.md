@@ -16,7 +16,7 @@ updated: 2026-04-30
 | `deriveIsAuthorizedUser` | `fromId: number \| undefined`, `allowedId: number` | `boolean` | SCENARIO 2 |
 | `deriveIdeaFromMessage` | `messageText: string`, `universeId: number` | `{ seedText: string, topic: string, rationale: string, universeId: number }` | SCENARIO 1 |
 
-**`deriveIsAuthorizedUser`**: returns `true` iff `fromId` is defined and equals `allowedId`. Encodes the authorization rule.
+**`deriveIsAuthorizedUser`**: returns `true` iff `fromId` is defined and equals `allowedId`.
 
 **`deriveIdeaFromMessage`**: maps a raw Telegram message to a fully-shaped idea insert payload. `topic = "Telegram"`, `rationale = "Submitted via Telegram bot"`, `seedText = messageText.trim()`. Pure — no DB, no async.
 
@@ -70,39 +70,120 @@ No schema changes. The bot reuses existing `storyIdeas` and `stories` tables wit
 ### Key implementation details for telegram.ts
 
 ```
-Dependencies to install: grammy
+Dependencies to install: grammy @grammyjs/conversations
+
+Types:
+  type BotContext = ConversationFlavor<Context>
+  type BotConversation = Conversation<BotContext>
 
 Bot setup:
   const token = process.env['TELEGRAM_BOT_TOKEN']
   const allowedUserId = Number(process.env['TELEGRAM_ALLOWED_USER_ID'])
-  // Export bot only if token exists; otherwise export null
-  export const bot = token ? new Bot(token) : null
+  export const bot = token ? new Bot<BotContext>(token) : null
+  if (bot) {
+    bot.use(conversations())
+    bot.use(createConversation(ideaConversation))
+  }
 
 Pending seeds:
-  const pendingSeeds = new Map<number, string>()  // userId → seedText
+  const pendingSeeds = new Map<number, { seedText: string; universeId: number }>()
 
 Message handler (bot.on('message:text')):
   1. if (!deriveIsAuthorizedUser(ctx.from?.id, allowedUserId)) return
-  2. pendingSeeds.set(ctx.from.id, ctx.message.text.trim())
+  2. pendingSeeds.set(ctx.from.id, { seedText: ctx.message.text.trim(), universeId: 0 })
+     (universeId=0 is a placeholder — it will be filled by callback before entering conversation)
   3. Load storyGroups from DB
-  4. Build InlineKeyboard with one button per universe: .text(name, `universe:${id}`)
+  4. Build InlineKeyboard: one button per universe → .text(name, `universe:${id}`)
   5. ctx.reply("Выбери вселенную:", { reply_markup: keyboard })
 
 Callback query handler (bot.callbackQuery(/^universe:\d+$/)):
   1. if (!deriveIsAuthorizedUser(ctx.from?.id, allowedUserId)) return ctx.answerCallbackQuery()
-  2. const universeId = parseInt(ctx.callbackQuery.data.split(':')[1])
-  3. const seedText = pendingSeeds.get(ctx.from.id)
-  4. if (!seedText) return ctx.answerCallbackQuery({ text: 'Нет ожидающего текста' })
-  5. pendingSeeds.delete(ctx.from.id)
-  6. const ideaPayload = deriveIdeaFromMessage(seedText, universeId)
-  7. INSERT storyIdeas with ideaPayload + status='approved' + approvedAt=new Date()
-  8. INSERT stories (groupId=universeId, seed=seedText, status='draft', mode='auto', source='agent')
-  9. Load universe row from storyGroups (systemPrompt, universeContext, styleGuide)
-  10. triggerAutoPipeline(storyId, seedText, systemPrompt, universeContext, styleGuide, universeId)
-  11. ctx.answerCallbackQuery()
-  12. ctx.reply(`Story #${storyId} создана, пайплайн запущен ✓`)
+  2. universeId = parseInt(ctx.callbackQuery.data.split(':')[1])
+  3. pending = pendingSeeds.get(ctx.from.id)
+  4. if (!pending) return ctx.answerCallbackQuery({ text: 'Нет ожидающего текста — отправь идею ещё раз' })
+  5. pending.universeId = universeId
+  6. ctx.answerCallbackQuery()
+  7. ctx.conversation.enter('ideaConversation')
 
-Error handling: wrap steps 7–12 in try/catch; on error: ctx.answerCallbackQuery(); ctx.reply('Ошибка при создании истории')
+Conversation function ideaConversation(conversation, ctx):
+  Step 1 — create story and generate questions (side effect, wrapped in conversation.external):
+    const { storyId, questions } = await conversation.external(async () => {
+      const { seedText, universeId } = pendingSeeds.get(ctx.from!.id)!
+      pendingSeeds.delete(ctx.from!.id)
+
+      const ideaPayload = deriveIdeaFromMessage(seedText, universeId)
+      await db.insert(storyIdeas).values({ ...ideaPayload, status: 'approved', approvedAt: new Date() })
+
+      const [newStory] = await db.insert(stories).values({
+        groupId: universeId, seed: seedText, status: 'draft', mode: 'manual', source: 'agent'
+      }).returning({ id: stories.id })
+      const storyId = newStory!.id
+
+      const [universe] = await db.select().from(storyGroups).where(eq(storyGroups.id, universeId))
+      const sashaContext = await synthesizeSashaContext()
+      const models = await resolvePipelineModels(universeId, {})
+
+      const questions = await runQuestionsPhase({
+        seed: seedText, storyId, models,
+        universeSystemPrompt: universe?.systemPrompt,
+        universeContext: universe?.universeContext ?? undefined,
+        sashaContext,
+      })
+
+      await db.delete(planQuestions).where(eq(planQuestions.storyId, storyId))
+      await db.insert(planQuestions).values(
+        questions.map(q => ({ storyId, questionText: q.question, answerOptions: q.options ?? [] }))
+      )
+      setPipelineStatus(storyId, 'questions_pending')
+
+      return { storyId, questions }
+    })
+
+  Step 2 — ask questions one by one:
+    const answers: Array<{ question: string; answer: string }> = []
+    for (const q of questions) {
+      if (q.options && q.options.length > 0) {
+        // show options as inline buttons
+        const kb = new InlineKeyboard()
+        q.options.forEach(opt => kb.text(opt, `ans:${opt}`).row())
+        await ctx.reply(q.question, { reply_markup: kb })
+        const ansCtx = await conversation.waitFor('callback_query:data')
+        await ansCtx.answerCallbackQuery()
+        answers.push({ question: q.question, answer: ansCtx.callbackQuery.data.replace(/^ans:/, '') })
+      } else {
+        await ctx.reply(q.question)
+        const ansCtx = await conversation.waitFor('message:text')
+        answers.push({ question: q.question, answer: ansCtx.message.text })
+      }
+    }
+
+  Step 3 — submit answers and trigger pipeline (side effect):
+    await conversation.external(async () => {
+      const dbQuestions = await db.select().from(planQuestions)
+        .where(eq(planQuestions.storyId, storyId))
+        .orderBy(asc(planQuestions.createdAt))
+      const now = new Date()
+      for (let i = 0; i < dbQuestions.length; i++) {
+        const answer = answers[i]
+        if (dbQuestions[i] && answer) {
+          await db.update(planQuestions)
+            .set({ answerText: answer.answer, answeredAt: now })
+            .where(eq(planQuestions.id, dbQuestions[i]!.id))
+        }
+      }
+      const [storyRow] = await db.select().from(stories).where(eq(stories.id, storyId))
+      const seed = storyRow?.seed ?? ''
+      const [universe] = await db.select().from(storyGroups)
+        .where(eq(storyGroups.id, storyRow?.groupId!))
+      triggerPlanPhaseFromAnswers(
+        storyId, seed, answers,
+        universe?.systemPrompt, universe?.universeContext ?? undefined, universe?.styleGuide ?? undefined,
+        storyRow?.groupId ?? null
+      )
+    })
+
+  Step 4:
+    await ctx.reply(`История #${storyId} создана, пайплайн запущен ✓`)
 ```
 
 ```
