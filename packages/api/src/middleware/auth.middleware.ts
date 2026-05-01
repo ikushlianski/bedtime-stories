@@ -9,7 +9,20 @@ declare global {
   }
 }
 
+const DEV_API_KEY = process.env['DEV_API_KEY']
+
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
+  if (
+    process.env['NODE_ENV'] !== 'production' &&
+    DEV_API_KEY !== undefined &&
+    DEV_API_KEY !== '' &&
+    req.headers['x-dev-api-key'] === DEV_API_KEY
+  ) {
+    req.user = { sub: 1, username: 'dev' }
+    next()
+    return
+  }
+
   const token = req.cookies?.['auth_token'] as string | undefined
   console.log(`[requireAuth] ${req.method} ${req.path} - Auth token present:`, !!token)
 
