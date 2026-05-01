@@ -211,6 +211,13 @@
       "when": 1777456121610,
       "tag": "0029_worthless_morlun",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1777626408737,
+      "tag": "0030_tense_nomad",
+      "breakpoints": true
     }
   ]
 }

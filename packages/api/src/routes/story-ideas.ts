@@ -17,8 +17,13 @@ const rejectSchema = z.object({
   rejectionReason: z.string().optional(),
 })
 
+const suggestSchema = z.object({
+  model: z.string().min(1, 'Model must be specified'),
+})
+
 const approveSchema = z.object({
   createStory: z.boolean().default(false),
+  model: z.string().min(1, 'Model must be specified'),
 })
 
 router.get('/', async (req, res) => {
@@ -48,7 +53,7 @@ router.get('/', async (req, res) => {
   }
 })
 
-router.post('/suggest', async (req, res) => {
+router.post('/suggest', validate(suggestSchema), async (req, res) => {
   try {
     const p = req.params as Record<string, string | undefined>
     const universeId = parseIntParam(p['universeId'])
@@ -64,6 +69,9 @@ router.post('/suggest', async (req, res) => {
       res.status(404).json({ error: 'Universe not found' })
       return
     }
+
+    const body = req.body as z.infer<typeof suggestSchema>
+    const model = body.model
 
     const previousStories = await db
       .select({ title: stories.title, seed: stories.seed, planFinal: stories.planFinal })
@@ -103,6 +111,7 @@ router.post('/suggest', async (req, res) => {
       approvedIdeasSummary,
       rejectedIdeasSummary,
       universeId,
+      model,
     })
 
     const createdIds: number[] = []
@@ -116,6 +125,7 @@ router.post('/suggest', async (req, res) => {
             seedText: idea.seed,
             rationale: idea.rationale,
             status: 'pending',
+            ideaSuggesterModel: model,
           })
           .returning({ id: storyIdeas.id })
 
@@ -166,6 +176,7 @@ router.post('/:ideaId/approve', validate(approveSchema), async (req, res) => {
           status: 'draft',
           source: 'agent',
           mode: 'auto',
+          plotterModel: body.model,
         })
         .returning({ id: stories.id })
 

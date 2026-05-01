@@ -73,6 +73,7 @@ export interface StoryIdea {
   rejectionReason: string | null
   approvedAt: string | null
   rejectedAt: string | null
+  ideaSuggesterModel: string
   createdAt: string
   updatedAt: string
 }
@@ -620,18 +621,18 @@ export const api = {
     listIdeas: (universeId: number, status?: 'pending' | 'approved' | 'rejected' | 'all') =>
       request<StoryIdea[]>(`/api/universes/${universeId}/ideas${status ? `?status=${status}` : ''}`),
 
-    suggestIdeas: (universeId: number) =>
+    suggestIdeas: (universeId: number, model: string) =>
       request<{ ideaCount: number; createdIds: number[] }>(`/api/universes/${universeId}/ideas/suggest`, {
         method: 'POST',
-        body: JSON.stringify({}),
+        body: JSON.stringify({ model }),
       }),
 
-    approveIdea: (universeId: number, ideaId: number, createStory?: boolean) =>
+    approveIdea: (universeId: number, ideaId: number, model: string, createStory?: boolean) =>
       request<{ success: boolean; createdStoryId: number | null }>(
         `/api/universes/${universeId}/ideas/${ideaId}/approve`,
         {
           method: 'POST',
-          body: JSON.stringify({ createStory: createStory ?? false }),
+          body: JSON.stringify({ createStory: createStory ?? false, model }),
         },
       ),
 

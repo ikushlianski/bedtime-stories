@@ -9,7 +9,7 @@ export async function runIdeaSuggester(options: {
   approvedIdeasSummary?: string | undefined
   rejectedIdeasSummary?: string | undefined
   universeId?: number | null
-  model?: string
+  model: string
   cwd?: string
 }): Promise<IdeaSuggesterOutput> {
   const {
@@ -18,8 +18,13 @@ export async function runIdeaSuggester(options: {
     previousStories,
     approvedIdeasSummary,
     rejectedIdeasSummary,
+    model,
   } = options
   const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
+
+  if (!model) {
+    throw new Error('Model is required for idea suggestion')
+  }
 
   let storiesSummary = ''
   if (previousStories.length > 0) {
@@ -58,13 +63,9 @@ ${universeContext}${styleGuideBlock}${storiesSummary}${approvedBlock}${rejectedB
 - seed: одна-две строки, описывающие основную идею сказки
 - rationale: объяснение, почему эта идея подходит для этой вселенной`
 
-  const choice = await resolveStageModel(options.universeId ?? null, 'ideaSuggester')
-  const model = options.model ?? choice.model
-
   return aiRunner.runStructured({
     skill: 'idea-suggester',
     model,
-    fallback: choice.fallback,
     prompt,
     outputSchema: IdeaSuggesterOutputSchema,
     stage: 'ideaSuggester',

@@ -288,6 +288,7 @@ export const storyIdeas = pgTable('story_ideas', {
   rejectionReason: text('rejection_reason'),
   approvedAt: timestamp('approved_at'),
   rejectedAt: timestamp('rejected_at'),
+  ideaSuggesterModel: text('idea_suggester_model').notNull(),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 })

@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
+import type { ModelCatalogEntry } from '../lib/api'
 import { StoryIdea, api } from '../lib/api'
 import { IdeaCard } from './idea-card'
 import { Button } from './button'
+import ModelSelectDropdown from './model-select-dropdown'
 
 export interface StoryIdeasProps {
   universeId: number
@@ -14,6 +16,9 @@ export function StoryIdeas({ universeId, onIdeasChange, onStoryCreated }: StoryI
   const [isLoading, setIsLoading] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [models, setModels] = useState<ModelCatalogEntry[]>([])
+  const [selectedModel, setSelectedModel] = useState('')
+  const [showModelSelector, setShowModelSelector] = useState(false)
 
   const loadIdeas = async () => {
     setIsLoading(true)
@@ -30,11 +35,28 @@ export function StoryIdeas({ universeId, onIdeasChange, onStoryCreated }: StoryI
     }
   }
 
+  const loadModels = async () => {
+    try {
+      const data = await api.models.list()
+      setModels(data)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Ошибка при загрузке моделей'
+      setError(msg)
+    }
+  }
+
   const generateIdeas = async () => {
+    if (!selectedModel) {
+      setError('Выберите модель для генерирования идей')
+      return
+    }
+
     setIsGenerating(true)
     setError(null)
     try {
-      await api.universes.suggestIdeas(universeId)
+      await api.universes.suggestIdeas(universeId, selectedModel)
+      setShowModelSelector(false)
+      setSelectedModel('')
       await loadIdeas()
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Ошибка при генерировании идей'
@@ -44,9 +66,9 @@ export function StoryIdeas({ universeId, onIdeasChange, onStoryCreated }: StoryI
     }
   }
 
-  const handleApproveIdea = async (ideaId: number, createStory: boolean) => {
+  const handleApproveIdea = async (ideaId: number, createStory: boolean, model: string) => {
     try {
-      const result = await api.universes.approveIdea(universeId, ideaId, createStory)
+      const result = await api.universes.approveIdea(universeId, ideaId, model, createStory)
       if (createStory && result.createdStoryId) {
         onStoryCreated?.(result.createdStoryId)
       }
@@ -69,6 +91,7 @@ export function StoryIdeas({ universeId, onIdeasChange, onStoryCreated }: StoryI
 
   useEffect(() => {
     loadIdeas()
+    loadModels()
   }, [universeId])
 
   const ideasByTopic = ideas.reduce(
@@ -98,13 +121,49 @@ export function StoryIdeas({ universeId, onIdeasChange, onStoryCreated }: StoryI
         </h3>
         <Button
           size="sm"
-          onClick={generateIdeas}
+          onClick={() => setShowModelSelector(true)}
           loading={isGenerating}
           disabled={isLoading || isGenerating}
         >
           Генерировать идеи
         </Button>
       </div>
+
+      {showModelSelector && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-base-100 rounded-lg p-6 max-w-sm w-full mx-4">
+            <h4 className="font-semibold mb-4">Выберите модель для генерирования идей</h4>
+            <ModelSelectDropdown
+              models={models}
+              value={selectedModel}
+              onChange={setSelectedModel}
+              placeholder="Выберите модель..."
+            />
+            <div className="flex gap-2 mt-6">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setShowModelSelector(false)
+                  setSelectedModel('')
+                }}
+                disabled={isGenerating}
+              >
+                Отмена
+              </Button>
+              <Button
+                size="sm"
+                onClick={generateIdeas}
+                loading={isGenerating}
+                disabled={!selectedModel || isGenerating}
+                className="flex-1"
+              >
+                Генерировать
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isLoading && (
         <div className="flex justify-center py-8">
@@ -126,7 +185,8 @@ export function StoryIdeas({ universeId, onIdeasChange, onStoryCreated }: StoryI
               <IdeaCard
                 key={idea.id}
                 idea={idea}
-                onApprove={(createStory) => handleApproveIdea(idea.id, createStory ?? false)}
+                models={models}
+                onApprove={(createStory, model) => handleApproveIdea(idea.id, createStory ?? false, model ?? '')}
                 onReject={(reason) => handleRejectIdea(idea.id, reason)}
               />
             ))}

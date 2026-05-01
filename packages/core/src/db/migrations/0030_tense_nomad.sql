@@ -1,0 +1,1 @@
+ALTER TABLE "story_ideas" ADD COLUMN "idea_suggester_model" text;
