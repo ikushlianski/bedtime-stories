@@ -17,12 +17,10 @@ export function decidePipelineRetry(
     status === 'plan_ready' ||
     status === 'text_running' ||
     status === 'text_ready' ||
-    status === 'questions_pending'
+    status === 'questions_pending' ||
+    status === 'questions_answered' ||
+    status === 'questions_failed'
   ) {
-    return { action: 'hidden' }
-  }
-
-  if (status === 'questions_answered') {
     return { action: 'hidden' }
   }
 

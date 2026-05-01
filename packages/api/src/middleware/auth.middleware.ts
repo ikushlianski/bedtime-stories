@@ -24,20 +24,16 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   }
 
   const token = req.cookies?.['auth_token'] as string | undefined
-  console.log(`[requireAuth] ${req.method} ${req.path} - Auth token present:`, !!token)
 
   if (!token) {
-    console.log(`[requireAuth] No token for ${req.method} ${req.path}. Returning 401`)
     res.status(401).json({ error: 'Unauthorized' })
     return
   }
 
   try {
     req.user = decodeToken(token)
-    console.log(`[requireAuth] Token decoded for user ${req.user?.username} on ${req.method} ${req.path}`)
     next()
-  } catch (error) {
-    console.log(`[requireAuth] Token decode failed on ${req.method} ${req.path}:`, error instanceof Error ? error.message : error)
+  } catch {
     res.status(401).json({ error: 'Unauthorized' })
   }
 }

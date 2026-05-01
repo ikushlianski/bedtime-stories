@@ -22,6 +22,7 @@ export const defaultModels: PipelineModels = {
   plotCritic: DEFAULT_STAGE_MODELS.plotCritic.model,
   writer: DEFAULT_STAGE_MODELS.writer.model,
   writerCritic: DEFAULT_STAGE_MODELS.writerCritic.model,
+  plotterQuestions: DEFAULT_STAGE_MODELS.plotterQuestions.model,
 }
 
 export const defaultPromptVersions: PipelinePromptVersions = {
@@ -74,5 +75,6 @@ export async function resolvePipelineModels(
     plotCritic: resolved.plotCritic.model,
     writer: resolved.writer.model,
     writerCritic: resolved.writerCritic.model,
+    plotterQuestions: resolved.plotterQuestions.model,
   }
 }

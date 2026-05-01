@@ -92,6 +92,18 @@ jobs:
 
       - uses: google-github-actions/setup-gcloud@v2
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Run database migrations
+        run: npm run db:migrate
+        env:
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker ${{ vars.PROD_REGION }}-docker.pkg.dev --quiet
 

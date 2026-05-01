@@ -11,6 +11,7 @@ export interface PipelineModels {
   plotCritic: string
   writer: string
   writerCritic: string
+  plotterQuestions: string
 }
 
 export interface PipelinePromptVersions {
@@ -458,7 +459,7 @@ export async function runQuestionsPhase(options: {
 
     return runPlotterQuestions({
       seed,
-      model: models.plotter,
+      model: models.plotterQuestions,
       storyId: options.storyId,
       ...cwdArg,
       ...universeArg,

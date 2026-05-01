@@ -39,6 +39,7 @@ const TERMINAL_PUBLIC_STATUSES = new Set<PipelineStatusValue>([
   'text_ready',
   'text_review',
   'failed',
+  'questions_failed',
 ])
 
 function toAgentName(raw: string): AgentName {
@@ -51,6 +52,7 @@ function toAgentName(raw: string): AgentName {
 
 function questionsStepStatus(statusValue: PipelineStatusValue): AgentStatus {
   if (statusValue === 'pending' || statusValue === 'questions_pending') return 'running'
+  if (statusValue === 'questions_failed') return 'error'
   return 'done'
 }
 
@@ -98,6 +100,7 @@ function internalToPublicStatus(internal: string): PipelineStatusValue {
   switch (internal) {
     case 'questions_pending': return 'questions_pending'
     case 'questions_answered': return 'questions_answered'
+    case 'questions_failed': return 'questions_failed'
     case 'plan_running': return 'plan_running'
     case 'plan_ready': return 'plan_ready'
     case 'plan_failed': return 'failed'
@@ -115,6 +118,8 @@ function describeStatus(status: PipelineStatusValue): string {
       return 'Ожидаем ответов на уточняющие вопросы.'
     case 'questions_answered':
       return 'Вопросы отвечены. Запустите фазу планирования.'
+    case 'questions_failed':
+      return 'Ошибка при генерации вопросов. Выберите модель и попробуйте снова.'
     case 'plan_running':
       return 'Идёт фаза планирования.'
     case 'plan_ready':
@@ -333,10 +338,18 @@ export function PipelineStatusPage() {
 
       {status && (
         <div className="space-y-6">
-          {status.status === 'pending' && story && !story.model && (
+          {(status.status === 'pending' || status.status === 'questions_failed') && story && (
             <div className="card border border-base-300 bg-base-100 shadow-sm">
               <div className="card-body gap-4">
                 <h2 className="font-serif text-2xl text-base-content">Уточняющие вопросы</h2>
+
+                {status.status === 'questions_failed' && (
+                  <StatusCallout
+                    tone="error"
+                    title="Ошибка генерации вопросов"
+                    message="Не удалось сгенерировать вопросы. Выберите модель и попробуйте снова."
+                  />
+                )}
 
                 <p className="text-sm text-base-content/60">
                   Выберите модель для генерации вопросов, которые помогут сделать историю более личной.
@@ -370,7 +383,7 @@ export function PipelineStatusPage() {
             </div>
           )}
 
-          {status.status !== 'pending' && (
+          {status.status !== 'pending' && status.status !== 'questions_failed' && (
             <QuestionsPipelineSection
               storyId={storyId}
               pipelineStatus={status.status}

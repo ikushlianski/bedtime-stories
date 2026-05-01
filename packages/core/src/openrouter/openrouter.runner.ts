@@ -1,6 +1,5 @@
 import { readFile } from 'node:fs/promises'
-import { existsSync } from 'node:fs'
-import { join, resolve, dirname } from 'node:path'
+import { join } from 'node:path'
 import { eq } from 'drizzle-orm'
 import { db } from '../db/client.js'
 import { modelCatalog } from '../db/schema.js'
@@ -48,36 +47,26 @@ export function isRetryable(err: unknown): boolean {
   )
 }
 
-const skillCache = new Map<string, string>()
-let cachedSkillsRoot: string | null = null
+const SKILLS_DIR = join(import.meta.dirname, '../skills')
 
-function findSkillsRoot(startDir: string): string {
-  let dir = resolve(startDir)
+const skillCache = new Map<string, string | null>()
 
-  while (true) {
-    if (existsSync(join(dir, '.claude', 'skills'))) return dir
+async function loadSkillBody(skillName: string): Promise<string | null> {
+  const cached = skillCache.get(skillName)
 
-    const parent = dirname(dir)
-    if (parent === dir) {
-      throw new Error(`Could not find .claude/skills directory walking up from ${startDir}`)
-    }
-
-    dir = parent
-  }
-}
-
-async function loadSkillBody(skillName: string, startDir: string): Promise<string> {
-  if (cachedSkillsRoot === null) cachedSkillsRoot = findSkillsRoot(startDir)
-
-  const cacheKey = `${cachedSkillsRoot}::${skillName}`
-  const cached = skillCache.get(cacheKey)
   if (cached !== undefined) return cached
 
-  const path = join(cachedSkillsRoot, '.claude', 'skills', skillName, 'SKILL.md')
-  const raw = await readFile(path, 'utf-8')
-  const body = raw.replace(/^---\n[\s\S]*?\n---\n/, '').trim()
-  skillCache.set(cacheKey, body)
-  return body
+  const path = join(SKILLS_DIR, `${skillName}.md`)
+
+  try {
+    const raw = await readFile(path, 'utf-8')
+    const body = raw.replace(/^---\n[\s\S]*?\n---\n/, '').trim()
+    skillCache.set(skillName, body)
+    return body
+  } catch {
+    skillCache.set(skillName, null)
+    return null
+  }
 }
 
 const supportsJsonSchemaCache = new Map<string, boolean>()
@@ -220,18 +209,19 @@ export class OpenRouterRunner implements AiRunner {
   async runStructured<T>(options: RunStructuredOptions<T>): Promise<T> {
     const stage = options.stage ?? options.skill
     const label = `skill:${options.skill}`
-    const skillCwd = options.cwd ?? process.cwd()
-    const skillBody = await loadSkillBody(options.skill, skillCwd)
-    const userPrompt = [
-      `You are operating under the "${options.skill}" skill. Follow its instructions precisely and respond with the exact JSON shape the skill specifies.`,
-      '',
-      '=== SKILL INSTRUCTIONS ===',
-      skillBody,
-      '=== END SKILL INSTRUCTIONS ===',
-      '',
-      '=== INPUT ===',
-      options.prompt,
-    ].join('\n')
+    const skillBody = await loadSkillBody(options.skill)
+    const userPrompt = skillBody
+      ? [
+          `You are operating under the "${options.skill}" skill. Follow its instructions precisely and respond with the exact JSON shape the skill specifies.`,
+          '',
+          '=== SKILL INSTRUCTIONS ===',
+          skillBody,
+          '=== END SKILL INSTRUCTIONS ===',
+          '',
+          '=== INPUT ===',
+          options.prompt,
+        ].join('\n')
+      : options.prompt
 
     const generation = langfuse.generation({
       name: options.skill,

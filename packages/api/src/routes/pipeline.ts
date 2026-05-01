@@ -39,9 +39,9 @@ const runPipelineSchema = z.object({
 })
 
 router.post('/run', validate(runPipelineSchema), async (req, res) => {
-  try {
-    const { storyId, seed, model } = req.body as z.infer<typeof runPipelineSchema>
+  const { storyId, seed, model } = req.body as z.infer<typeof runPipelineSchema>
 
+  try {
     let [storyRow] = await db.select().from(stories).where(eq(stories.id, storyId))
 
     if (!storyRow) {
@@ -130,6 +130,7 @@ router.post('/run', validate(runPipelineSchema), async (req, res) => {
 
     res.json({ started: true, storyId, phase: 'questions' })
   } catch (err) {
+    setPipelineStatus(storyId, 'questions_failed')
     console.error('POST /pipeline/run failed:', err)
     res.status(500).json({ error: 'Failed to start pipeline' })
   }
@@ -238,7 +239,7 @@ router.get('/status/:storyId', async (req, res) => {
   }
 })
 
-const TERMINAL_INTERNAL_STATUSES = new Set(['plan_ready', 'text_ready', 'text_review', 'plan_failed', 'text_failed'])
+const TERMINAL_INTERNAL_STATUSES = new Set(['plan_ready', 'text_ready', 'text_review', 'plan_failed', 'text_failed', 'questions_failed'])
 
 router.get('/stream/:storyId', (req, res) => {
   const storyId = parseInt(req.params['storyId'] ?? '', 10)

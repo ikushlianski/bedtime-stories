@@ -1,6 +1,6 @@
 import { aiRunner } from '../../ai'
 
-const TITLE_GENERATOR_MODEL = 'google/gemini-2.0-flash-lite'
+const TITLE_GENERATOR_MODEL = 'deepseek/deepseek-chat'
 
 export async function generateStoryTitle(options: {
   plan: string

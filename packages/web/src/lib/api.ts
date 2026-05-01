@@ -353,6 +353,7 @@ export interface CreateAnnotationInput {
 export type PipelineStatusValue =
   | 'questions_pending'
   | 'questions_answered'
+  | 'questions_failed'
   | 'plan_running'
   | 'plan_ready'
   | 'text_running'

@@ -1,0 +1,1 @@
+- [ ] Add skill that encompasses sentry, langfuse and gcloud cli
