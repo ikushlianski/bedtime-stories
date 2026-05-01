@@ -43,3 +43,4 @@
 4. **Validation: How to verify coverage?**
    - Write a script to check all `await runXPhase/runXOnly/synthesize` calls and flag if not wrapped?
    - Add a Langfuse integration test that verifies parent traces exist for all pipeline runs?
+
