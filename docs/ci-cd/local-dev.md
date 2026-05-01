@@ -45,11 +45,15 @@ npm run docker:build
 
 ## Environment variables
 
-Docker Compose reads from `.env` at the repo root. Copy from `.env.example` and fill in values:
+Docker Compose reads from `.env` at the repo root (git-ignored). Copy from `.env.example` and fill in actual dev values:
 
 ```bash
 cp .env.example .env
-# Edit .env — required: DATABASE_URL, JWT_SECRET, OPENROUTER_API_KEY
+# Edit .env with actual values:
+# - DATABASE_URL: Neon dev branch connection string
+# - OPENROUTER_API_KEY: Dev OpenRouter API key (we use OpenRouter for all LLM access)
+# - JWT_SECRET: Any 32+ char string for local dev
+# - TELEGRAM_BOT_TOKEN, SENTRY_*, LANGFUSE_*, GOOGLE_CLIENT_*: Dev credentials
 ```
 
 The containers also receive:
