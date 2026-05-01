@@ -68,18 +68,17 @@ router.post('/', validate(swapModelSchema), async (req: Request<StoryParams>, re
       [stage]: { ...(currentOverrides[stage] ?? {}), model: body.toModel },
     }
 
-    await db.transaction(async (tx) => {
-      await tx.insert(modelSwapEvents).values({
+    await db.batch([
+      db.insert(modelSwapEvents).values({
         storyId,
         stage,
         fromModel,
         toModel: body.toModel,
         reasonChip: body.reasonChip ?? null,
         reasonText: body.reasonText ?? null,
-      })
-
-      await tx.update(stories).set({ agentOverrides: nextOverrides }).where(eq(stories.id, storyId))
-    })
+      }),
+      db.update(stories).set({ agentOverrides: nextOverrides }).where(eq(stories.id, storyId)),
+    ])
 
     console.log(`[swap] story_id=${storyId} stage=${stage} from=${fromModel ?? 'none'} to=${body.toModel} chip=${body.reasonChip ?? 'none'}`)
 

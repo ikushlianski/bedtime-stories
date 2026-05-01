@@ -56,12 +56,7 @@ function questionsStepStatus(statusValue: PipelineStatusValue): AgentStatus {
   return 'done'
 }
 
-function toPipelineSteps(status: PipelineStatus): PipelineStep[] {
-  const questionsStep: PipelineStep = {
-    agentName: 'Questions',
-    status: questionsStepStatus(status.status),
-  }
-
+function toPipelineSteps(status: PipelineStatus, mode: 'auto' | 'manual'): PipelineStep[] {
   const currentStep = status.current_step ?? null
   let passedCurrent = false
 
@@ -88,6 +83,13 @@ function toPipelineSteps(status: PipelineStatus): PipelineStep[] {
 
     return { agentName, status: resolvedStatus, summary: step.summary }
   })
+
+  if (mode === 'auto') return agentSteps
+
+  const questionsStep: PipelineStep = {
+    agentName: 'Questions',
+    status: questionsStepStatus(status.status),
+  }
 
   return [questionsStep, ...agentSteps]
 }
@@ -383,7 +385,7 @@ export function PipelineStatusPage() {
             </div>
           )}
 
-          {status.status !== 'pending' && status.status !== 'questions_failed' && (
+          {story?.mode !== 'auto' && status.status !== 'pending' && status.status !== 'questions_failed' && (
             <QuestionsPipelineSection
               storyId={storyId}
               pipelineStatus={status.status}
@@ -393,7 +395,7 @@ export function PipelineStatusPage() {
             />
           )}
 
-          <PipelineProgress steps={toPipelineSteps(status)} />
+          <PipelineProgress steps={toPipelineSteps(status, story?.mode ?? 'manual')} />
 
           <AttentionStories currentStoryId={storyId} />
 

@@ -323,7 +323,7 @@ setStoryTags((story.tags as string[] | null) ?? [])
     <div>
       <Toast message={toastMessage} />
 
-      {pipelineStatus === 'text_review' && (currentStatus ?? story.status) === 'draft' && (
+      {(currentStatus ?? story.status) === 'draft' && textToDisplay && (
         <div className="mb-6 rounded-box border border-primary/30 bg-primary/10 p-4">
           {story.text_change_summary && (
             <div className="mb-4 rounded-box border border-info/30 bg-info/10 p-4">
@@ -568,7 +568,7 @@ setStoryTags((story.tags as string[] | null) ?? [])
         </div>
       )}
 
-      {pipelineStatus === 'text_review' && (currentStatus ?? story.status) === 'draft' && (
+      {(currentStatus ?? story.status) === 'draft' && textToDisplay && (
         <div className="mt-4 rounded-box border border-primary/30 bg-primary/10 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-base-content">Одобри историю или отправь на доработку.</p>

@@ -1070,6 +1070,7 @@ router.delete('/:id', async (req, res) => {
     await db.delete(planQuestions).where(eq(planQuestions.storyId, storyId))
     await db.delete(planConversations).where(eq(planConversations.storyId, storyId))
     await db.delete(storyReadings).where(eq(storyReadings.storyId, storyId))
+    await db.delete(modelCalls).where(eq(modelCalls.storyId, storyId))
     await db.delete(stories).where(eq(stories.id, storyId))
 
     res.status(204).send()

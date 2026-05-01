@@ -39,26 +39,25 @@ vi.mock('@bedtime/core/db/client', () => {
     }
   })
 
-  const tx = {
-    insert: vi.fn(() => ({
-      values: vi.fn((v: Record<string, unknown>) => {
-        dbState.insertedSwap = v
-        return Promise.resolve()
-      }),
-    })),
-    update: vi.fn((tbl: unknown) => ({
-      set: vi.fn((v: Record<string, unknown>) => {
-        const n = tableName(tbl)
-        if (n === 'run_snapshots') dbState.updatedSnapshotPatch = v
-        else if (n === 'stories') dbState.updatedStoryPatch = v
-        return { where: vi.fn(() => Promise.resolve()) }
-      }),
-    })),
-  }
+  const insert = vi.fn(() => ({
+    values: vi.fn((v: Record<string, unknown>) => {
+      dbState.insertedSwap = v
+      return Promise.resolve()
+    }),
+  }))
 
-  const transaction = vi.fn(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx))
+  const update = vi.fn((tbl: unknown) => ({
+    set: vi.fn((v: Record<string, unknown>) => {
+      const n = tableName(tbl)
+      if (n === 'run_snapshots') dbState.updatedSnapshotPatch = v
+      else if (n === 'stories') dbState.updatedStoryPatch = v
+      return { where: vi.fn(() => Promise.resolve()) }
+    }),
+  }))
 
-  return { db: { select, transaction } }
+  const batch = vi.fn((queries: Array<Promise<unknown>>) => Promise.all(queries))
+
+  return { db: { select, insert, update, batch } }
 })
 
 const planRedo = vi.fn()

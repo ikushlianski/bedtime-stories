@@ -1,1 +1,2 @@
 - [ ] Add skill that encompasses sentry, langfuse and gcloud cli
+- [ ] Move nightly OpenRouter catalog sync from `setInterval` in API process to GCP Cloud Scheduler + Cloud Tasks (currently in `packages/core/src/openrouter/sync-catalog.ts` — fires on boot then every 24h via setInterval; fragile if Cloud Run restarts or scales to zero)

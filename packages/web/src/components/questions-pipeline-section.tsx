@@ -144,6 +144,8 @@ export function QuestionsPipelineSection({ storyId, pipelineStatus, onAnswersSub
   if (!isPending && !isAnswered) return null
 
   if (isAnswered) {
+    if (!loading && questions.length === 0) return null
+
     return (
       <div className="card border border-base-300 bg-base-100 shadow-sm">
         <div className="card-body py-4">
