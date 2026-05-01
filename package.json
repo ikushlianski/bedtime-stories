@@ -18,7 +18,13 @@
     "docker:up": "docker compose up",
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f",
-    "docker:build": "docker compose build"
+    "docker:build": "docker compose build",
+    "lf:traces": "langfuse --env .env api traces list --limit 20",
+    "lf:prompts": "langfuse --env .env api prompts list",
+    "lf:prompt": "langfuse --env .env api prompts get --name",
+    "lf:sessions": "langfuse --env .env api sessions list --limit 20",
+    "lf:scores": "langfuse --env .env api score-v2s get-scores --limit 20",
+    "lf:datasets": "langfuse --env .env api datasets list"
   },
   "keywords": [],
   "author": "",
@@ -46,6 +52,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^25.5.0",
     "drizzle-kit": "^0.31.10",
+    "langfuse-cli": "^0.0.9",
     "tsx": "^4.21.0",
     "typescript": "^6.0.2",
     "vitest": "^2.1.9"
