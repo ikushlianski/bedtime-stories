@@ -10,12 +10,14 @@ RUN npm ci
 
 FROM base AS development
 COPY . .
+RUN npm ci
 ENV PORT=8020 HOST=0.0.0.0 NODE_ENV=development
 EXPOSE 8020
 CMD ["npx", "tsx", "watch", "packages/api/src/index.ts"]
 
 FROM base AS web-dev
 COPY . .
+RUN npm ci
 ENV PORT=8021
 EXPOSE 8021
 CMD ["npm", "run", "dev:web"]
