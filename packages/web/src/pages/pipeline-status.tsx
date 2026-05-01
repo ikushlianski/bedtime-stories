@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { api, type PipelineStatus, type PipelineStatusValue, type Story } from '../lib/api'
+import { api, type PipelineStatus, type PipelineStatusValue, type Story, type ModelCatalogEntry } from '../lib/api'
 import { AttentionStories, PageHeader, PipelineProgress, StatusCallout } from '../components'
+import ModelSelectDropdown from '../components/model-select-dropdown'
 import { QuestionsPipelineSection } from '../components/questions-pipeline-section'
 import type { PipelineStep, AgentName, AgentStatus } from '../components/types'
 import { decidePipelineRetry } from './pipeline-retry'
@@ -143,6 +144,9 @@ export function PipelineStatusPage() {
   const [retrying, setRetrying] = useState(false)
   const [retryError, setRetryError] = useState<string | null>(null)
   const [streamingText, setStreamingText] = useState('')
+  const [selectedModel, setSelectedModel] = useState<string | null>(null)
+  const [launching, setLaunching] = useState(false)
+  const [models, setModels] = useState<ModelCatalogEntry[]>([])
   const esRef = useRef<EventSource | null>(null)
 
   useEffect(() => {
@@ -155,6 +159,15 @@ export function PipelineStatusPage() {
         /* non-fatal */
       })
   }, [storyId])
+
+  useEffect(() => {
+    api.models
+      .list()
+      .then(setModels)
+      .catch(() => {
+        /* non-fatal */
+      })
+  }, [])
 
   const openEventSource = useCallback((sid: number) => {
     if (esRef.current) {
@@ -281,6 +294,23 @@ export function PipelineStatusPage() {
     }
   }, [storyId, fetchStatus])
 
+  const handleLaunchWithModel = useCallback(async () => {
+    if (!selectedModel || !story) return
+
+    setLaunching(true)
+    setError(null)
+
+    try {
+      const seed = story.seed || story.title || ''
+      await api.pipeline.run(storyId, seed, selectedModel)
+      await fetchStatus()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Не удалось запустить генерацию вопросов')
+    } finally {
+      setLaunching(false)
+    }
+  }, [storyId, selectedModel, story, fetchStatus])
+
   return (
     <div>
       <PageHeader
@@ -303,6 +333,43 @@ export function PipelineStatusPage() {
 
       {status && (
         <div className="space-y-6">
+          {status.status === 'pending' && story && !story.model && (
+            <div className="card border border-base-300 bg-base-100 shadow-sm">
+              <div className="card-body gap-4">
+                <h2 className="font-serif text-2xl text-base-content">Уточняющие вопросы</h2>
+
+                <p className="text-sm text-base-content/60">
+                  Выберите модель для генерации вопросов, которые помогут сделать историю более личной.
+                </p>
+
+                <div className="space-y-3">
+                  <label className="form-control">
+                    <span className="label-text mb-2">Модель</span>
+                    <ModelSelectDropdown
+                      models={models}
+                      value={selectedModel || ''}
+                      onChange={setSelectedModel}
+                    />
+                  </label>
+
+                  {error && (
+                    <StatusCallout tone="error" title="Ошибка" message={error} />
+                  )}
+
+                  <div className="flex justify-end">
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => void handleLaunchWithModel()}
+                      disabled={!selectedModel || launching}
+                    >
+                      {launching ? 'Запускаем…' : 'Генерировать вопросы'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {status.status !== 'pending' && (
             <QuestionsPipelineSection
               storyId={storyId}

@@ -500,10 +500,10 @@ export const api = {
   },
 
   pipeline: {
-    run: (storyId: number, seed: string) =>
+    run: (storyId: number, seed: string, model?: string) =>
       request<{ started: boolean; storyId: number; phase: 'plan' | 'questions' }>('/api/pipeline/run', {
         method: 'POST',
-        body: JSON.stringify({ storyId, seed }),
+        body: JSON.stringify({ storyId, seed, ...(model ? { model } : {}) }),
       }),
 
     status: (storyId: number) => request<PipelineStatus>(`/api/pipeline/status/${storyId}`),

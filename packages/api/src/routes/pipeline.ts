@@ -35,13 +35,14 @@ router.use('/', pipelineQuestionsRouter)
 const runPipelineSchema = z.object({
   storyId: z.number().int().positive(),
   seed: z.string().min(1),
+  model: z.string().optional(),
 })
 
 router.post('/run', validate(runPipelineSchema), async (req, res) => {
   try {
-    const { storyId, seed } = req.body as z.infer<typeof runPipelineSchema>
+    const { storyId, seed, model } = req.body as z.infer<typeof runPipelineSchema>
 
-    const [storyRow] = await db.select().from(stories).where(eq(stories.id, storyId))
+    let [storyRow] = await db.select().from(stories).where(eq(stories.id, storyId))
 
     if (!storyRow) {
       res.status(404).json({ error: 'Story not found' })
@@ -53,6 +54,16 @@ router.post('/run', validate(runPipelineSchema), async (req, res) => {
         error: 'Pipeline cannot run on user-authored stories',
       })
       return
+    }
+
+    if (model) {
+      const currentOverrides = (storyRow.agentOverrides as Record<string, unknown> | null) ?? {}
+      const nextOverrides = {
+        ...currentOverrides,
+        plotterQuestions: { ...(currentOverrides.plotterQuestions ?? {}), model },
+      }
+      await db.update(stories).set({ agentOverrides: nextOverrides }).where(eq(stories.id, storyId))
+      storyRow = { ...storyRow, agentOverrides: nextOverrides }
     }
 
     const current = getPipelineStatus(storyId)
