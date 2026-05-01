@@ -11,6 +11,7 @@ services:
       PORT: "8020"
       HOST: "0.0.0.0"
       NODE_ENV: development
+      NODE_OPTIONS: "--no-inspect"
     volumes:
       - ./packages:/app/packages
 
