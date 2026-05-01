@@ -18,7 +18,8 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@bedtime/shared/*": ["../shared/src/*"]
+      "@bedtime/shared/*": ["../shared/src/*"],
+      "@bedtime/core/*": ["../core/src/*"]
     }
   },
   "include": ["src"],

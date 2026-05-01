@@ -19,6 +19,7 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "./src"),
       "@bedtime/shared": path.resolve(__dirname, "../shared/src"),
+      "@bedtime/core": path.resolve(__dirname, "../core/src"),
     },
   },
   server: {

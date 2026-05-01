@@ -198,6 +198,7 @@ export function StoryReaderPage() {
   const [isDirty, setIsDirty] = useState(() => !!localStorage.getItem(`story-text-draft-${storyId}`))
   const [savingText, setSavingText] = useState(false)
   const [saveTextError, setSaveTextError] = useState<string | null>(null)
+  const [showRedoModal, setShowRedoModal] = useState(false)
   const editRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {

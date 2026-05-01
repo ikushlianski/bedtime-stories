@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { type ModelCategories, type StoryIdea, api, flatModels } from '../lib/api'
+import { type ModelCategories, type StoryIdea, flatModels } from '../lib/api'
 import { Button } from './button'
 import { IdeaRejectModal } from './idea-reject-modal'
 import ModelSelectDropdown from './model-select-dropdown'

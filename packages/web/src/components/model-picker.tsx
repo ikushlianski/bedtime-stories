@@ -25,7 +25,6 @@ export default function ModelPicker({ value, onChange, required = false }: Model
   const [error, setError] = useState<string | null>(null)
 
   const missingStages = required ? PIPELINE_STAGES.filter((stage) => !value[stage]?.model) : []
-  const isComplete = missingStages.length === 0
 
   useEffect(() => {
     setLoading(true)

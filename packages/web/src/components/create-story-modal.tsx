@@ -5,7 +5,7 @@ import {
   type CreateStoryFormState,
 } from './create-story-form'
 import FormField from './form-field'
-import ModelPicker, { validateStageModels } from './model-picker'
+import ModelPicker from './model-picker'
 
 interface CreateStoryModalProps {
   open: boolean
