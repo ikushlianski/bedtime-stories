@@ -12,6 +12,7 @@ import {
 } from './pipeline-persistence'
 import { setPipelineStatus, setCurrentStep } from './pipeline-state'
 import { defaultPromptVersions, resolvePipelineModels, loadStoryOverrides } from './pipeline-defaults'
+import { withPipelineTrace } from '@bedtime/observability'
 
 export function triggerTextRedoWithAnnotations(
   storyId: number,
@@ -25,75 +26,70 @@ export function triggerTextRedoWithAnnotations(
 ): void {
   setPipelineStatus(storyId, 'plan_running')
 
-  Promise.all([
-    synthesizeSashaContext(),
-    loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(universeId, overrides)),
-  ])
-    .then(([sashaContext, models]) =>
-      runPlanPhase({
-        seed: seedWithContext,
-        storyId,
-        models,
-        promptVersions: defaultPromptVersions,
-        ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
-        ...(universeContext !== undefined ? { universeContext } : {}),
-        ...(styleGuide !== undefined ? { styleGuide } : {}),
-        ...(sashaContext !== null ? { sashaContext } : {}),
-        onStepChange: (step) => setCurrentStep(storyId, step),
-      }).then((plan) => ({ plan, sashaContext, models })),
-    )
-    .then(async ({ plan, sashaContext, models }) => {
-      await db.insert(runSnapshots).values(buildPlanSnapshotInsert(storyId, plan))
+  withPipelineTrace(String(storyId), async () => {
+    const [sashaContext, models] = await Promise.all([
+      synthesizeSashaContext(),
+      loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(universeId, overrides)),
+    ])
 
-      await db.update(stories).set(buildPlanStoriesUpdate(plan)).where(eq(stories.id, storyId))
-
-      return { plan, sashaContext, models }
+    const plan = await runPlanPhase({
+      seed: seedWithContext,
+      storyId,
+      models,
+      promptVersions: defaultPromptVersions,
+      ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
+      ...(universeContext !== undefined ? { universeContext } : {}),
+      ...(styleGuide !== undefined ? { styleGuide } : {}),
+      ...(sashaContext !== null ? { sashaContext } : {}),
+      onStepChange: (step) => setCurrentStep(storyId, step),
     })
-    .then(async ({ plan, sashaContext, models }) => {
-      setPipelineStatus(storyId, 'text_running')
 
-      const text = await runTextPhase({
-        seed: seedWithContext,
-        planFinal: plan.planFinal,
-        storyId,
-        models,
-        promptVersions: defaultPromptVersions,
-        ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
-        ...(universeContext !== undefined ? { universeContext } : {}),
-        ...(styleGuide !== undefined ? { styleGuide } : {}),
-        ...(sashaContext !== null && sashaContext !== undefined ? { sashaContext } : {}),
-        onStepChange: (step) => setCurrentStep(storyId, step),
-      })
+    await db.insert(runSnapshots).values(buildPlanSnapshotInsert(storyId, plan))
+    await db.update(stories).set(buildPlanStoriesUpdate(plan)).where(eq(stories.id, storyId))
 
-      const [existing] = await db
-        .select()
-        .from(runSnapshots)
-        .where(eq(runSnapshots.storyId, storyId))
-        .orderBy(desc(runSnapshots.createdAt))
-        .limit(1)
+    setPipelineStatus(storyId, 'text_running')
 
-      if (existing) {
-        await db
-          .update(runSnapshots)
-          .set(buildTextSnapshotUpdate(text))
-          .where(eq(runSnapshots.id, existing.id))
-      }
-
-      await db.update(stories).set(buildTextStoriesUpdate(text)).where(eq(stories.id, storyId))
-
-      const summary = await generateTextChangeSummary({
-        previousText,
-        newText: text.textV2,
-        annotationFeedback,
-        model: models.writer,
-      })
-
-      await db.update(stories).set({ textChangeSummary: summary, updatedAt: new Date() }).where(eq(stories.id, storyId))
-
-      setPipelineStatus(storyId, 'text_review')
+    const text = await runTextPhase({
+      seed: seedWithContext,
+      planFinal: plan.planFinal,
+      storyId,
+      models,
+      promptVersions: defaultPromptVersions,
+      ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
+      ...(universeContext !== undefined ? { universeContext } : {}),
+      ...(styleGuide !== undefined ? { styleGuide } : {}),
+      ...(sashaContext !== null && sashaContext !== undefined ? { sashaContext } : {}),
+      onStepChange: (step) => setCurrentStep(storyId, step),
     })
-    .catch((err) => {
-      setPipelineStatus(storyId, 'text_failed')
-      console.error(`Text redo failed for storyId=${storyId}:`, err)
+
+    const [existing] = await db
+      .select()
+      .from(runSnapshots)
+      .where(eq(runSnapshots.storyId, storyId))
+      .orderBy(desc(runSnapshots.createdAt))
+      .limit(1)
+
+    if (existing) {
+      await db
+        .update(runSnapshots)
+        .set(buildTextSnapshotUpdate(text))
+        .where(eq(runSnapshots.id, existing.id))
+    }
+
+    await db.update(stories).set(buildTextStoriesUpdate(text)).where(eq(stories.id, storyId))
+
+    const summary = await generateTextChangeSummary({
+      previousText,
+      newText: text.textV2,
+      annotationFeedback,
+      model: models.writer,
     })
+
+    await db.update(stories).set({ textChangeSummary: summary, updatedAt: new Date() }).where(eq(stories.id, storyId))
+
+    setPipelineStatus(storyId, 'text_review')
+  }).catch((err) => {
+    setPipelineStatus(storyId, 'text_failed')
+    console.error(`Text redo failed for storyId=${storyId}:`, err)
+  })
 }

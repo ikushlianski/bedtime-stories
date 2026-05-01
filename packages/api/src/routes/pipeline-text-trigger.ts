@@ -7,6 +7,7 @@ import {
 } from './pipeline-persistence'
 import { getPipelineStatus, setPipelineStatus, setCurrentStep, emitPipelineEvent } from './pipeline-state'
 import { defaultPromptVersions, resolvePipelineModels, loadStoryOverrides } from './pipeline-defaults'
+import { withPipelineTraceIfNone } from '@bedtime/observability'
 
 export { getPipelineStatus, setPipelineStatus }
 
@@ -23,66 +24,65 @@ export function triggerTextPhase(
 ): void {
   setPipelineStatus(storyId, 'text_running')
 
-  Promise.all([
-    db
-      .select({ selectedText: annotations.selectedText, noteText: annotations.noteText })
-      .from(annotations)
-      .where(and(eq(annotations.storyId, storyId), eq(annotations.context, 'plan'))),
-    loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(universeId, overrides)),
-  ])
-    .then(([rows, models]) => {
-      const planAnnotations = rows
-        .filter((a) => a.noteText)
-        .map((a) => `К фрагменту «${a.selectedText}»:\n${a.noteText}`)
-        .join('\n\n')
+  withPipelineTraceIfNone(String(storyId), async () => {
+    const [rows, models] = await Promise.all([
+      db
+        .select({ selectedText: annotations.selectedText, noteText: annotations.noteText })
+        .from(annotations)
+        .where(and(eq(annotations.storyId, storyId), eq(annotations.context, 'plan'))),
+      loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(universeId, overrides)),
+    ])
 
-      return runWriterOnly({
-        seed,
-        planFinal,
-        storyId,
-        models,
-        promptVersions: defaultPromptVersions,
-        ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
-        ...(universeContext !== undefined ? { universeContext } : {}),
-        ...(styleGuide !== undefined ? { styleGuide } : {}),
-        ...(sashaContext !== undefined && sashaContext !== null ? { sashaContext } : {}),
-        ...(planAnnotations ? { userAnnotations: planAnnotations } : {}),
-        onStepChange: (step) => setCurrentStep(storyId, step),
-        onChunk: (chunk) => emitPipelineEvent(storyId, { type: 'chunk', text: chunk }),
-        onChunkReset: () => emitPipelineEvent(storyId, { type: 'chunk_reset' }),
-      })
+    const planAnnotations = rows
+      .filter((a) => a.noteText)
+      .map((a) => `К фрагменту «${a.selectedText}»:\n${a.noteText}`)
+      .join('\n\n')
+
+    const result = await runWriterOnly({
+      seed,
+      planFinal,
+      storyId,
+      models,
+      promptVersions: defaultPromptVersions,
+      ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
+      ...(universeContext !== undefined ? { universeContext } : {}),
+      ...(styleGuide !== undefined ? { styleGuide } : {}),
+      ...(sashaContext !== undefined && sashaContext !== null ? { sashaContext } : {}),
+      ...(planAnnotations ? { userAnnotations: planAnnotations } : {}),
+      onStepChange: (step) => setCurrentStep(storyId, step),
+      onChunk: (chunk) => emitPipelineEvent(storyId, { type: 'chunk', text: chunk }),
+      onChunkReset: () => emitPipelineEvent(storyId, { type: 'chunk_reset' }),
     })
-    .then(async (result) => {
-      try {
-        const [existing] = await db
-          .select()
-          .from(runSnapshots)
-          .where(eq(runSnapshots.storyId, storyId))
-          .orderBy(desc(runSnapshots.createdAt))
-          .limit(1)
 
-        if (existing) {
-          await db
-            .update(runSnapshots)
-            .set({ textV1: result.textV1, writerModel: result.models.writer, writerPromptVersion: result.promptVersions.writer })
-            .where(eq(runSnapshots.id, existing.id))
-        }
+    try {
+      const [existing] = await db
+        .select()
+        .from(runSnapshots)
+        .where(eq(runSnapshots.storyId, storyId))
+        .orderBy(desc(runSnapshots.createdAt))
+        .limit(1)
 
-        await db.update(stories).set(buildWriterOnlyStoriesUpdate(result)).where(eq(stories.id, storyId))
-
-        if (mode === 'auto') {
-          await db.update(stories).set({ status: 'ready', updatedAt: new Date() }).where(eq(stories.id, storyId))
-          setPipelineStatus(storyId, 'text_ready')
-        } else {
-          setPipelineStatus(storyId, 'text_review')
-        }
-      } catch (dbError) {
-        console.error(`Failed to persist text phase for storyId=${storyId}:`, dbError)
-        setPipelineStatus(storyId, 'text_failed')
+      if (existing) {
+        await db
+          .update(runSnapshots)
+          .set({ textV1: result.textV1, writerModel: result.models.writer, writerPromptVersion: result.promptVersions.writer })
+          .where(eq(runSnapshots.id, existing.id))
       }
-    })
-    .catch((textError) => {
+
+      await db.update(stories).set(buildWriterOnlyStoriesUpdate(result)).where(eq(stories.id, storyId))
+
+      if (mode === 'auto') {
+        await db.update(stories).set({ status: 'ready', updatedAt: new Date() }).where(eq(stories.id, storyId))
+        setPipelineStatus(storyId, 'text_ready')
+      } else {
+        setPipelineStatus(storyId, 'text_review')
+      }
+    } catch (dbError) {
+      console.error(`Failed to persist text phase for storyId=${storyId}:`, dbError)
       setPipelineStatus(storyId, 'text_failed')
-      console.error(`Text phase failed for storyId=${storyId}:`, textError)
-    })
+    }
+  }).catch((textError) => {
+    setPipelineStatus(storyId, 'text_failed')
+    console.error(`Text phase failed for storyId=${storyId}:`, textError)
+  })
 }

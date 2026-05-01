@@ -20,6 +20,7 @@ import { defaultModels, defaultPromptVersions, resolvePipelineModels, loadStoryO
 import pipelineQuestionsRouter from './pipeline-questions'
 import { triggerAutoPipeline } from './pipeline-auto-trigger'
 import { triggerTextPhase } from './pipeline-text-trigger'
+import { withPipelineTraceIfNone } from '@bedtime/observability'
 
 export { toPublicStatus, type PipelineInternalStatus, type PublicPipelineStatus }
 export { getPipelineStatus, setPipelineStatus }
@@ -91,26 +92,30 @@ router.post('/run', validate(runPipelineSchema), async (req, res) => {
       return
     }
 
-    const sashaContext = await synthesizeSashaContext()
-    const storyOverrides = await loadStoryOverrides(storyId)
-    const questionModels = await resolvePipelineModels(storyRow.groupId ?? null, storyOverrides)
+    await withPipelineTraceIfNone(String(storyId), async () => {
+      const [sashaContext, storyOverrides] = await Promise.all([
+        synthesizeSashaContext(),
+        loadStoryOverrides(storyId),
+      ])
+      const questionModels = await resolvePipelineModels(storyRow.groupId ?? null, storyOverrides)
 
-    const questions = await runQuestionsPhase({
-      seed,
-      storyId,
-      models: questionModels,
-      ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
-      ...(universeContext !== undefined ? { universeContext } : {}),
-      ...(sashaContext !== null ? { sashaContext } : {}),
+      const questions = await runQuestionsPhase({
+        seed,
+        storyId,
+        models: questionModels,
+        ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
+        ...(universeContext !== undefined ? { universeContext } : {}),
+        ...(sashaContext !== null ? { sashaContext } : {}),
+      })
+
+      await db.delete(planQuestions).where(eq(planQuestions.storyId, storyId))
+
+      await db.insert(planQuestions).values(
+        questions.map((q) => ({ storyId, questionText: q.question, answerOptions: q.options })),
+      )
+
+      setPipelineStatus(storyId, 'questions_pending')
     })
-
-    await db.delete(planQuestions).where(eq(planQuestions.storyId, storyId))
-
-    await db.insert(planQuestions).values(
-      questions.map((q) => ({ storyId, questionText: q.question, answerOptions: q.options })),
-    )
-
-    setPipelineStatus(storyId, 'questions_pending')
 
     res.json({ started: true, storyId, phase: 'questions' })
   } catch (err) {

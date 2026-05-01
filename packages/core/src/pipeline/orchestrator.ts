@@ -4,7 +4,7 @@ import { runPlotterQuestions, type PlotterQuestionItem } from './stages/plotter-
 import { generateStoryTitle } from './stages/title-generator'
 import { resolvePrompt, type ResolvedPrompt } from './prompt-resolver'
 import type { CriticOutput } from './schemas'
-import { withPipelineTrace, addStoryContext } from '@bedtime/observability'
+import { withPipelineTrace, withPipelineTraceIfNone, addStoryContext } from '@bedtime/observability'
 
 export interface PipelineModels {
   plotter: string
@@ -443,26 +443,28 @@ export async function runQuestionsPhase(options: {
   sashaContext?: string | null
   cwd?: string
 }): Promise<PlotterQuestionItem[]> {
-  const { seed, models } = options
-  const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
-  const universeArg = options.universeSystemPrompt !== undefined
-    ? { universeSystemPrompt: options.universeSystemPrompt }
-    : {}
-  const universeContextArg = options.universeContext !== undefined
-    ? { universeContext: options.universeContext }
-    : {}
-  const sashaContextArg = options.sashaContext !== undefined && options.sashaContext !== null
-    ? { sashaContext: options.sashaContext }
-    : {}
+  return withPipelineTraceIfNone(String(options.storyId), async () => {
+    const { seed, models } = options
+    const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
+    const universeArg = options.universeSystemPrompt !== undefined
+      ? { universeSystemPrompt: options.universeSystemPrompt }
+      : {}
+    const universeContextArg = options.universeContext !== undefined
+      ? { universeContext: options.universeContext }
+      : {}
+    const sashaContextArg = options.sashaContext !== undefined && options.sashaContext !== null
+      ? { sashaContext: options.sashaContext }
+      : {}
 
-  return runPlotterQuestions({
-    seed,
-    model: models.plotter,
-    storyId: options.storyId,
-    ...cwdArg,
-    ...universeArg,
-    ...universeContextArg,
-    ...sashaContextArg,
+    return runPlotterQuestions({
+      seed,
+      model: models.plotter,
+      storyId: options.storyId,
+      ...cwdArg,
+      ...universeArg,
+      ...universeContextArg,
+      ...sashaContextArg,
+    })
   })
 }
 

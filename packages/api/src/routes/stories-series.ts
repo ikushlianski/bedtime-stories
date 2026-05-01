@@ -9,6 +9,7 @@ import { validate } from '../middleware/validate'
 import { runPlotterSeries } from '@bedtime/core/pipeline/stages/plotter-series'
 import { synthesizeSashaContext } from '@bedtime/core/pipeline/feedback-synthesizer'
 import { resolvePipelineModels } from './pipeline-defaults'
+import { withPipelineTrace } from '@bedtime/observability'
 
 const router = Router()
 
@@ -35,16 +36,24 @@ router.post('/', validate(createSeriesSchema), async (req, res) => {
       }
     }
 
-    const sashaContext = await synthesizeSashaContext()
-    const models = await resolvePipelineModels(groupId ?? null, null)
+    const seriesTraceId = `series-${randomUUID()}`
 
-    const plans = await runPlotterSeries({
-      seed,
-      model: models.plotter,
-      ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
-      ...(universeContext !== undefined ? { universeContext } : {}),
-      ...(styleGuide !== undefined ? { styleGuide } : {}),
-      ...(sashaContext !== null ? { sashaContext } : {}),
+    const { plans, models } = await withPipelineTrace(seriesTraceId, async () => {
+      const [sashaContext, resolvedModels] = await Promise.all([
+        synthesizeSashaContext(),
+        resolvePipelineModels(groupId ?? null, null),
+      ])
+
+      const resolvedPlans = await runPlotterSeries({
+        seed,
+        model: resolvedModels.plotter,
+        ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
+        ...(universeContext !== undefined ? { universeContext } : {}),
+        ...(styleGuide !== undefined ? { styleGuide } : {}),
+        ...(sashaContext !== null ? { sashaContext } : {}),
+      })
+
+      return { plans: resolvedPlans, models: resolvedModels }
     })
 
     const seriesId = randomUUID()

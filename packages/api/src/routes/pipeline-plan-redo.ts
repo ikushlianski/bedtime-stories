@@ -11,6 +11,7 @@ import {
 } from './pipeline-persistence'
 import { setPipelineStatus, setCurrentStep, setStepSummary } from './pipeline-state'
 import { defaultPromptVersions, resolvePipelineModels, loadStoryOverrides } from './pipeline-defaults'
+import { withPipelineTrace } from '@bedtime/observability'
 
 function extractPlotterSummary(planText: string): string {
   const lines = planText.split('\n')
@@ -35,79 +36,77 @@ function formatAnnotationsAsFeedback(items: Array<{ selectedText: string; noteTe
 export function triggerPlanRedo(storyId: number, seed: string, previousPlan: string, universeSystemPrompt?: string, universeContext?: string, styleGuide?: string, universeId: number | null = null): void {
   setPipelineStatus(storyId, 'plan_running')
 
-  Promise.all([
-    db
-      .select({ id: annotations.id, selectedText: annotations.selectedText, noteText: annotations.noteText })
-      .from(annotations)
-      .where(and(eq(annotations.storyId, storyId), eq(annotations.context, 'plan'), isNull(annotations.resolvedAt))),
-    loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(universeId, overrides)),
-  ])
-    .then(([rows, models]) => {
-      const activeRows = rows.filter((r) => r.noteText !== null) as Array<{ id: number; selectedText: string; noteText: string }>
-      const userFeedback = formatAnnotationsAsFeedback(activeRows)
+  withPipelineTrace(String(storyId), async () => {
+    const [rows, models] = await Promise.all([
+      db
+        .select({ id: annotations.id, selectedText: annotations.selectedText, noteText: annotations.noteText })
+        .from(annotations)
+        .where(and(eq(annotations.storyId, storyId), eq(annotations.context, 'plan'), isNull(annotations.resolvedAt))),
+      loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(universeId, overrides)),
+    ])
 
-      return synthesizeSashaContext().then((sashaContext) =>
-        runPlotterOnly({
-          seed,
-          storyId,
-          models,
-          promptVersions: defaultPromptVersions,
-          ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
-          ...(universeContext !== undefined ? { universeContext } : {}),
-          ...(styleGuide !== undefined ? { styleGuide } : {}),
-          ...(sashaContext !== null ? { sashaContext } : {}),
-          ...(userFeedback ? { userFeedback } : {}),
-          onStepChange: (step) => setCurrentStep(storyId, step),
-        }).then(async (result) => ({ result, userFeedback, activeRows, models })),
+    const activeRows = rows.filter((r) => r.noteText !== null) as Array<{ id: number; selectedText: string; noteText: string }>
+    const userFeedback = formatAnnotationsAsFeedback(activeRows)
+    const sashaContext = await synthesizeSashaContext()
+
+    const result = await runPlotterOnly({
+      seed,
+      storyId,
+      models,
+      promptVersions: defaultPromptVersions,
+      ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
+      ...(universeContext !== undefined ? { universeContext } : {}),
+      ...(styleGuide !== undefined ? { styleGuide } : {}),
+      ...(sashaContext !== null ? { sashaContext } : {}),
+      ...(userFeedback ? { userFeedback } : {}),
+      onStepChange: (step) => setCurrentStep(storyId, step),
+    })
+
+    setStepSummary(storyId, 'Plotter', extractPlotterSummary(result.planV1))
+
+    try {
+      const [changeSummary, resolutionMap] = await Promise.all([
+        generatePlanChangeSummary({
+          previousPlan,
+          newPlan: result.planV1,
+          userFeedback,
+          model: models.plotter,
+        }),
+        resolveAnnotations({
+          previousVersion: previousPlan,
+          newVersion: result.planV1,
+          annotations: activeRows,
+          model: models.plotter,
+          versionLabel: 'план',
+        }),
+      ])
+
+      const resolvedAt = new Date()
+
+      await Promise.all(
+        activeRows.map((row) => {
+          const summary = resolutionMap.get(row.id) ?? null
+          return db
+            .update(annotations)
+            .set({ resolvedAt, resolvedSummary: summary })
+            .where(eq(annotations.id, row.id))
+        }),
       )
-    })
-    .then(async ({ result, userFeedback, activeRows, models }) => {
-      setStepSummary(storyId, 'Plotter', extractPlotterSummary(result.planV1))
 
-      try {
-        const [changeSummary, resolutionMap] = await Promise.all([
-          generatePlanChangeSummary({
-            previousPlan,
-            newPlan: result.planV1,
-            userFeedback,
-            model: models.plotter,
-          }),
-          resolveAnnotations({
-            previousVersion: previousPlan,
-            newVersion: result.planV1,
-            annotations: activeRows,
-            model: models.plotter,
-            versionLabel: 'план',
-          }),
-        ])
+      await db.insert(runSnapshots).values(buildPlotterOnlySnapshotInsert(storyId, result))
 
-        const resolvedAt = new Date()
+      await db
+        .update(stories)
+        .set({ ...buildPlotterOnlyStoriesUpdate(result), planChangeSummary: changeSummary })
+        .where(eq(stories.id, storyId))
 
-        await Promise.all(
-          activeRows.map((row) => {
-            const summary = resolutionMap.get(row.id) ?? null
-            return db
-              .update(annotations)
-              .set({ resolvedAt, resolvedSummary: summary })
-              .where(eq(annotations.id, row.id))
-          }),
-        )
-
-        await db.insert(runSnapshots).values(buildPlotterOnlySnapshotInsert(storyId, result))
-
-        await db
-          .update(stories)
-          .set({ ...buildPlotterOnlyStoriesUpdate(result), planChangeSummary: changeSummary })
-          .where(eq(stories.id, storyId))
-
-        setPipelineStatus(storyId, 'plan_ready')
-      } catch (dbError) {
-        console.error(`Failed to persist plan redo for storyId=${storyId}:`, dbError)
-        setPipelineStatus(storyId, 'plan_failed')
-      }
-    })
-    .catch((err) => {
+      setPipelineStatus(storyId, 'plan_ready')
+    } catch (dbError) {
+      console.error(`Failed to persist plan redo for storyId=${storyId}:`, dbError)
       setPipelineStatus(storyId, 'plan_failed')
-      console.error(`Plan redo failed for storyId=${storyId}:`, err)
-    })
+    }
+  }).catch((err) => {
+    setPipelineStatus(storyId, 'plan_failed')
+    console.error(`Plan redo failed for storyId=${storyId}:`, err)
+  })
 }

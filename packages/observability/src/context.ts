@@ -1,4 +1,15 @@
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { Sentry } from './sentry-node'
+
+const traceIdStorage = new AsyncLocalStorage<string>()
+
+export function withTraceId<T>(traceId: string, fn: () => Promise<T>): Promise<T> {
+  return traceIdStorage.run(traceId, fn)
+}
+
+export function getActiveTraceId(): string | undefined {
+  return traceIdStorage.getStore()
+}
 
 export function addStoryContext(ctx: {
   storyId?: string

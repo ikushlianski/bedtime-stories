@@ -13,7 +13,7 @@ COPY . .
 RUN npm ci
 ENV PORT=8020 HOST=0.0.0.0 NODE_ENV=development
 EXPOSE 8020
-CMD ["npx", "tsx", "watch", "packages/api/src/index.ts"]
+CMD ["npx", "tsx", "watch", "--no-inspect", "packages/api/src/index.ts"]
 
 FROM base AS web-dev
 COPY . .

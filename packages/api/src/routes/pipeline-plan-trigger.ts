@@ -9,6 +9,7 @@ import {
 } from './pipeline-persistence'
 import { setPipelineStatus, setCurrentStep, setStepSummary } from './pipeline-state'
 import { defaultPromptVersions, resolvePipelineModels, loadStoryOverrides } from './pipeline-defaults'
+import { withPipelineTrace } from '@bedtime/observability'
 
 function extractPlotterSummary(planText: string): string {
   const lines = planText.split('\n')
@@ -40,40 +41,37 @@ export function triggerPlanPhaseFromAnswers(
 
   const seedWithAnswers = `SEED: ${seed}\n\nCLARIFYING Q&A:\n${qaBlock}`
 
-  Promise.all([
-    synthesizeSashaContext(),
-    loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(universeId, overrides)),
-  ])
-    .then(([sashaContext, models]) =>
-      runPlotterOnly({
-        seed: seedWithAnswers,
-        storyId,
-        models,
-        promptVersions: defaultPromptVersions,
-        ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
-        ...(universeContext !== undefined ? { universeContext } : {}),
-        ...(styleGuide !== undefined ? { styleGuide } : {}),
-        ...(sashaContext !== null ? { sashaContext } : {}),
-        onStepChange: (step) => setCurrentStep(storyId, step),
-      }).then((result) => ({ result, sashaContext }))
-    )
-    .then(async ({ result }) => {
-      const plotterSummary = extractPlotterSummary(result.planV1)
-      setStepSummary(storyId, 'Plotter', plotterSummary)
+  withPipelineTrace(String(storyId), async () => {
+    const [sashaContext, models] = await Promise.all([
+      synthesizeSashaContext(),
+      loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(universeId, overrides)),
+    ])
 
-      try {
-        await db.insert(runSnapshots).values(buildPlotterOnlySnapshotInsert(storyId, result))
-
-        await db.update(stories).set(buildPlotterOnlyStoriesUpdate(result)).where(eq(stories.id, storyId))
-
-        setPipelineStatus(storyId, 'plan_ready')
-      } catch (dbError) {
-        console.error(`Failed to persist plan phase for storyId=${storyId}:`, dbError)
-        setPipelineStatus(storyId, 'plan_failed')
-      }
+    const result = await runPlotterOnly({
+      seed: seedWithAnswers,
+      storyId,
+      models,
+      promptVersions: defaultPromptVersions,
+      ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
+      ...(universeContext !== undefined ? { universeContext } : {}),
+      ...(styleGuide !== undefined ? { styleGuide } : {}),
+      ...(sashaContext !== null ? { sashaContext } : {}),
+      onStepChange: (step) => setCurrentStep(storyId, step),
     })
-    .catch((planError) => {
+
+    const plotterSummary = extractPlotterSummary(result.planV1)
+    setStepSummary(storyId, 'Plotter', plotterSummary)
+
+    try {
+      await db.insert(runSnapshots).values(buildPlotterOnlySnapshotInsert(storyId, result))
+      await db.update(stories).set(buildPlotterOnlyStoriesUpdate(result)).where(eq(stories.id, storyId))
+      setPipelineStatus(storyId, 'plan_ready')
+    } catch (dbError) {
+      console.error(`Failed to persist plan phase for storyId=${storyId}:`, dbError)
       setPipelineStatus(storyId, 'plan_failed')
-      console.error(`Plan phase failed for storyId=${storyId}:`, planError)
-    })
+    }
+  }).catch((planError) => {
+    setPipelineStatus(storyId, 'plan_failed')
+    console.error(`Plan phase failed for storyId=${storyId}:`, planError)
+  })
 }

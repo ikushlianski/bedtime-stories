@@ -10,7 +10,7 @@ import { OpenRouterClient, OpenRouterHttpError, type OpenRouterUsage } from './o
 import { parseJsonWithSchema } from './json-extract.js'
 import { deriveStructuredRequestPayload } from './derive-structured-request-payload.js'
 import { costRecorder, type CostRecorder } from '../cost/cost-recorder.js'
-import { langfuse } from '@bedtime/observability'
+import { langfuse, getActiveTraceId } from '@bedtime/observability'
 
 const SYSTEM_PROMPT =
   'You are an AI assistant following the instructions in the user message exactly. Do not introduce yourself, do not explain what you are about to do, and do not add trailing commentary. Produce only the output the user asked for.'
@@ -118,6 +118,7 @@ export class OpenRouterRunner implements AiRunner {
       model: options.model,
       input: options.prompt,
       metadata: { stage },
+      traceId: getActiveTraceId() ?? null,
     })
 
     let lastErr: unknown
@@ -237,6 +238,7 @@ export class OpenRouterRunner implements AiRunner {
       model: options.model,
       input: userPrompt,
       metadata: { stage },
+      traceId: getActiveTraceId() ?? null,
     })
 
     const candidates = options.fallback !== undefined ? [options.model, options.fallback] : [options.model]
