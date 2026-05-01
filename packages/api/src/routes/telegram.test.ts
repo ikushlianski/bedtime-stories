@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { deriveIsAuthorizedUser, deriveIdeaFromMessage } from './telegram.js'
+import { deriveIsAuthorizedUser, deriveIdeaFromMessage } from './telegram-utils.js'
 
 describe('deriveIsAuthorizedUser', () => {
   it('returns true when fromId matches allowedId', () => {

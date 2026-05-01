@@ -13,28 +13,15 @@ import { synthesizeSashaContext } from '@bedtime/core/pipeline/feedback-synthesi
 import { resolvePipelineModels } from './pipeline-defaults.js'
 import { setPipelineStatus } from './pipeline-state.js'
 import { triggerPlanPhaseFromAnswers } from './pipeline-plan-trigger.js'
+import { deriveIsAuthorizedUser, deriveIdeaFromMessage } from './telegram-utils.js'
+
+export { deriveIsAuthorizedUser, deriveIdeaFromMessage }
 
 type BotContext = ConversationFlavor<Context>
 type BotConversation = Conversation<BotContext, BotContext>
 
 const token = process.env['TELEGRAM_BOT_TOKEN']
 const allowedUserId = Number(process.env['TELEGRAM_ALLOWED_USER_ID'] ?? '0')
-
-export function deriveIsAuthorizedUser(fromId: number | undefined, allowedId: number): boolean {
-  return fromId !== undefined && fromId === allowedId
-}
-
-export function deriveIdeaFromMessage(
-  messageText: string,
-  universeId: number,
-): { seedText: string; topic: string; rationale: string; universeId: number } {
-  return {
-    seedText: messageText.trim(),
-    topic: 'Telegram',
-    rationale: 'Submitted via Telegram bot',
-    universeId,
-  }
-}
 
 const pendingSeeds = new Map<number, { seedText: string; universeId: number }>()
 
