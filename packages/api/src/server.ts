@@ -43,7 +43,7 @@ app.get('/_healthz', (_req, res) => res.json({ status: 'ok' }))
 
 app.use('/api/auth', authRouter)
 
-if (bot) {
+if (bot && process.env['NODE_ENV'] === 'production') {
   app.post('/api/telegram/webhook', webhookCallback(bot, 'express'))
 }
 
