@@ -14,7 +14,7 @@ import { ChildProfilePage } from './pages/child-profile'
 import { AdminPage } from './pages/admin'
 import { SettingsPage } from './pages/settings'
 import { useTheme } from './lib/use-theme'
-import { AuthProvider, useAuth } from './auth/auth.context'
+import { useAuth } from './auth/auth.context'
 import { LoginPage } from './pages/login/login.page'
 import { ProtectedRoute } from './components/protected-route'
 
@@ -188,11 +188,7 @@ function AppShell() {
 }
 
 function App() {
-  return (
-    <AuthProvider>
-      <AppShell />
-    </AuthProvider>
-  )
+  return <AppShell />
 }
 
 export default App

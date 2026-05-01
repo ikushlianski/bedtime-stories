@@ -240,6 +240,7 @@ export const modelCatalog = pgTable('model_catalog', {
   isModerated: boolean('is_moderated').default(false),
   expirationDate: text('expiration_date'),
   isRecommendedForProse: boolean('is_recommended_for_prose').default(false),
+  popularityRank: integer('popularity_rank'),
   lastSyncedAt: timestamp('last_synced_at'),
   deletedAt: timestamp('deleted_at'),
 })

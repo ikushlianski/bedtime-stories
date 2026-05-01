@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { api, type PipelineStatus, type PipelineStatusValue, type Story, type ModelCatalogEntry } from '../lib/api'
+import { api, type PipelineStatus, type PipelineStatusValue, type Story, type ModelCategories, EMPTY_MODEL_CATEGORIES } from '../lib/api'
 import { AttentionStories, PageHeader, PipelineProgress, StatusCallout } from '../components'
 import ModelSelectDropdown from '../components/model-select-dropdown'
 import { QuestionsPipelineSection } from '../components/questions-pipeline-section'
@@ -146,7 +146,7 @@ export function PipelineStatusPage() {
   const [streamingText, setStreamingText] = useState('')
   const [selectedModel, setSelectedModel] = useState<string | null>(null)
   const [launching, setLaunching] = useState(false)
-  const [models, setModels] = useState<ModelCatalogEntry[]>([])
+  const [models, setModels] = useState<ModelCategories>(EMPTY_MODEL_CATEGORIES)
   const esRef = useRef<EventSource | null>(null)
 
   useEffect(() => {
@@ -346,7 +346,7 @@ export function PipelineStatusPage() {
                   <label className="form-control">
                     <span className="label-text mb-2">Модель</span>
                     <ModelSelectDropdown
-                      models={models}
+                      categories={models}
                       value={selectedModel || ''}
                       onChange={setSelectedModel}
                     />

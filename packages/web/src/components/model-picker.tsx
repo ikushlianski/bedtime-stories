@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api, type ModelCatalogEntry, type PerStageOverrides } from '../lib/api'
+import { api, type ModelCategories, type PerStageOverrides, EMPTY_MODEL_CATEGORIES } from '../lib/api'
 import { PipelineStage, PIPELINE_STAGES, PIPELINE_STAGE_LABELS } from '@bedtime/core/pipeline/pipeline-stages'
 import ModelSelectDropdown from './model-select-dropdown'
 
@@ -20,7 +20,7 @@ export function validateStageModels(value: PerStageOverrides): boolean {
 }
 
 export default function ModelPicker({ value, onChange, required = false }: ModelPickerProps) {
-  const [models, setModels] = useState<ModelCatalogEntry[]>([])
+  const [categories, setCategories] = useState<ModelCategories>(EMPTY_MODEL_CATEGORIES)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -30,7 +30,7 @@ export default function ModelPicker({ value, onChange, required = false }: Model
   useEffect(() => {
     setLoading(true)
     api.models.list()
-      .then((m) => setModels(m))
+      .then((cats) => setCategories(cats))
       .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Failed to load models'))
       .finally(() => setLoading(false))
   }, [])
@@ -76,7 +76,7 @@ export default function ModelPicker({ value, onChange, required = false }: Model
                   <div>
                     <span className="text-xs text-base-content/60">Модель</span>
                     <ModelSelectDropdown
-                      models={models}
+                      categories={categories}
                       value={stageValue.model ?? ''}
                       onChange={(id) => setStageField(stage.key, 'model', id)}
                     />
@@ -85,7 +85,7 @@ export default function ModelPicker({ value, onChange, required = false }: Model
                     <div>
                       <span className="text-xs text-base-content/60">Фоллбэк (опционально)</span>
                       <ModelSelectDropdown
-                        models={models}
+                        categories={categories}
                         value={stageValue.fallback ?? ''}
                         onChange={(id) => setStageField(stage.key, 'fallback', id)}
                       />

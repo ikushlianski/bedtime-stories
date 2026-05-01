@@ -293,6 +293,30 @@ export interface ModelCatalogEntry {
   isFree: boolean | null
   isRecommendedForProse: boolean | null
   expirationDate: string | null
+  popularityRank: number | null
+}
+
+export interface ModelCategories {
+  popular: ModelCatalogEntry[]
+  free: ModelCatalogEntry[]
+  new: ModelCatalogEntry[]
+  temporary: ModelCatalogEntry[]
+}
+
+export const EMPTY_MODEL_CATEGORIES: ModelCategories = { popular: [], free: [], new: [], temporary: [] }
+
+export function flatModels(cats: ModelCategories): ModelCatalogEntry[] {
+  const seen = new Set<string>()
+  const result: ModelCatalogEntry[] = []
+
+  for (const m of [...cats.popular, ...cats.free, ...cats.new, ...cats.temporary]) {
+    if (!seen.has(m.id)) {
+      seen.add(m.id)
+      result.push(m)
+    }
+  }
+
+  return result
 }
 
 export interface StoryCostBreakdown {
@@ -644,7 +668,7 @@ export const api = {
   },
 
   models: {
-    list: () => request<{ models: ModelCatalogEntry[] }>('/api/models').then((r) => r.models),
+    list: () => request<ModelCategories>('/api/models'),
   },
 
   swapModel: {

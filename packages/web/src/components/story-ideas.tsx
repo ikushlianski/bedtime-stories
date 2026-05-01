@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import type { ModelCatalogEntry } from '../lib/api'
-import { StoryIdea, api } from '../lib/api'
+import type { ModelCategories } from '../lib/api'
+import { StoryIdea, api, EMPTY_MODEL_CATEGORIES } from '../lib/api'
 import { IdeaCard } from './idea-card'
 import { Button } from './button'
 import ModelSelectDropdown from './model-select-dropdown'
@@ -16,7 +16,7 @@ export function StoryIdeas({ universeId, onIdeasChange, onStoryCreated }: StoryI
   const [isLoading, setIsLoading] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [models, setModels] = useState<ModelCatalogEntry[]>([])
+  const [models, setModels] = useState<ModelCategories>(EMPTY_MODEL_CATEGORIES)
   const [selectedModel, setSelectedModel] = useState('')
   const [showModelSelector, setShowModelSelector] = useState(false)
 
@@ -37,8 +37,8 @@ export function StoryIdeas({ universeId, onIdeasChange, onStoryCreated }: StoryI
 
   const loadModels = async () => {
     try {
-      const data = await api.models.list()
-      setModels(data)
+      const cats = await api.models.list()
+      setModels(cats)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Ошибка при загрузке моделей'
       setError(msg)
@@ -134,7 +134,7 @@ export function StoryIdeas({ universeId, onIdeasChange, onStoryCreated }: StoryI
           <div className="bg-base-100 rounded-lg p-6 max-w-sm w-full mx-4">
             <h4 className="font-semibold mb-4">Выберите модель для генерирования идей</h4>
             <ModelSelectDropdown
-              models={models}
+              categories={models}
               value={selectedModel}
               onChange={setSelectedModel}
               placeholder="Выберите модель..."
@@ -185,7 +185,7 @@ export function StoryIdeas({ universeId, onIdeasChange, onStoryCreated }: StoryI
               <IdeaCard
                 key={idea.id}
                 idea={idea}
-                models={models}
+                categories={models}
                 onApprove={(createStory, model) => handleApproveIdea(idea.id, createStory ?? false, model ?? '')}
                 onReject={(reason) => handleRejectIdea(idea.id, reason)}
               />

@@ -1,5 +1,16 @@
-import { useEffect, useState } from 'react'
-import { api, type ModelCatalogEntry } from '../lib/api'
+import { useEffect, useMemo, useState } from 'react'
+import { api, type ModelCatalogEntry, type ModelCategories, EMPTY_MODEL_CATEGORIES } from '../lib/api'
+
+function combinedCost(m: ModelCatalogEntry): number {
+  return parseFloat(m.inputUsdPerMillion ?? '0') + parseFloat(m.outputUsdPerMillion ?? '0')
+}
+
+function formatPrice(m: ModelCatalogEntry): string {
+  if (m.isFree) return 'free'
+  const input = parseFloat(m.inputUsdPerMillion ?? '0')
+  const output = parseFloat(m.outputUsdPerMillion ?? '0')
+  return `$${input.toFixed(2)}/$${output.toFixed(2)}/M`
+}
 
 const REASON_CHIPS: Array<{ value: string; label: string }> = [
   { value: 'too_verbose', label: 'Слишком многословно' },
@@ -15,6 +26,13 @@ const REASON_CHIPS: Array<{ value: string; label: string }> = [
   { value: 'other', label: 'Другое' },
 ]
 
+const SECTIONS: Array<{ key: keyof ModelCategories; label: string }> = [
+  { key: 'popular', label: 'Популярные' },
+  { key: 'free', label: 'Бесплатные' },
+  { key: 'new', label: 'Новинки' },
+  { key: 'temporary', label: 'Временные (preview)' },
+]
+
 interface SwapModelModalProps {
   open: boolean
   storyId: number
@@ -25,16 +43,24 @@ interface SwapModelModalProps {
 }
 
 export default function SwapModelModal({ open, storyId, stage, currentModel, onClose, onSubmitted }: SwapModelModalProps) {
-  const [models, setModels] = useState<ModelCatalogEntry[]>([])
+  const [categories, setCategories] = useState<ModelCategories>(EMPTY_MODEL_CATEGORIES)
   const [toModel, setToModel] = useState('')
   const [reasonChip, setReasonChip] = useState<string>('')
   const [reasonText, setReasonText] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const sortedSections = useMemo(
+    () => SECTIONS.map(({ key, label }) => ({
+      label,
+      models: [...categories[key]].sort((a, b) => combinedCost(a) - combinedCost(b)),
+    })),
+    [categories],
+  )
+
   useEffect(() => {
     if (!open) return
-    api.models.list().then(setModels).catch(() => undefined)
+    api.models.list().then(setCategories).catch(() => undefined)
   }, [open])
 
   if (!open) return null
@@ -64,22 +90,29 @@ export default function SwapModelModal({ open, storyId, stage, currentModel, onC
 
   return (
     <div className="modal modal-open">
-      <div className="modal-box max-w-lg">
+      <div className="modal-box max-w-lg p-8">
         <h3 className="font-bold text-lg">Сменить модель и пере-запустить: {stage}</h3>
         <p className="text-sm text-base-content/60 mt-1">Текущая: <code>{currentModel ?? '—'}</code></p>
 
-        <label className="label mt-4"><span className="label-text">Новая модель</span></label>
+        <label className="label mt-6"><span className="label-text">Новая модель</span></label>
         <select
           className="select select-bordered w-full"
           value={toModel}
           onChange={(e) => setToModel(e.target.value)}
         >
           <option value="">— выбрать —</option>
-          {models.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.name}{m.isFree ? ' [free]' : ''}
-            </option>
-          ))}
+          {sortedSections.map(({ label, models }) => {
+            if (models.length === 0) return null
+            return (
+              <optgroup key={label} label={label}>
+                {models.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name} ({formatPrice(m)})
+                  </option>
+                ))}
+              </optgroup>
+            )
+          })}
         </select>
 
         <label className="label mt-4"><span className="label-text">Почему?</span></label>

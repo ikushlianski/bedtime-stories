@@ -174,7 +174,6 @@ export function StoryReaderPage() {
   const [currentStatus, setCurrentStatus] = useState<string | null>(null)
   const [pipelineStatus, setPipelineStatus] = useState<PipelineStatusValue | null>(null)
   const [approvingText, setApprovingText] = useState(false)
-  const [redoingText, setRedoingText] = useState(false)
   const [reviewActionError, setReviewActionError] = useState<string | null>(null)
   const { message: toastMessage, showToast } = useToast()
 
@@ -339,19 +338,9 @@ setStoryTags((story.tags as string[] | null) ?? [])
               )}
               <button
                 className="btn btn-sm btn-outline"
-                disabled={redoingText}
-                onClick={() => {
-                  setRedoingText(true)
-                  setReviewActionError(null)
-                  api.stories.redoText(storyId)
-                    .then(() => navigate(`/stories/${storyId}/pipeline`))
-                    .catch((err) => {
-                      setReviewActionError(err instanceof Error ? err.message : 'Не удалось запустить доработку')
-                      setRedoingText(false)
-                    })
-                }}
+                onClick={() => setShowRedoModal(true)}
               >
-                {redoingText ? 'Запускаем…' : 'Ещё один проход'}
+                Ещё один проход
               </button>
               <button
                 className="btn btn-sm btn-primary"
@@ -491,6 +480,22 @@ setStoryTags((story.tags as string[] | null) ?? [])
         />
       )}
 
+      {showRedoModal && (
+        <SwapModelModal
+          open={true}
+          storyId={storyId}
+          stage="writer"
+          currentModel={
+            story.cost?.perStage.find((p) => p.stage === 'writer')?.model ?? null
+          }
+          onClose={() => setShowRedoModal(false)}
+          onSubmitted={() => {
+            setShowRedoModal(false)
+            navigate(`/stories/${storyId}/pipeline`)
+          }}
+        />
+      )}
+
       <div className="relative">
         {textToDisplay ? (
           <StoryText
@@ -570,19 +575,9 @@ setStoryTags((story.tags as string[] | null) ?? [])
               {reviewActionError && <span className="text-xs text-error self-center">{reviewActionError}</span>}
               <button
                 className="btn btn-sm btn-outline"
-                disabled={redoingText}
-                onClick={() => {
-                  setRedoingText(true)
-                  setReviewActionError(null)
-                  api.stories.redoText(storyId)
-                    .then(() => navigate(`/stories/${storyId}/pipeline`))
-                    .catch((err) => {
-                      setReviewActionError(err instanceof Error ? err.message : 'Не удалось запустить доработку')
-                      setRedoingText(false)
-                    })
-                }}
+                onClick={() => setShowRedoModal(true)}
               >
-                {redoingText ? 'Запускаем…' : 'Ещё один проход'}
+                Ещё один проход
               </button>
               <button
                 className="btn btn-sm btn-primary"

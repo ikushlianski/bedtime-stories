@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, useMemo } from 'react'
-import type { ModelCatalogEntry } from '../lib/api'
+import type { ModelCatalogEntry, ModelCategories } from '../lib/api'
+import { flatModels, EMPTY_MODEL_CATEGORIES } from '../lib/api'
 
 interface ModelSelectDropdownProps {
-  models: ModelCatalogEntry[]
+  categories: ModelCategories
   value: string
   onChange: (id: string) => void
   placeholder?: string
@@ -10,19 +11,26 @@ interface ModelSelectDropdownProps {
 
 type PriceDir = 'asc' | 'desc'
 
-function formatPrice(usdPerMillion: string | null): string {
-  if (!usdPerMillion) return 'free'
-  const n = parseFloat(usdPerMillion)
-  if (n === 0) return 'free'
-  return `$${n.toFixed(2)}/Mtok`
+const SECTIONS: Array<{ key: keyof ModelCategories; label: string }> = [
+  { key: 'popular', label: 'Популярные' },
+  { key: 'free', label: 'Бесплатные' },
+  { key: 'new', label: 'Новинки' },
+  { key: 'temporary', label: 'Временные (preview)' },
+]
+
+function combinedPrice(m: ModelCatalogEntry): number {
+  return parseFloat(m.inputUsdPerMillion ?? '0') + parseFloat(m.outputUsdPerMillion ?? '0')
 }
 
-function isPermanent(model: ModelCatalogEntry): boolean {
-  return !model.expirationDate
+function formatPrice(m: ModelCatalogEntry): string {
+  if (m.isFree) return 'free'
+  const input = parseFloat(m.inputUsdPerMillion ?? '0')
+  const output = parseFloat(m.outputUsdPerMillion ?? '0')
+  return `$${input.toFixed(2)}/$${output.toFixed(2)}/M`
 }
 
 export default function ModelSelectDropdown({
-  models,
+  categories = EMPTY_MODEL_CATEGORIES,
   value,
   onChange,
   placeholder = '— по умолчанию —',
@@ -30,11 +38,11 @@ export default function ModelSelectDropdown({
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [priceDir, setPriceDir] = useState<PriceDir>('asc')
-  const [permFirst, setPermFirst] = useState(true)
   const containerRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
 
-  const selectedModel = models.find((m) => m.id === value) ?? null
+  const allFlat = useMemo(() => flatModels(categories), [categories])
+  const selectedModel = allFlat.find((m) => m.id === value) ?? null
 
   useEffect(() => {
     if (!open) return
@@ -64,22 +72,18 @@ export default function ModelSelectDropdown({
     }
   }, [open])
 
-  const filtered = useMemo(() => {
+  const searchResults = useMemo(() => {
+    if (!search) return []
     const q = search.toLowerCase()
-    const base = q ? models.filter((m) => m.name.toLowerCase().includes(q)) : models
-
-    return base.slice().sort((a, b) => {
-      const aPerm = isPermanent(a) ? 0 : 1
-      const bPerm = isPermanent(b) ? 0 : 1
-      const permDiff = permFirst ? aPerm - bPerm : bPerm - aPerm
-
-      if (permDiff !== 0) return permDiff
-
-      const aPrice = parseFloat(a.inputUsdPerMillion ?? '0')
-      const bPrice = parseFloat(b.inputUsdPerMillion ?? '0')
-      return priceDir === 'asc' ? aPrice - bPrice : bPrice - aPrice
-    })
-  }, [models, search, priceDir, permFirst])
+    return allFlat
+      .filter((m) => m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q))
+      .sort((a, b) => {
+        const diff = priceDir === 'asc'
+          ? combinedPrice(a) - combinedPrice(b)
+          : combinedPrice(b) - combinedPrice(a)
+        return diff
+      })
+  }, [allFlat, search, priceDir])
 
   function handleSelect(id: string) {
     onChange(id)
@@ -93,7 +97,7 @@ export default function ModelSelectDropdown({
   }
 
   const triggerLabel = selectedModel
-    ? `${selectedModel.name} · ${formatPrice(selectedModel.inputUsdPerMillion)}`
+    ? `${selectedModel.name} · ${formatPrice(selectedModel)}`
     : value && !selectedModel
       ? value
       : placeholder
@@ -121,29 +125,24 @@ export default function ModelSelectDropdown({
               onChange={(e) => setSearch(e.target.value)}
             />
 
-            <div className="flex flex-wrap gap-1">
-              <button
-                type="button"
-                className={`btn btn-xs flex-1 sm:flex-initial ${priceDir === 'asc' ? 'btn-primary' : 'btn-ghost'}`}
-                onClick={() => setPriceDir('asc')}
-              >
-                цена ↑
-              </button>
-              <button
-                type="button"
-                className={`btn btn-xs flex-1 sm:flex-initial ${priceDir === 'desc' ? 'btn-primary' : 'btn-ghost'}`}
-                onClick={() => setPriceDir('desc')}
-              >
-                цена ↓
-              </button>
-              <button
-                type="button"
-                className={`btn btn-xs flex-1 sm:flex-initial ${permFirst ? 'btn-secondary' : 'btn-ghost'}`}
-                onClick={() => setPermFirst((p) => !p)}
-              >
-                {permFirst ? 'постоянные ↑' : 'временные ↑'}
-              </button>
-            </div>
+            {search && (
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  className={`btn btn-xs flex-1 ${priceDir === 'asc' ? 'btn-primary' : 'btn-ghost'}`}
+                  onClick={() => setPriceDir('asc')}
+                >
+                  цена ↑
+                </button>
+                <button
+                  type="button"
+                  className={`btn btn-xs flex-1 ${priceDir === 'desc' ? 'btn-primary' : 'btn-ghost'}`}
+                  onClick={() => setPriceDir('desc')}
+                >
+                  цена ↓
+                </button>
+              </div>
+            )}
           </div>
 
           <ul className="max-h-64 overflow-y-auto">
@@ -157,37 +156,57 @@ export default function ModelSelectDropdown({
               </button>
             </li>
 
-            {filtered.map((m) => (
-              <li key={m.id}>
-                <button
-                  type="button"
-                  className={`flex w-full flex-col px-3 py-2 text-left text-sm hover:bg-base-200 ${value === m.id ? 'bg-base-200 font-medium' : ''}`}
-                  onClick={() => handleSelect(m.id)}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="flex-1 truncate">{m.name}</span>
-                    {m.expirationDate ? (
-                      <span className="badge badge-warning badge-xs">temp</span>
-                    ) : (
-                      <span className="badge badge-success badge-xs">perm</span>
-                    )}
-                  </div>
-                  <div className="mt-0.5 flex gap-3 text-xs text-base-content/60">
-                    <span>in: {formatPrice(m.inputUsdPerMillion)}</span>
-                    <span>out: {formatPrice(m.outputUsdPerMillion)}</span>
-                  </div>
-                </button>
-              </li>
-            ))}
-
-            {filtered.length === 0 && (
-              <li className="px-3 py-4 text-center text-sm text-base-content/40">
-                Ничего не найдено
-              </li>
+            {search ? (
+              <>
+                {searchResults.map((m) => (
+                  <ModelRow key={m.id} model={m} selected={value === m.id} onSelect={handleSelect} />
+                ))}
+                {searchResults.length === 0 && (
+                  <li className="px-3 py-4 text-center text-sm text-base-content/40">Ничего не найдено</li>
+                )}
+              </>
+            ) : (
+              SECTIONS.map(({ key, label }) => {
+                const items = categories[key]
+                if (items.length === 0) return null
+                return (
+                  <li key={key}>
+                    <div className="sticky top-0 bg-base-200 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-base-content/50">
+                      {label}
+                    </div>
+                    <ul>
+                      {items.map((m) => (
+                        <ModelRow key={m.id} model={m} selected={value === m.id} onSelect={handleSelect} />
+                      ))}
+                    </ul>
+                  </li>
+                )
+              })
             )}
           </ul>
         </div>
       )}
     </div>
+  )
+}
+
+function ModelRow({ model: m, selected, onSelect }: { model: ModelCatalogEntry; selected: boolean; onSelect: (id: string) => void }) {
+  return (
+    <li>
+      <button
+        type="button"
+        className={`flex w-full flex-col px-3 py-2 text-left text-sm hover:bg-base-200 ${selected ? 'bg-base-200 font-medium' : ''}`}
+        onClick={() => onSelect(m.id)}
+      >
+        <div className="flex items-center gap-2">
+          <span className="flex-1 truncate">{m.name}</span>
+          {m.expirationDate && <span className="badge badge-warning badge-xs shrink-0">temp</span>}
+        </div>
+        <div className="mt-0.5 text-xs text-base-content/60">
+          {formatPrice(m)}
+          {m.contextLength ? ` · ${Math.round(m.contextLength / 1000)}k ctx` : ''}
+        </div>
+      </button>
+    </li>
   )
 }

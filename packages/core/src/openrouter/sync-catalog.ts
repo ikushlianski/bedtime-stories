@@ -5,6 +5,29 @@ import { env } from '../env.js'
 import { fetchOpenRouterCatalog } from './openrouter-catalog-fetcher.js'
 import { deriveCatalogSyncDiff } from './derive-catalog-sync-diff.js'
 
+const POPULAR_MODEL_IDS: readonly string[] = [
+  'anthropic/claude-opus-4.5',
+  'anthropic/claude-sonnet-4.5',
+  'anthropic/claude-haiku-4.5',
+  'anthropic/claude-sonnet-4.6',
+  'openai/gpt-4o',
+  'openai/gpt-4o-mini',
+  'openai/o3',
+  'openai/o4-mini',
+  'openai/o1',
+  'google/gemini-2.5-pro',
+  'google/gemini-2.5-flash',
+  'google/gemini-2.0-flash-001',
+  'meta-llama/llama-3.3-70b-instruct',
+  'meta-llama/llama-4-maverick',
+  'mistralai/mistral-large-2411',
+  'mistralai/mistral-small-3.2-24b-instruct',
+  'deepseek/deepseek-chat-v3-0324',
+  'deepseek/deepseek-r1',
+  'qwen/qwen3-235b-a22b',
+  'x-ai/grok-3',
+]
+
 export interface SyncResult {
   fetched: number
   upserted: number
@@ -20,7 +43,11 @@ export async function syncOpenRouterCatalog(): Promise<SyncResult> {
   const diff = deriveCatalogSyncDiff({ upstream, current })
   const now = new Date()
 
+  const popularityIndex = new Map(POPULAR_MODEL_IDS.map((id, i) => [id, i + 1]))
+
   for (const m of diff.toUpsert) {
+    const popularityRank = popularityIndex.get(m.id) ?? null
+
     await db
       .insert(modelCatalog)
       .values({
@@ -41,6 +68,7 @@ export async function syncOpenRouterCatalog(): Promise<SyncResult> {
         isFree: m.isFree,
         isModerated: m.isModerated,
         expirationDate: m.expirationDate,
+        popularityRank,
         lastSyncedAt: now,
       })
       .onConflictDoUpdate({
@@ -62,6 +90,7 @@ export async function syncOpenRouterCatalog(): Promise<SyncResult> {
           isFree: m.isFree,
           isModerated: m.isModerated,
           expirationDate: m.expirationDate,
+          popularityRank,
           lastSyncedAt: now,
         },
       })
