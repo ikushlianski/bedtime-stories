@@ -182,7 +182,7 @@ export function PipelineStatusPage() {
       esRef.current = null
     }
 
-    const es = new EventSource(`${API_BASE}/api/pipeline/stream/${sid}`)
+    const es = new EventSource(`${API_BASE}/api/pipeline/stream/${sid}`, { withCredentials: true })
     esRef.current = es
 
     es.addEventListener('step', (e: MessageEvent<string>) => {
