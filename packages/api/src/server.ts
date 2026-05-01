@@ -24,6 +24,7 @@ import storiesVfmRouter from './routes/stories-vfm'
 import adminRouter from './routes/admin'
 import authRouter from './routes/auth.routes'
 import settingsRouter from './routes/settings'
+import internalCatalogSyncRouter from './routes/internal-catalog-sync'
 import { requireAuth } from './middleware/auth.middleware'
 import { bot } from './routes/telegram'
 import { webhookCallback } from 'grammy'
@@ -42,6 +43,7 @@ app.use(cookieParser())
 app.get('/_healthz', (_req, res) => res.json({ status: 'ok' }))
 
 app.use('/api/auth', authRouter)
+app.use('/api/internal/catalog-sync', internalCatalogSyncRouter)
 
 if (bot && process.env['NODE_ENV'] === 'production') {
   app.post('/api/telegram/webhook', webhookCallback(bot, 'express'))

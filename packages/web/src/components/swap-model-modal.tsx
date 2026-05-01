@@ -44,6 +44,7 @@ interface SwapModelModalProps {
 
 export default function SwapModelModal({ open, storyId, stage, currentModel, onClose, onSubmitted }: SwapModelModalProps) {
   const [categories, setCategories] = useState<ModelCategories>(EMPTY_MODEL_CATEGORIES)
+  const [reuseModel, setReuseModel] = useState(true)
   const [toModel, setToModel] = useState('')
   const [reasonChip, setReasonChip] = useState<string>('')
   const [reasonText, setReasonText] = useState('')
@@ -59,13 +60,15 @@ export default function SwapModelModal({ open, storyId, stage, currentModel, onC
   )
 
   useEffect(() => {
-    if (!open) return
+    if (!open || reuseModel) return
     api.models.list().then(setCategories).catch(() => undefined)
-  }, [open])
+  }, [open, reuseModel])
 
   if (!open) return null
 
-  const canSubmit = toModel.length > 0 && (reasonChip.length > 0 || reasonText.trim().length > 0) && !submitting
+  const effectiveModel = reuseModel ? (currentModel ?? '') : toModel
+  const hasReason = reasonChip.length > 0 || reasonText.trim().length > 0
+  const canSubmit = effectiveModel.length > 0 && hasReason && !submitting
 
   async function handleSubmit() {
     if (!canSubmit) return
@@ -75,14 +78,14 @@ export default function SwapModelModal({ open, storyId, stage, currentModel, onC
     try {
       await api.swapModel.submit(storyId, {
         stage,
-        toModel,
+        toModel: effectiveModel,
         ...(reasonChip ? { reasonChip } : {}),
         ...(reasonText.trim() ? { reasonText: reasonText.trim() } : {}),
       })
       onSubmitted()
       onClose()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Не удалось сменить модель')
+      setError(e instanceof Error ? e.message : 'Не удалось запустить переработку')
     } finally {
       setSubmitting(false)
     }
@@ -91,29 +94,43 @@ export default function SwapModelModal({ open, storyId, stage, currentModel, onC
   return (
     <div className="modal modal-open">
       <div className="modal-box max-w-lg p-8">
-        <h3 className="font-bold text-lg">Сменить модель и пере-запустить: {stage}</h3>
-        <p className="text-sm text-base-content/60 mt-1">Текущая: <code>{currentModel ?? '—'}</code></p>
+        <h3 className="font-bold text-lg">Переработать текст</h3>
+        <p className="text-sm text-base-content/60 mt-1">Текущая модель: <code>{currentModel ?? '—'}</code></p>
 
-        <label className="label mt-6"><span className="label-text">Новая модель</span></label>
-        <select
-          className="select select-bordered w-full"
-          value={toModel}
-          onChange={(e) => setToModel(e.target.value)}
-        >
-          <option value="">— выбрать —</option>
-          {sortedSections.map(({ label, models }) => {
-            if (models.length === 0) return null
-            return (
-              <optgroup key={label} label={label}>
-                {models.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name} ({formatPrice(m)})
-                  </option>
-                ))}
-              </optgroup>
-            )
-          })}
-        </select>
+        <label className="label cursor-pointer mt-4 justify-start gap-3">
+          <input
+            type="checkbox"
+            className="checkbox checkbox-sm"
+            checked={reuseModel}
+            onChange={(e) => setReuseModel(e.target.checked)}
+          />
+          <span className="label-text">Использовать ту же модель</span>
+        </label>
+
+        {!reuseModel && (
+          <>
+            <label className="label mt-2"><span className="label-text">Новая модель</span></label>
+            <select
+              className="select select-bordered w-full"
+              value={toModel}
+              onChange={(e) => setToModel(e.target.value)}
+            >
+              <option value="">— выбрать —</option>
+              {sortedSections.map(({ label, models }) => {
+                if (models.length === 0) return null
+                return (
+                  <optgroup key={label} label={label}>
+                    {models.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name} ({formatPrice(m)})
+                      </option>
+                    ))}
+                  </optgroup>
+                )
+              })}
+            </select>
+          </>
+        )}
 
         <label className="label mt-4"><span className="label-text">Почему?</span></label>
         <div className="flex flex-wrap gap-2">
@@ -142,7 +159,7 @@ export default function SwapModelModal({ open, storyId, stage, currentModel, onC
         <div className="modal-action">
           <button className="btn btn-ghost" onClick={onClose} disabled={submitting}>Отмена</button>
           <button className="btn btn-primary" onClick={handleSubmit} disabled={!canSubmit}>
-            {submitting ? 'Запускаю…' : 'Сменить и пере-запустить'}
+            {submitting ? 'Запускаю…' : 'Пере-запустить'}
           </button>
         </div>
       </div>

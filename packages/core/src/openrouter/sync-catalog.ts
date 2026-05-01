@@ -129,6 +129,11 @@ export function scheduleDailyCatalogSync(): void {
   if (scheduled) return
   scheduled = true
 
+  if (process.env['CATALOG_SYNC_MODE'] === 'gcp') {
+    console.log('[catalog-sync] GCP Cloud Scheduler mode — setInterval skipped')
+    return
+  }
+
   void syncOpenRouterCatalog().catch((err) => {
     console.error('[catalog-sync] initial sync failed:', err)
   })

@@ -1,11 +1,14 @@
 import { z } from 'zod'
-import { annotations, childDiary, childProfiles, childReactions, feedback, parentReviews, planConversations, planQuestions, prompts, runSnapshots, stories, storyGroups, storyReadings, universeCharacters, universeSuggestions } from './schema.js'
+import { annotations, childDiary, childProfiles, childReactions, feedback, parentReviews, planConversations, planQuestions, prompts, runSnapshots, stories, storyGroups, storyReadings, storyTextVersions, universeCharacters, universeSuggestions } from './schema.js'
 
 export type StoryGroup = typeof storyGroups.$inferSelect
 export type NewStoryGroup = typeof storyGroups.$inferInsert
 
 export type Story = typeof stories.$inferSelect
 export type NewStory = typeof stories.$inferInsert
+
+export type StoryTextVersion = typeof storyTextVersions.$inferSelect
+export type NewStoryTextVersion = typeof storyTextVersions.$inferInsert
 
 export type Feedback = typeof feedback.$inferSelect
 export type NewFeedback = typeof feedback.$inferInsert

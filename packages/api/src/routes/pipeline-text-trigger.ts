@@ -4,6 +4,7 @@ import { db } from '@bedtime/core/db/client'
 import { runSnapshots, stories, annotations } from '@bedtime/core/db/schema'
 import {
   buildWriterOnlyStoriesUpdate,
+  insertTextVersion,
 } from './pipeline-persistence'
 import { getPipelineStatus, setPipelineStatus, setCurrentStep, emitPipelineEvent } from './pipeline-state'
 import { defaultPromptVersions, resolvePipelineModels, loadStoryOverrides } from './pipeline-defaults'
@@ -69,7 +70,8 @@ export function triggerTextPhase(
           .where(eq(runSnapshots.id, existing.id))
       }
 
-      await db.update(stories).set(buildWriterOnlyStoriesUpdate(result)).where(eq(stories.id, storyId))
+      const versionId = await insertTextVersion(storyId, result.textV1, result.models.writer, 'writer_initial')
+      await db.update(stories).set({ ...buildWriterOnlyStoriesUpdate(result), activeTextVersionId: versionId }).where(eq(stories.id, storyId))
 
       if (mode === 'auto') {
         await db.update(stories).set({ status: 'ready', updatedAt: new Date() }).where(eq(stories.id, storyId))

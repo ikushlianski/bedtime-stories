@@ -20,6 +20,7 @@ const requiredApis = [
   'iamcredentials.googleapis.com',
   'sts.googleapis.com',
   'compute.googleapis.com',
+  'cloudscheduler.googleapis.com',
 ]
 
 const enabledApis = requiredApis.map(
@@ -253,6 +254,38 @@ new gcp.compute.GlobalForwardingRule(
     loadBalancingScheme: 'EXTERNAL_MANAGED',
   },
   { dependsOn: [httpProxy, lbStaticIp] },
+)
+
+const catalogSyncSecret = config.requireSecret('catalogSyncSecret')
+
+new gcp.cloudscheduler.Job(
+  'catalog-sync',
+  {
+    project: project.projectId,
+    region,
+    name: 'catalog-sync',
+    description: 'Daily OpenRouter model catalog sync',
+    schedule: '0 3 * * *',
+    timeZone: 'UTC',
+    attemptDeadline: '300s',
+    retryConfig: {
+      retryCount: 3,
+      maxRetryDuration: '3600s',
+      minBackoffDuration: '60s',
+      maxBackoffDuration: '600s',
+      maxDoublings: 3,
+    },
+    httpTarget: {
+      uri: 'https://bedtime-agent.ilya.online/api/internal/catalog-sync',
+      httpMethod: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Catalog-Sync-Secret': catalogSyncSecret,
+      },
+      body: Buffer.from('{}').toString('base64'),
+    },
+  },
+  { dependsOn: enabledApis },
 )
 
 export const projectId = project.projectId

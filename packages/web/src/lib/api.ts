@@ -131,6 +131,18 @@ export interface Story {
   ready_at: string | null
   total_usd_micros?: number | null
   cost?: StoryCostBreakdown | null
+  active_text_version_id?: number | null
+  active_text?: string | null
+}
+
+export interface TextVersion {
+  id: number
+  version_number: number
+  model_id: string | null
+  stage: 'writer_initial' | 'writer_critic' | 'annotated_rewrite'
+  created_at: string
+  preview?: string
+  text?: string
 }
 
 export interface RunSnapshot {
@@ -491,6 +503,17 @@ export const api = {
 
     addReading: (id: number) =>
       request<{ ok: boolean; readAt: string; statusUpdated: boolean }>(`/api/stories/${id}/readings`, {
+        method: 'POST',
+      }),
+
+    listTextVersions: (id: number) =>
+      request<TextVersion[]>(`/api/stories/${id}/text-versions`),
+
+    getTextVersion: (storyId: number, versionId: number) =>
+      request<TextVersion>(`/api/stories/${storyId}/text-versions/${versionId}`),
+
+    restoreTextVersion: (storyId: number, versionId: number) =>
+      request<{ ok: boolean; story: Story }>(`/api/stories/${storyId}/text-versions/${versionId}/restore`, {
         method: 'POST',
       }),
   },

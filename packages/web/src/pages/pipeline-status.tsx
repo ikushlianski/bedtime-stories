@@ -9,12 +9,6 @@ import { decidePipelineRetry } from './pipeline-retry'
 
 const API_BASE = (import.meta as ImportMeta & { env: Record<string, string | undefined> }).env['VITE_API_URL'] ?? 'http://localhost:8020'
 
-const API_STATUS_MAP: Record<string, AgentStatus> = {
-  pending: 'idle',
-  running: 'running',
-  completed: 'done',
-  failed: 'error',
-}
 
 const KNOWN_AGENT_NAMES = new Set<AgentName>([
   'Questions',
@@ -50,48 +44,20 @@ function toAgentName(raw: string): AgentName {
   return 'Plotter'
 }
 
-function questionsStepStatus(statusValue: PipelineStatusValue): AgentStatus {
-  if (statusValue === 'pending' || statusValue === 'questions_pending') return 'running'
-  if (statusValue === 'questions_failed') return 'error'
-  return 'done'
-}
 
-function toPipelineSteps(status: PipelineStatus, mode: 'auto' | 'manual'): PipelineStep[] {
-  const currentStep = status.current_step ?? null
-  let passedCurrent = false
-
-  const agentSteps = status.steps.map((step) => {
+function toPipelineSteps(status: PipelineStatus): PipelineStep[] {
+  return status.steps.map((step) => {
     const agentName = toAgentName(step.agent ?? step.name)
-    const isCurrent = currentStep !== null && (step.agent === currentStep || step.name === currentStep)
 
     let resolvedStatus: AgentStatus
 
-    if (step.status === 'completed') {
-      resolvedStatus = 'done'
-    } else if (step.status === 'failed') {
-      resolvedStatus = 'error'
-    } else if (isCurrent) {
-      resolvedStatus = 'running'
-      passedCurrent = true
-    } else if (passedCurrent) {
-      resolvedStatus = 'idle'
-    } else if (currentStep === null) {
-      resolvedStatus = API_STATUS_MAP[step.status] ?? 'idle'
-    } else {
-      resolvedStatus = 'done'
-    }
+    if (step.status === 'completed') resolvedStatus = 'done'
+    else if (step.status === 'failed') resolvedStatus = 'error'
+    else if (step.status === 'running') resolvedStatus = 'running'
+    else resolvedStatus = 'idle'
 
     return { agentName, status: resolvedStatus, summary: step.summary }
   })
-
-  if (mode === 'auto') return agentSteps
-
-  const questionsStep: PipelineStep = {
-    agentName: 'Questions',
-    status: questionsStepStatus(status.status),
-  }
-
-  return [questionsStep, ...agentSteps]
 }
 
 function isActiveStatus(status: PipelineStatusValue): boolean {
@@ -155,6 +121,8 @@ export function PipelineStatusPage() {
   const [launching, setLaunching] = useState(false)
   const [models, setModels] = useState<ModelCategories>(EMPTY_MODEL_CATEGORIES)
   const esRef = useRef<EventSource | null>(null)
+  const fetchStatusRef = useRef<(() => Promise<void>) | null>(null)
+  const pendingResetRef = useRef(false)
 
   useEffect(() => {
     if (isNaN(storyId)) return
@@ -224,22 +192,30 @@ export function PipelineStatusPage() {
       if (TERMINAL_PUBLIC_STATUSES.has(publicStatus)) {
         es.close()
         esRef.current = null
+        pendingResetRef.current = false
         setStreamingText('')
       }
     })
 
     es.addEventListener('chunk', (e: MessageEvent<string>) => {
       const event = JSON.parse(e.data) as { text: string }
-      setStreamingText((prev) => prev + event.text)
+
+      if (pendingResetRef.current) {
+        pendingResetRef.current = false
+        setStreamingText(event.text)
+      } else {
+        setStreamingText((prev) => prev + event.text)
+      }
     })
 
     es.addEventListener('chunk_reset', () => {
-      setStreamingText('')
+      pendingResetRef.current = true
     })
 
     es.onerror = () => {
       es.close()
       esRef.current = null
+      void fetchStatusRef.current?.()
     }
   }, [])
 
@@ -263,6 +239,8 @@ export function PipelineStatusPage() {
       setError(fetchError instanceof Error ? fetchError.message : 'Не удалось загрузить статус конвейера')
     }
   }, [storyId, openEventSource])
+
+  fetchStatusRef.current = fetchStatus
 
   useEffect(() => {
     void fetchStatus()
@@ -395,7 +373,7 @@ export function PipelineStatusPage() {
             />
           )}
 
-          <PipelineProgress steps={toPipelineSteps(status, story?.mode ?? 'manual')} />
+          <PipelineProgress steps={toPipelineSteps(status)} />
 
           <AttentionStories currentStoryId={storyId} />
 

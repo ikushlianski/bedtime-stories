@@ -2,7 +2,7 @@ import { eq, and, desc } from 'drizzle-orm'
 import { runTextCritique, runAnnotatedRewrite } from '@bedtime/core/pipeline/orchestrator'
 import { db } from '@bedtime/core/db/client'
 import { annotations, runSnapshots, stories } from '@bedtime/core/db/schema'
-import { buildTextCritiqueStoriesUpdate, buildTextCritiqueSnapshotUpdate, buildAnnotatedRewriteStoriesUpdate, buildAnnotatedRewriteSnapshotUpdate } from './pipeline-persistence'
+import { buildTextCritiqueStoriesUpdate, buildTextCritiqueSnapshotUpdate, buildAnnotatedRewriteStoriesUpdate, buildAnnotatedRewriteSnapshotUpdate, insertTextVersion } from './pipeline-persistence'
 import { setPipelineStatus, setCurrentStep, setStepSummary, emitPipelineEvent } from './pipeline-state'
 import { defaultPromptVersions, resolvePipelineModels, loadStoryOverrides } from './pipeline-defaults'
 import { withPipelineTraceIfNone } from '@bedtime/observability'
@@ -114,7 +114,8 @@ export function triggerTextCritique(
           .where(eq(runSnapshots.id, existing.id))
       }
 
-      await db.update(stories).set(buildTextCritiqueStoriesUpdate(result)).where(eq(stories.id, storyId))
+      const criticVersionId = await insertTextVersion(storyId, result.textV2, result.models.writerCritic, 'writer_critic')
+      await db.update(stories).set({ ...buildTextCritiqueStoriesUpdate(result), activeTextVersionId: criticVersionId }).where(eq(stories.id, storyId))
 
       setPipelineStatus(storyId, 'text_review')
     } catch (dbError) {
@@ -194,7 +195,8 @@ export function triggerTextRewrite(
           .where(eq(runSnapshots.id, existing.id))
       }
 
-      await db.update(stories).set(buildAnnotatedRewriteStoriesUpdate(result)).where(eq(stories.id, storyId))
+      const rewriteVersionId = await insertTextVersion(storyId, result.textV2, result.models.writer, 'annotated_rewrite')
+      await db.update(stories).set({ ...buildAnnotatedRewriteStoriesUpdate(result), activeTextVersionId: rewriteVersionId }).where(eq(stories.id, storyId))
 
       await db.delete(annotations).where(and(eq(annotations.storyId, storyId), eq(annotations.context, 'text')))
 

@@ -1,5 +1,33 @@
+import { eq, sql } from 'drizzle-orm'
 import type { PlanPhaseResult, TextPhaseResult, PlotterOnlyResult, WriterOnlyResult, TextCritiqueResult, AnnotatedRewriteResult } from '@bedtime/core/pipeline/orchestrator'
 import type { NewRunSnapshot } from '@bedtime/core/db/types'
+import { db } from '@bedtime/core/db/client'
+import { storyTextVersions } from '@bedtime/core/db/schema'
+
+export async function insertTextVersion(
+  storyId: number,
+  text: string,
+  modelId: string | null,
+  stage: 'writer_initial' | 'writer_critic' | 'annotated_rewrite',
+): Promise<number> {
+  const countResult = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(storyTextVersions)
+    .where(eq(storyTextVersions.storyId, storyId))
+
+  const count = countResult[0]?.count ?? 0
+
+  const insertResult = await db
+    .insert(storyTextVersions)
+    .values({ storyId, versionNumber: count + 1, text, modelId, stage })
+    .returning({ id: storyTextVersions.id })
+
+  const inserted = insertResult[0]
+
+  if (!inserted) throw new Error(`Failed to insert text version for storyId=${storyId}`)
+
+  return inserted.id
+}
 
 export function buildPlanSnapshotInsert(storyId: number, plan: PlanPhaseResult): NewRunSnapshot {
   return {

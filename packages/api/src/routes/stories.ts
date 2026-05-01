@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { eq, desc, and, sql } from 'drizzle-orm'
 import { db } from '@bedtime/core/db/client'
-import { stories, annotations, feedback, runSnapshots, storyGroups, planQuestions, planConversations, childDiary, parentReviews, childReactions, universeCharacters, universeSuggestions, storyReadings, modelCalls } from '@bedtime/core/db/schema'
+import { stories, annotations, feedback, runSnapshots, storyGroups, planQuestions, planConversations, childDiary, parentReviews, childReactions, universeCharacters, universeSuggestions, storyReadings, modelCalls, storyTextVersions } from '@bedtime/core/db/schema'
 import { deriveStoryCostBreakdown } from '@bedtime/core/cost/aggregations/derive-story-cost-breakdown'
 import type { Story, NewStory, NewAnnotation, ParentReview, ChildReaction } from '@bedtime/core/db/types'
 import { validate } from '../middleware/validate'
@@ -10,6 +10,7 @@ import { triggerTextPhase, getPipelineStatus } from './pipeline'
 import { triggerPlanRedo } from './pipeline-plan-redo'
 import { triggerTextCritique, triggerTextRewrite } from './pipeline-text-critique'
 import { decideApprovePlan } from './approve-plan-decision'
+import textVersionsRouter from './text-versions'
 import { createStorySchema, resolveCreateStoryMode } from './create-story-schema'
 import { runStoryAnalyzer } from '@bedtime/core/pipeline/stages/story-analyzer'
 import { updateStyleGuide } from '@bedtime/core/pipeline/style-guide-updater'
@@ -57,6 +58,7 @@ function toSnakeCase(row: Story) {
     series_id: row.seriesId ?? null,
     updated_at: row.updatedAt ?? null,
     ready_at: row.readyAt ?? null,
+    active_text_version_id: row.activeTextVersionId ?? null,
   }
 }
 
@@ -301,6 +303,17 @@ router.get('/:id', async (req, res) => {
       return
     }
 
+    let activeText: string | null = null
+
+    if (story.activeTextVersionId) {
+      const [version] = await db
+        .select({ text: storyTextVersions.text })
+        .from(storyTextVersions)
+        .where(eq(storyTextVersions.id, story.activeTextVersionId))
+
+      activeText = version?.text ?? null
+    }
+
     const callRows = await db
       .select({
         stage: modelCalls.stage,
@@ -317,7 +330,7 @@ router.get('/:id', async (req, res) => {
     const validCallRows = callRows.filter((r): r is typeof r & { usdMicros: number; createdAt: Date } => r.usdMicros !== null && r.createdAt !== null)
     const cost = validCallRows.length > 0 ? deriveStoryCostBreakdown(validCallRows) : null
 
-    res.json({ ...toSnakeCase(story as Story), cost })
+    res.json({ ...toSnakeCase(story as Story), cost, active_text: activeText })
   } catch (err) {
     console.error('GET /stories/:id failed:', err)
     res.status(500).json({ error: 'Failed to fetch story' })
@@ -1071,6 +1084,7 @@ router.delete('/:id', async (req, res) => {
     await db.delete(planConversations).where(eq(planConversations.storyId, storyId))
     await db.delete(storyReadings).where(eq(storyReadings.storyId, storyId))
     await db.delete(modelCalls).where(eq(modelCalls.storyId, storyId))
+    await db.delete(storyTextVersions).where(eq(storyTextVersions.storyId, storyId))
     await db.delete(stories).where(eq(stories.id, storyId))
 
     res.status(204).send()
@@ -1079,5 +1093,7 @@ router.delete('/:id', async (req, res) => {
     res.status(500).json({ error: 'Failed to delete story' })
   }
 })
+
+router.use('/:id/text-versions', textVersionsRouter)
 
 export default router

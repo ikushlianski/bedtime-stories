@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, type RefObject } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { api, isReactionAnnotation, type Story, type Annotation, type AnnotationType, type PipelineStatusValue } from '../lib/api'
 import { AnnotationToolbar, PageHeader, StatusCallout, Toast, StoryTagEditor } from '../components'
+import { TextVersionHistory } from '../components/text-version-history'
 import ParentReviewForm from '../components/parent-review-form'
 import ChildReactionForm from '../components/child-reaction-form'
 import SwapModelModal from '../components/swap-model-modal'
@@ -317,7 +318,7 @@ setStoryTags((story.tags as string[] | null) ?? [])
     return <StatusCallout title="Перенаправление" message="Определяем статус конвейера..." />
   }
 
-  const textToDisplay = story.text_final ?? story.text_v2 ?? story.text_v1 ?? null
+  const textToDisplay = story.active_text ?? story.text_final ?? story.text_v2 ?? story.text_v1 ?? null
 
   return (
     <div>
@@ -331,7 +332,14 @@ setStoryTags((story.tags as string[] | null) ?? [])
               <p className="text-sm text-base-content">{story.text_change_summary}</p>
             </div>
           )}
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <TextVersionHistory
+            storyId={storyId}
+            activeVersionId={story.active_text_version_id}
+            onRestored={() => {
+              api.stories.get(storyId).then(setStory)
+            }}
+          />
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-base-content">История готова к проверке. Одобри или отправь на доработку.</p>
             <div className="flex gap-2">
               {reviewActionError && (

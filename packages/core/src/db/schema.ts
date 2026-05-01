@@ -76,6 +76,7 @@ export const stories = pgTable('stories', {
   updatedAt: timestamp('updated_at').defaultNow(),
   readyAt: timestamp('ready_at'),
   agentOverrides: jsonb('agent_overrides').default({}),
+  activeTextVersionId: integer('active_text_version_id'),
 })
 
 export const feedback = pgTable('feedback', {
@@ -292,6 +293,16 @@ export const storyIdeas = pgTable('story_ideas', {
   ideaSuggesterModel: text('idea_suggester_model').notNull(),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
+})
+
+export const storyTextVersions = pgTable('story_text_versions', {
+  id: serial('id').primaryKey(),
+  storyId: integer('story_id').references(() => stories.id).notNull(),
+  versionNumber: integer('version_number').notNull(),
+  text: text('text').notNull(),
+  modelId: text('model_id'),
+  stage: text('stage').$type<'writer_initial' | 'writer_critic' | 'annotated_rewrite'>().notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
 })
 
 export const appSettings = pgTable('app_settings', {

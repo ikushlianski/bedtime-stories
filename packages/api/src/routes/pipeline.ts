@@ -136,8 +136,55 @@ router.post('/run', validate(runPipelineSchema), async (req, res) => {
   }
 })
 
-function getStepNamesForPhase(phase: 'plan' | 'text' | null): readonly string[] {
-  return phase === 'text' ? ['Writer'] : ['Plotter']
+type StepStatus = 'completed' | 'running' | 'pending' | 'failed'
+
+function buildFullPipelineSteps(
+  mode: 'auto' | 'manual',
+  internal: PipelineInternalStatus | undefined,
+  activeStep: string | null,
+  summaries: Map<string, string>,
+): Array<{ name: string; status: StepStatus; agent: string; summary?: string }> {
+  const result: Array<{ name: string; status: StepStatus; agent: string; summary?: string }> = []
+
+  if (mode === 'manual') {
+    let qStatus: StepStatus = 'pending'
+
+    if (internal === 'questions_failed') qStatus = 'failed'
+    else if (internal === undefined || internal === 'questions_pending') qStatus = 'running'
+    else qStatus = 'completed'
+
+    result.push({ name: 'Questions', status: qStatus, agent: 'Questions' })
+  }
+
+  const planDone = internal === 'plan_ready' || internal === 'text_running' || internal === 'text_review' || internal === 'text_ready' || internal === 'text_failed'
+
+  let pStatus: StepStatus = 'pending'
+
+  if (internal === 'plan_failed') pStatus = 'failed'
+  else if (internal === 'plan_running') pStatus = activeStep === 'TitleGenerator' ? 'completed' : 'running'
+  else if (planDone) pStatus = 'completed'
+
+  const plotterSummary = summaries.get('Plotter')
+
+  result.push({ name: 'Plotter', status: pStatus, agent: 'Plotter', ...(plotterSummary !== undefined ? { summary: plotterSummary } : {}) })
+
+  let wStatus: StepStatus = 'pending'
+
+  if (internal === 'text_failed') wStatus = 'failed'
+  else if (internal === 'text_running') wStatus = activeStep === 'Writer' ? 'running' : 'pending'
+  else if (internal === 'text_review' || internal === 'text_ready') wStatus = 'completed'
+
+  const writerSummary = summaries.get('Writer')
+
+  result.push({ name: 'Writer', status: wStatus, agent: 'Writer', ...(writerSummary !== undefined ? { summary: writerSummary } : {}) })
+
+  const criticSummary = summaries.get('WriterCritic')
+
+  if (criticSummary !== undefined) {
+    result.push({ name: 'WriterCritic', status: 'completed', agent: 'WriterCritic', summary: criticSummary })
+  }
+
+  return result
 }
 
 async function inferStatusFromDb(storyId: number): Promise<PipelineInternalStatus | undefined> {
@@ -195,36 +242,16 @@ router.get('/status/:storyId', async (req, res) => {
     const publicStatus = toPublicStatus(internal)
 
     const isRunning = publicStatus.status === 'plan_running' || publicStatus.status === 'text_running'
-    const isFailed = publicStatus.status === 'failed'
-    const isThisPhaseDone = publicStatus.phase === 'text'
-      ? publicStatus.status === 'text_ready' || publicStatus.status === 'text_review'
-      : publicStatus.status === 'plan_ready'
 
     const activeStep = isRunning
       ? (getCurrentStep(storyIdRaw) ?? (publicStatus.status === 'plan_running' ? 'Plotter' : 'Writer'))
       : null
 
+    const [storyRow] = await db.select({ mode: stories.mode }).from(stories).where(eq(stories.id, storyIdRaw))
+    const storyMode = storyRow?.mode ?? 'manual'
+
     const summaries = getStepSummaries(storyIdRaw)
-    const stepNames = getStepNamesForPhase(publicStatus.phase)
-
-    let passedActive = false
-    const steps = stepNames.map((name) => {
-      const summary = summaries.get(name)
-
-      if (isThisPhaseDone) return { name, status: 'completed', agent: name, summary }
-      if (isFailed) return { name, status: 'failed', agent: name, summary }
-
-      if (!isRunning) return { name, status: 'pending', agent: name, summary }
-
-      if (name === activeStep) {
-        passedActive = true
-        return { name, status: 'running', agent: name, summary }
-      }
-
-      if (passedActive) return { name, status: 'pending', agent: name, summary }
-
-      return { name, status: 'completed', agent: name, summary }
-    })
+    const steps = buildFullPipelineSteps(storyMode, internal, activeStep, summaries)
 
     res.json({
       story_id: storyIdRaw,
@@ -273,7 +300,7 @@ router.get('/stream/:storyId', (req, res) => {
 
       if (TERMINAL_INTERNAL_STATUSES.has(event.status)) {
         unsubscribe()
-        res.end()
+        setImmediate(() => res.end())
       }
     }
   })
