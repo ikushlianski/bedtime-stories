@@ -1,4 +1,4 @@
-import { eq, desc, and } from 'drizzle-orm'
+import { eq, desc, and, isNull, or } from 'drizzle-orm'
 import { runWriterOnly } from '@bedtime/core/pipeline/orchestrator'
 import { db } from '@bedtime/core/db/client'
 import { runSnapshots, stories, annotations } from '@bedtime/core/db/schema'
@@ -22,19 +22,31 @@ export function triggerTextPhase(
   universeContext?: string,
   styleGuide?: string,
   universeId: number | null = null,
+  currentText?: string,
+  activeTextVersionId?: number | null,
 ): void {
   setPipelineStatus(storyId, 'text_running')
 
   withPipelineTraceIfNone(String(storyId), async () => {
+    const isRetry = currentText !== undefined && currentText.length > 0
+
+    const annotationContext = isRetry ? 'text' : 'plan'
+
+    const versionFilter = isRetry
+      ? activeTextVersionId
+        ? or(eq(annotations.textVersionId, activeTextVersionId), isNull(annotations.textVersionId))
+        : isNull(annotations.textVersionId)
+      : undefined
+
     const [rows, models] = await Promise.all([
       db
         .select({ selectedText: annotations.selectedText, noteText: annotations.noteText })
         .from(annotations)
-        .where(and(eq(annotations.storyId, storyId), eq(annotations.context, 'plan'))),
+        .where(and(eq(annotations.storyId, storyId), eq(annotations.context, annotationContext), versionFilter)),
       loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(universeId, overrides)),
     ])
 
-    const planAnnotations = rows
+    const userAnnotations = rows
       .filter((a) => a.noteText)
       .map((a) => `К фрагменту «${a.selectedText}»:\n${a.noteText}`)
       .join('\n\n')
@@ -49,7 +61,8 @@ export function triggerTextPhase(
       ...(universeContext !== undefined ? { universeContext } : {}),
       ...(styleGuide !== undefined ? { styleGuide } : {}),
       ...(sashaContext !== undefined && sashaContext !== null ? { sashaContext } : {}),
-      ...(planAnnotations ? { userAnnotations: planAnnotations } : {}),
+      ...(isRetry ? { previousText: currentText } : {}),
+      ...(userAnnotations ? { userAnnotations } : {}),
       onStepChange: (step) => setCurrentStep(storyId, step),
       onChunk: (chunk) => emitPipelineEvent(storyId, { type: 'chunk', text: chunk }),
       onChunkReset: () => emitPipelineEvent(storyId, { type: 'chunk_reset' }),

@@ -553,7 +553,7 @@ router.post('/:id/redo-text', async (req, res) => {
       sashaContext = snapshot.sashaContext
     }
 
-    triggerTextRewrite(storyId, currentText, existing.planFinal, universeSystemPrompt, universeContext, styleGuide, sashaContext, existing.groupId ?? null)
+    triggerTextRewrite(storyId, currentText, existing.planFinal, universeSystemPrompt, universeContext, styleGuide, sashaContext, existing.groupId ?? null, existing.activeTextVersionId ?? null)
 
     res.json({ started: true, storyId })
   } catch (err) {
@@ -605,7 +605,7 @@ router.post('/:id/critique-text', async (req, res) => {
     }
 
     const textToReview = existing.textV2 ?? existing.textV1
-    triggerTextCritique(storyId, textToReview, existing.planFinal, universeSystemPrompt, universeContext, styleGuide, sashaContext, existing.groupId ?? null)
+    triggerTextCritique(storyId, textToReview, existing.planFinal, universeSystemPrompt, universeContext, styleGuide, sashaContext, existing.groupId ?? null, existing.activeTextVersionId ?? null)
 
     res.json({ started: true, storyId })
   } catch (err) {
@@ -677,6 +677,15 @@ router.post('/:id/annotations', validate(createAnnotationSchema), async (req, re
       typeof createAnnotationSchema
     >
 
+    const resolvedContext = context ?? 'text'
+
+    let textVersionId: number | null = null
+
+    if (resolvedContext === 'text') {
+      const [storyRow] = await db.select({ activeTextVersionId: stories.activeTextVersionId }).from(stories).where(eq(stories.id, storyId))
+      textVersionId = storyRow?.activeTextVersionId ?? null
+    }
+
     const newAnnotation: NewAnnotation = {
       storyId,
       type,
@@ -684,7 +693,8 @@ router.post('/:id/annotations', validate(createAnnotationSchema), async (req, re
       noteText: note_text,
       positionStart: position_start,
       positionEnd: position_end,
-      context: context ?? 'text',
+      context: resolvedContext,
+      ...(textVersionId !== null ? { textVersionId } : {}),
     }
 
     const [annotation] = await db.insert(annotations).values(newAnnotation).returning()

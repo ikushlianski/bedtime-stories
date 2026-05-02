@@ -1,0 +1,2 @@
+ALTER TABLE "annotations" ADD COLUMN "text_version_id" integer;--> statement-breakpoint
+ALTER TABLE "annotations" ADD CONSTRAINT "annotations_text_version_id_story_text_versions_id_fk" FOREIGN KEY ("text_version_id") REFERENCES "public"."story_text_versions"("id") ON DELETE no action ON UPDATE no action;

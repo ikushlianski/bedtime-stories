@@ -1,4 +1,4 @@
-import { eq, and, desc } from 'drizzle-orm'
+import { eq, and, desc, isNull, or } from 'drizzle-orm'
 import { runTextCritique, runAnnotatedRewrite } from '@bedtime/core/pipeline/orchestrator'
 import { db } from '@bedtime/core/db/client'
 import { annotations, runSnapshots, stories } from '@bedtime/core/db/schema'
@@ -29,15 +29,20 @@ export function triggerTextCritique(
   styleGuide?: string,
   sashaContext?: string | null,
   universeId: number | null = null,
+  activeTextVersionId?: number | null,
 ): void {
   setPipelineStatus(storyId, 'text_running')
 
   withPipelineTraceIfNone(String(storyId), async () => {
+    const versionFilter = activeTextVersionId
+      ? or(eq(annotations.textVersionId, activeTextVersionId), isNull(annotations.textVersionId))
+      : isNull(annotations.textVersionId)
+
     const [rows, models] = await Promise.all([
       db
         .select({ selectedText: annotations.selectedText, noteText: annotations.noteText })
         .from(annotations)
-        .where(and(eq(annotations.storyId, storyId), eq(annotations.context, 'text'))),
+        .where(and(eq(annotations.storyId, storyId), eq(annotations.context, 'text'), versionFilter)),
       loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(universeId, overrides)),
     ])
 
@@ -137,15 +142,20 @@ export function triggerTextRewrite(
   styleGuide?: string,
   sashaContext?: string | null,
   universeId: number | null = null,
+  activeTextVersionId?: number | null,
 ): void {
   setPipelineStatus(storyId, 'text_running')
 
   withPipelineTraceIfNone(String(storyId), async () => {
+    const versionFilter = activeTextVersionId
+      ? or(eq(annotations.textVersionId, activeTextVersionId), isNull(annotations.textVersionId))
+      : isNull(annotations.textVersionId)
+
     const [rows, models] = await Promise.all([
       db
         .select({ selectedText: annotations.selectedText, noteText: annotations.noteText })
         .from(annotations)
-        .where(and(eq(annotations.storyId, storyId), eq(annotations.context, 'text'))),
+        .where(and(eq(annotations.storyId, storyId), eq(annotations.context, 'text'), versionFilter)),
       loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(universeId, overrides)),
     ])
 
@@ -198,7 +208,11 @@ export function triggerTextRewrite(
       const rewriteVersionId = await insertTextVersion(storyId, result.textV2, result.models.writer, 'annotated_rewrite')
       await db.update(stories).set({ ...buildAnnotatedRewriteStoriesUpdate(result), activeTextVersionId: rewriteVersionId }).where(eq(stories.id, storyId))
 
-      await db.delete(annotations).where(and(eq(annotations.storyId, storyId), eq(annotations.context, 'text')))
+      const deleteFilter = activeTextVersionId
+        ? and(eq(annotations.storyId, storyId), eq(annotations.context, 'text'), or(eq(annotations.textVersionId, activeTextVersionId), isNull(annotations.textVersionId)))
+        : and(eq(annotations.storyId, storyId), eq(annotations.context, 'text'))
+
+      await db.delete(annotations).where(deleteFilter)
 
       console.log(`[TEXT-REWRITE] story=${storyId} — cleared text annotations after successful rewrite`)
 

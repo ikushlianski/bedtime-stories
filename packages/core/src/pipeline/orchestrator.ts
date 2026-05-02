@@ -279,6 +279,8 @@ export async function runWriterOnly(options: {
   universeContext?: string
   styleGuide?: string
   sashaContext?: string | null
+  previousText?: string
+  userAnnotations?: string
   cwd?: string
   onStepChange?: (step: string) => void
   onChunk?: (chunk: string) => void
@@ -291,6 +293,8 @@ export async function runWriterOnly(options: {
   const universeContextArg = options.universeContext !== undefined ? { universeContext: options.universeContext } : {}
   const styleGuideArg = options.styleGuide !== undefined ? { styleGuide: options.styleGuide } : {}
   const sashaContextArg = options.sashaContext !== undefined && options.sashaContext !== null ? { sashaContext: options.sashaContext } : {}
+  const previousTextArg = options.previousText !== undefined ? { previousText: options.previousText } : {}
+  const userAnnotationsArg = options.userAnnotations ? { userAnnotations: options.userAnnotations } : {}
   const onChunkArg = options.onChunk !== undefined ? { onChunk: options.onChunk } : {}
   const onChunkResetArg = options.onChunkReset !== undefined ? { onChunkReset: options.onChunkReset } : {}
 
@@ -313,6 +317,8 @@ export async function runWriterOnly(options: {
     ...universeContextArg,
     ...styleGuideArg,
     ...sashaContextArg,
+    ...previousTextArg,
+    ...userAnnotationsArg,
     ...onChunkArg,
     ...onChunkResetArg,
     ...storyIdArg,

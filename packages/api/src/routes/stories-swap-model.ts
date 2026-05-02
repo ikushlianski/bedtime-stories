@@ -117,6 +117,8 @@ router.post('/', validate(swapModelSchema), async (req: Request<StoryParams>, re
           universeContext,
           styleGuide,
           storyRow.groupId ?? null,
+          storyRow.textV1 ?? undefined,
+          storyRow.activeTextVersionId ?? null,
         )
       }
     })
