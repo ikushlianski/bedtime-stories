@@ -72,6 +72,10 @@ jobs:
           stack-name: prod
           work-dir: infra
           refresh: ${{ github.event_name != 'workflow_dispatch' || inputs.pulumi_refresh }}
+          config-map: |
+            catalogSyncSecret:
+              value: ${{ secrets.PROD_CATALOG_SYNC_SECRET }}
+              secret: true
         env:
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PROD_PULUMI_CONFIG_PASSPHRASE }}
 
