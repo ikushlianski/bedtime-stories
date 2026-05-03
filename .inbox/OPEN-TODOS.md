@@ -2,8 +2,3 @@
 - [ ] we need to understand if we can leave feedback on the read stories. and whether that feedback will flow into the context of other future stories
 - [ ] Need to start working on memory of the project, based on feedback and evals
 - [ ] Move nightly OpenRouter catalog sync from `setInterval` in API process to GCP Cloud Scheduler + Cloud Tasks — code done, deployment pending (need `pulumi config set --secret catalogSyncSecret`, add PROD_CATALOG_SYNC_SECRET to GitHub secrets, then `pulumi up` + push to main)
-- [x] Timeline redo: show auto vs manual mode awareness, all pipeline stages (plotter, critic, writer, writer-critic), and retries — done (full step list from API; WriterCritic shown after critique pass)
-- [x] Bug: writer completion does not auto-update the pipeline page — fixed (SSE FIN race + onerror fallback poll)
-- [x] Bug: SSE text chunks appear under pipeline progress then disappear — fixed (deferred chunk_reset via pendingResetRef)
-- [x] Plotter runs only once per trigger — already the case, no change needed
-- [x] Rewrite modal: "Использовать ту же модель" checkbox added (default checked); unchecking reveals model selector 
