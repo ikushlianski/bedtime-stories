@@ -1,8 +1,8 @@
 import { PIPELINE_STAGES, type PerStageModels, type PipelineStage } from './per-stage-models.js'
 
-const PRIMARY = 'anthropic/claude-sonnet-4'
-const FALLBACK = 'anthropic/claude-3.5-haiku'
-const CHEAP_MODEL = 'deepseek/deepseek-chat'
+const PRIMARY = 'deepseek/deepseek-v4-pro'
+const FALLBACK = 'deepseek/deepseek-v4-flash'
+const CHEAP_MODEL = 'deepseek/deepseek-v4-flash'
 
 export const DEFAULT_STAGE_MODELS: PerStageModels = PIPELINE_STAGES.reduce((acc, stage) => {
   if (stage === 'ideaSuggester') {
