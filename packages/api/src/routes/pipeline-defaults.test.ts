@@ -17,22 +17,22 @@ describe('resolvePipelineModels', () => {
     })
 
     expect(models.writer).toBe('story/s-writer')
-    expect(models.plotter).toBe('anthropic/claude-sonnet-4')
-    expect(models.plotCritic).toBe('anthropic/claude-sonnet-4')
-    expect(models.writerCritic).toBe('anthropic/claude-sonnet-4')
+    expect(models.plotter).toBe('deepseek/deepseek-v4-pro')
+    expect(models.plotCritic).toBe('deepseek/deepseek-v4-pro')
+    expect(models.writerCritic).toBe('deepseek/deepseek-v4-pro')
   })
 
   it('universe override applies when no per-story override is given', async () => {
     const models = await resolvePipelineModels(42, null)
 
     expect(models.writer).toBe('universe/u-writer')
-    expect(models.plotter).toBe('anthropic/claude-sonnet-4')
+    expect(models.plotter).toBe('deepseek/deepseek-v4-pro')
   })
 
   it('falls through to defaults for null universe and null per-story', async () => {
     const models = await resolvePipelineModels(null, null)
 
-    expect(models.writer).toBe('anthropic/claude-sonnet-4')
-    expect(models.plotter).toBe('anthropic/claude-sonnet-4')
+    expect(models.writer).toBe('deepseek/deepseek-v4-pro')
+    expect(models.plotter).toBe('deepseek/deepseek-v4-pro')
   })
 })
