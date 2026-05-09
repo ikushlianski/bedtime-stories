@@ -7,6 +7,7 @@ import type { StoryGroup, NewStoryGroup } from '@bedtime/core/db/types'
 import { validate } from '../middleware/validate'
 import { getPendingSuggestionsCount } from './universe-suggestions'
 import { getPendingIdeasCount } from './story-ideas'
+import { synthesizeUniverseMemory } from '@bedtime/core/pipeline/synthesize-universe-memory'
 
 const router = Router()
 
@@ -284,6 +285,47 @@ router.delete('/:id/characters/:charId', async (req, res) => {
   } catch (err) {
     console.error('DELETE /universes/:id/characters/:charId failed:', err)
     res.status(500).json({ error: 'Failed to delete character' })
+  }
+})
+
+router.post('/:id/synthesize-memory', async (req, res) => {
+  try {
+    const id = parseIntParam(req.params['id'])
+
+    if (isNaN(id)) {
+      res.status(400).json({ error: 'Invalid id' })
+      return
+    }
+
+    const [existing] = await db.select({ id: storyGroups.id }).from(storyGroups).where(eq(storyGroups.id, id))
+
+    if (!existing) {
+      res.status(404).json({ error: 'Universe not found' })
+      return
+    }
+
+    const memory = await synthesizeUniverseMemory(id)
+
+    if (!memory) {
+      res.status(422).json({ error: 'Not enough data to synthesize memory' })
+      return
+    }
+
+    const [updated] = await db
+      .update(storyGroups)
+      .set({
+        styleGuideWorks: memory.works,
+        styleGuideDoesntWork: memory.doesntWork,
+        styleGuideTechniques: memory.techniques,
+        styleGuideMinimize: memory.minimize,
+      })
+      .where(eq(storyGroups.id, id))
+      .returning()
+
+    res.json(await toPublic(updated as StoryGroup))
+  } catch (err) {
+    console.error('POST /universes/:id/synthesize-memory failed:', err)
+    res.status(500).json({ error: 'Failed to synthesize memory' })
   }
 })
 

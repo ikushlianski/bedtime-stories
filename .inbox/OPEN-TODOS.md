@@ -1,4 +1,13 @@
-- [ ] i can't find deepseek v4 in the list of available models in our app. seems like it's being cut despite existing in open router. verify. 
-- [ ] we need to understand if we can leave feedback on the read stories. and whether that feedback will flow into the context of other future stories
-- [ ] Need to start working on memory of the project, based on feedback and evals
-- [ ] Move nightly OpenRouter catalog sync from `setInterval` in API process to GCP Cloud Scheduler + Cloud Tasks — code done, deployment pending (need `pulumi config set --secret catalogSyncSecret`, add PROD_CATALOG_SYNC_SECRET to GitHub secrets, then `pulumi up` + push to main)
+- [x] i can't find deepseek v4 in the list of available models in our app. seems like it's being cut despite existing in open router. verify. 
+- [x] we need to understand if we can leave feedback on the read stories. and whether that feedback will flow into the context of other future stories
+- [x] Need to start working on memory of the project, based on feedback and evals
+  - [x] Phase 1: Create synthesizeUniverseMemory(universeId) — reads universe-scoped annotations/reactions/feedback, calls LLM, returns {works, doesntWork, techniques, minimize}
+  - [x] Phase 2: Add POST /api/story-groups/:id/synthesize-memory endpoint — calls synthesizer, persists into styleGuideWorks/DoesntWork/Techniques/Minimize fields
+  - [x] Phase 3: Auto-trigger synthesis when story is marked as 'read' (status → 'read')
+- [x] **[TELEGRAM REDESIGN]** Redesign Telegram bot: intake + reading channel, pure bot (no mini app)
+  - [x] Phase 1: Remove questions phase, add /start + /stories commands, add state map (idle / awaiting_seed / in_story)
+  - [x] Phase 2: New story flow — text input → auto universe select (or one-tap picker if multiple) → create story with mode='auto' → fire pipeline → reply "Generating, I'll let you know when ready"
+  - [x] Phase 3: Proactive notification — add pipeline-notifications.ts with storyReady callback; call from triggerTextPhase when mode=auto + text_ready; bot sends "Your story is ready" message
+  - [x] Phase 4: /stories command — inline keyboard listing all stories with status emoji (✅ ⏳ 📝); tap story → send full text (chunked if >4096 chars)
+  - [x] Phase 5: Post-read flow — after sending story text, add inline buttons: [Leave feedback] [Back to stories]; feedback text stored as annotation (context=text, selectedText='Общий отзыв'); [Back] returns to /stories list
+  - [x] Phase 6: Register bot commands with BotFather via setMyCommands API call on bot startup

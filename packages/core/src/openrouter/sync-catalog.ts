@@ -22,6 +22,8 @@ const POPULAR_MODEL_IDS: readonly string[] = [
   'meta-llama/llama-4-maverick',
   'mistralai/mistral-large-2411',
   'mistralai/mistral-small-3.2-24b-instruct',
+  'deepseek/deepseek-v4-pro',
+  'deepseek/deepseek-v4-flash',
   'deepseek/deepseek-chat-v3-0324',
   'deepseek/deepseek-r1',
   'qwen/qwen3-235b-a22b',

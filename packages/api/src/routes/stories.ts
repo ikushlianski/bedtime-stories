@@ -16,6 +16,7 @@ import { runStoryAnalyzer } from '@bedtime/core/pipeline/stages/story-analyzer'
 import { updateStyleGuide } from '@bedtime/core/pipeline/style-guide-updater'
 import { runUniverseFactExtractor } from '@bedtime/core/pipeline/stages/universe-fact-extractor'
 import { loadUniverseContext } from './load-universe-context'
+import { synthesizeUniverseMemory } from '@bedtime/core/pipeline/synthesize-universe-memory'
 
 const router = Router()
 
@@ -278,6 +279,24 @@ router.post('/:id/readings', async (req, res) => {
     if (story.status === 'ready') {
       await db.update(stories).set({ status: 'read', updatedAt: new Date() }).where(eq(stories.id, storyId))
       statusUpdated = true
+
+      if (story.groupId) {
+        const universeId = story.groupId
+        void synthesizeUniverseMemory(universeId)
+          .then((memory) => {
+            if (!memory) return
+            return db
+              .update(storyGroups)
+              .set({
+                styleGuideWorks: memory.works,
+                styleGuideDoesntWork: memory.doesntWork,
+                styleGuideTechniques: memory.techniques,
+                styleGuideMinimize: memory.minimize,
+              })
+              .where(eq(storyGroups.id, universeId))
+          })
+          .catch((err) => console.error('[auto-synthesize] failed for universe', universeId, err))
+      }
     }
 
     res.status(201).json({ ok: true, readAt: reading!.readAt, statusUpdated })
