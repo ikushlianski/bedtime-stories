@@ -96,6 +96,11 @@ export function startServer(): void {
       return
     }
 
+    bot.api.setMyCommands([
+      { command: 'start', description: 'Начать работу с ботом' },
+      { command: 'stories', description: 'Список всех историй' },
+    ]).catch((e: unknown) => console.error('Telegram setMyCommands failed:', e))
+
     if (process.env['NODE_ENV'] === 'production') {
       const webhookUrl = 'https://bedtime-agent.ilya.online/api/telegram/webhook'
       bot.api.setWebhook(webhookUrl)

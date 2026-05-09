@@ -9,6 +9,7 @@ import {
 import { getPipelineStatus, setPipelineStatus, setCurrentStep, emitPipelineEvent } from './pipeline-state'
 import { defaultPromptVersions, resolvePipelineModels, loadStoryOverrides } from './pipeline-defaults'
 import { withPipelineTraceIfNone } from '@bedtime/observability'
+import { notifyStoryReady } from './pipeline-notifications'
 
 export { getPipelineStatus, setPipelineStatus }
 
@@ -89,6 +90,7 @@ export function triggerTextPhase(
       if (mode === 'auto') {
         await db.update(stories).set({ status: 'ready', updatedAt: new Date() }).where(eq(stories.id, storyId))
         setPipelineStatus(storyId, 'text_ready')
+        notifyStoryReady(storyId)
       } else {
         setPipelineStatus(storyId, 'text_review')
       }
