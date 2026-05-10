@@ -669,18 +669,18 @@ export const api = {
     listIdeas: (universeId: number, status?: 'pending' | 'approved' | 'rejected' | 'all') =>
       request<StoryIdea[]>(`/api/universes/${universeId}/ideas${status ? `?status=${status}` : ''}`),
 
-    suggestIdeas: (universeId: number, model: string) =>
+    suggestIdeas: (universeId: number, model?: string) =>
       request<{ ideaCount: number; createdIds: number[] }>(`/api/universes/${universeId}/ideas/suggest`, {
         method: 'POST',
-        body: JSON.stringify({ model }),
+        body: JSON.stringify({ ...(model ? { model } : {}) }),
       }),
 
-    approveIdea: (universeId: number, ideaId: number, model: string, createStory?: boolean) =>
+    approveIdea: (universeId: number, ideaId: number, model?: string, createStory?: boolean) =>
       request<{ success: boolean; createdStoryId: number | null }>(
         `/api/universes/${universeId}/ideas/${ideaId}/approve`,
         {
           method: 'POST',
-          body: JSON.stringify({ createStory: createStory ?? false, model }),
+          body: JSON.stringify({ createStory: createStory ?? false, ...(model ? { model } : {}) }),
         },
       ),
 

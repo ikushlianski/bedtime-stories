@@ -267,13 +267,11 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
 
           <FormField
             label="Модели по стадиям"
-            hint="Выбери модель для каждой стадии: сюжетник, писатель и вопросы к семени"
-            required
+            hint="Необязательно — без выбора используется DeepSeek V4 Pro"
           >
             <ModelPicker
               value={form.perStageOverrides ?? {}}
               onChange={(next) => setForm((prev) => ({ ...prev, perStageOverrides: next }))}
-              required={true}
             />
           </FormField>
         </div>

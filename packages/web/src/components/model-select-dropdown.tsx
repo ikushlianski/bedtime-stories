@@ -33,7 +33,7 @@ export default function ModelSelectDropdown({
   categories = EMPTY_MODEL_CATEGORIES,
   value,
   onChange,
-  placeholder = '— по умолчанию —',
+  placeholder = 'DeepSeek V4 Pro (по умолчанию)',
 }: ModelSelectDropdownProps) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -152,7 +152,7 @@ export default function ModelSelectDropdown({
                 className={`flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-base-200 ${value === '' ? 'bg-base-200 font-medium' : ''}`}
                 onClick={() => handleSelect('')}
               >
-                <span className="opacity-60">{placeholder}</span>
+                <span className="text-base-content/50 text-xs">↩ сбросить — {placeholder}</span>
               </button>
             </li>
 

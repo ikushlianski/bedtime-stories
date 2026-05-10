@@ -24,13 +24,9 @@ export function IdeaCard({ idea, categories, onApprove, onReject, disabled = fal
   }
 
   const handleApproveWithModel = async () => {
-    if (!selectedApprovalModel) {
-      return
-    }
-
     setIsApproving(true)
     try {
-      await onApprove(true, selectedApprovalModel)
+      await onApprove(true, selectedApprovalModel || undefined)
       setShowApproveModal(false)
       setSelectedApprovalModel('')
     } finally {
@@ -88,12 +84,12 @@ export function IdeaCard({ idea, categories, onApprove, onReject, disabled = fal
       {showApproveModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-base-100 rounded-lg p-6 max-w-sm w-full mx-4">
-            <h4 className="font-semibold mb-4">Выберите модель для создания истории</h4>
+            <h4 className="font-semibold mb-1">Создать историю</h4>
+            <p className="text-xs text-base-content/60 mb-4">Модель необязательна — без выбора используется DeepSeek V4 Pro</p>
             <ModelSelectDropdown
               categories={categories}
               value={selectedApprovalModel}
               onChange={setSelectedApprovalModel}
-              placeholder="Выберите модель..."
             />
             <div className="flex gap-2 mt-6">
               <Button
@@ -111,7 +107,7 @@ export function IdeaCard({ idea, categories, onApprove, onReject, disabled = fal
                 size="sm"
                 onClick={handleApproveWithModel}
                 loading={isApproving}
-                disabled={!selectedApprovalModel || isApproving}
+                disabled={isApproving}
                 className="flex-1"
               >
                 Создать историю

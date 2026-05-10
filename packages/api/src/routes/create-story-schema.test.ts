@@ -16,10 +16,10 @@ describe('createStorySchema', () => {
       expect(result.success).toBe(true)
     })
 
-    it('rejects a seed without models', () => {
+    it('accepts a seed without models (backend uses DeepSeek defaults)', () => {
       const result = createStorySchema.safeParse({ seed: 'A hero learns patience' })
 
-      expect(result.success).toBe(false)
+      expect(result.success).toBe(true)
     })
 
     it('rejects an empty seed', () => {

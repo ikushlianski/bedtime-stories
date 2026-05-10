@@ -5,6 +5,7 @@ import { db } from '@bedtime/core/db/client'
 import { storyIdeas, storyGroups, stories } from '@bedtime/core/db/schema'
 import { runIdeaSuggester } from '@bedtime/core/pipeline/stages/idea-suggester'
 import { validate } from '../middleware/validate'
+import { DEFAULT_STAGE_MODELS } from '@bedtime/core/pipeline/derivers/stage-defaults'
 
 const router = Router({ mergeParams: true })
 
@@ -18,12 +19,12 @@ const rejectSchema = z.object({
 })
 
 const suggestSchema = z.object({
-  model: z.string().min(1, 'Model must be specified'),
+  model: z.string().optional(),
 })
 
 const approveSchema = z.object({
   createStory: z.boolean().default(false),
-  model: z.string().min(1, 'Model must be specified'),
+  model: z.string().optional(),
 })
 
 router.get('/', async (req, res) => {
@@ -71,7 +72,7 @@ router.post('/suggest', validate(suggestSchema), async (req, res) => {
     }
 
     const body = req.body as z.infer<typeof suggestSchema>
-    const model = body.model
+    const model = body.model || DEFAULT_STAGE_MODELS.ideaSuggester.model
 
     const previousStories = await db
       .select({ title: stories.title, seed: stories.seed, planFinal: stories.planFinal })
@@ -164,6 +165,7 @@ router.post('/:ideaId/approve', validate(approveSchema), async (req, res) => {
     }
 
     const body = req.body as z.infer<typeof approveSchema>
+    const approvalModel = body.model || DEFAULT_STAGE_MODELS.plotter.model
 
     let createdStoryId: number | null = null
 
@@ -176,7 +178,7 @@ router.post('/:ideaId/approve', validate(approveSchema), async (req, res) => {
           status: 'draft',
           source: 'agent',
           mode: 'auto',
-          plotterModel: body.model,
+          plotterModel: approvalModel,
         })
         .returning({ id: stories.id })
 

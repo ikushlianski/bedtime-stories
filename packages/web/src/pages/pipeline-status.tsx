@@ -280,14 +280,14 @@ export function PipelineStatusPage() {
   }, [storyId, fetchStatus])
 
   const handleLaunchWithModel = useCallback(async () => {
-    if (!selectedModel || !story) return
+    if (!story) return
 
     setLaunching(true)
     setError(null)
 
     try {
       const seed = story.seed || story.title || ''
-      await api.pipeline.run(storyId, seed, selectedModel)
+      await api.pipeline.run(storyId, seed, selectedModel || undefined)
       await fetchStatus()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Не удалось запустить генерацию вопросов')
@@ -332,7 +332,7 @@ export function PipelineStatusPage() {
                 )}
 
                 <p className="text-sm text-base-content/60">
-                  Выберите модель для генерации вопросов, которые помогут сделать историю более личной.
+                  Выберите модель для генерации вопросов или оставьте пустым — будет использоваться DeepSeek V4 Pro.
                 </p>
 
                 <div className="space-y-3">
@@ -353,7 +353,7 @@ export function PipelineStatusPage() {
                     <button
                       className="btn btn-primary"
                       onClick={() => void handleLaunchWithModel()}
-                      disabled={!selectedModel || launching}
+                      disabled={launching}
                     >
                       {launching ? 'Запускаем…' : 'Генерировать вопросы'}
                     </button>

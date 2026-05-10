@@ -46,15 +46,10 @@ export function StoryIdeas({ universeId, onIdeasChange, onStoryCreated }: StoryI
   }
 
   const generateIdeas = async () => {
-    if (!selectedModel) {
-      setError('Выберите модель для генерирования идей')
-      return
-    }
-
     setIsGenerating(true)
     setError(null)
     try {
-      await api.universes.suggestIdeas(universeId, selectedModel)
+      await api.universes.suggestIdeas(universeId, selectedModel || undefined)
       setShowModelSelector(false)
       setSelectedModel('')
       await loadIdeas()
@@ -66,7 +61,7 @@ export function StoryIdeas({ universeId, onIdeasChange, onStoryCreated }: StoryI
     }
   }
 
-  const handleApproveIdea = async (ideaId: number, createStory: boolean, model: string) => {
+  const handleApproveIdea = async (ideaId: number, createStory: boolean, model?: string) => {
     try {
       const result = await api.universes.approveIdea(universeId, ideaId, model, createStory)
       if (createStory && result.createdStoryId) {
@@ -132,12 +127,12 @@ export function StoryIdeas({ universeId, onIdeasChange, onStoryCreated }: StoryI
       {showModelSelector && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-base-100 rounded-lg p-6 max-w-sm w-full mx-4">
-            <h4 className="font-semibold mb-4">Выберите модель для генерирования идей</h4>
+            <h4 className="font-semibold mb-1">Генерировать идеи</h4>
+            <p className="text-xs text-base-content/60 mb-4">Модель необязательна — без выбора используется DeepSeek V4 Pro</p>
             <ModelSelectDropdown
               categories={models}
               value={selectedModel}
               onChange={setSelectedModel}
-              placeholder="Выберите модель..."
             />
             <div className="flex gap-2 mt-6">
               <Button
@@ -155,7 +150,7 @@ export function StoryIdeas({ universeId, onIdeasChange, onStoryCreated }: StoryI
                 size="sm"
                 onClick={generateIdeas}
                 loading={isGenerating}
-                disabled={!selectedModel || isGenerating}
+                disabled={isGenerating}
                 className="flex-1"
               >
                 Генерировать
@@ -186,7 +181,7 @@ export function StoryIdeas({ universeId, onIdeasChange, onStoryCreated }: StoryI
                 key={idea.id}
                 idea={idea}
                 categories={models}
-                onApprove={(createStory, model) => handleApproveIdea(idea.id, createStory ?? false, model ?? '')}
+                onApprove={(createStory, model) => handleApproveIdea(idea.id, createStory ?? false, model || undefined)}
                 onReject={(reason) => handleRejectIdea(idea.id, reason)}
               />
             ))}

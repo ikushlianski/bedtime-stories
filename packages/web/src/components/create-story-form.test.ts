@@ -34,10 +34,10 @@ describe('validateCreateStoryForm', () => {
     expect(result).toEqual({ valid: true, input: { seed: 'test', pipelineMode: 'manual', groupId: 1, perStageOverrides: MOCK_MODELS } })
   })
 
-  it('rejects when stage models are missing', () => {
-    const result = validateCreateStoryForm(formWith({ seed: 'test', groupId: 1, perStageOverrides: { plotter: { model: 'gpt-4' } } }))
+  it('accepts when no models are specified (backend uses DeepSeek defaults)', () => {
+    const result = validateCreateStoryForm(formWith({ seed: 'test', groupId: 1 }))
 
-    expect(result.valid).toBe(false)
+    expect(result.valid).toBe(true)
   })
 
   it('rejects an empty seed', () => {

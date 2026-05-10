@@ -41,17 +41,6 @@ export const createStorySchema = z
         'Provide either seed (for pipeline generation) or textFinal (for user-authored story), not both',
     },
   )
-  .refine(
-    (value) => {
-      if (value.seed !== undefined) {
-        return value.perStageOverrides !== undefined
-      }
-      return true
-    },
-    {
-      message: 'Model selection is required for all stages when creating a story from a seed',
-    },
-  )
 
 export type CreateStoryInput = z.infer<typeof createStorySchema>
 
