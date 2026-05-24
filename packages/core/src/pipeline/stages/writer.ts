@@ -1,6 +1,7 @@
 import { aiRunner } from '../../ai'
 import { resolvePrompt, type ResolvedPrompt } from '../prompt-resolver'
 import type { CriticOutput } from '../schemas'
+import type { Exemplar } from '../load-exemplars'
 
 export const WRITER_SYSTEM_PROMPT_DEFAULT = `You are a writer creating a bedtime therapeutic story for a 6-year-old boy named Gosha (Sasha).
 Write the full story text in Russian based on the plan provided. Requirements:
@@ -32,6 +33,7 @@ export async function runWriter(options: {
   universeContext?: string
   styleGuide?: string
   sashaContext?: string | null
+  exemplars?: Exemplar[]
   userAnnotations?: string
   onChunk?: (chunk: string) => void
   onChunkReset?: () => void
@@ -60,8 +62,14 @@ export async function runWriter(options: {
     ? `\n\n---\nКОНТЕКСТ САШИ (используй для вдохновения, не копируй буквально):\n${options.sashaContext}\n---\n`
     : ''
 
+  const exemplarsBlock = options.exemplars && options.exemplars.length > 0
+    ? `\n\n---\nКАНОНИЧЕСКИЕ ПРИМЕРЫ (эталонные истории — следуй тону, ритму, юмору и структуре; не копируй сюжет):\n${options.exemplars
+        .map((ex, i) => `[ПРИМЕР ${i + 1}: «${ex.title || 'без названия'}»]\n${ex.textFinal}`)
+        .join('\n\n---\n\n')}\n---\n`
+    : ''
+
   const parts: string[] = [
-    `${basePrompt}${universeContextBlock}${styleGuideBlock}${sashaContextBlock}`,
+    `${basePrompt}${universeContextBlock}${styleGuideBlock}${sashaContextBlock}${exemplarsBlock}`,
     '',
     `STORY PLAN:\n${plan}`,
   ]

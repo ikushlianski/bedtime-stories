@@ -1,5 +1,6 @@
 import { eq, desc, and, isNull, or } from 'drizzle-orm'
 import { runWriterOnly } from '@bedtime/core/pipeline/orchestrator'
+import { loadRandomExemplars } from '@bedtime/core/pipeline/load-exemplars'
 import { db } from '@bedtime/core/db/client'
 import { runSnapshots, stories, annotations } from '@bedtime/core/db/schema'
 import {
@@ -39,18 +40,23 @@ export function triggerTextPhase(
         : isNull(annotations.textVersionId)
       : undefined
 
-    const [rows, models] = await Promise.all([
+    const [rows, models, exemplars] = await Promise.all([
       db
         .select({ selectedText: annotations.selectedText, noteText: annotations.noteText })
         .from(annotations)
         .where(and(eq(annotations.storyId, storyId), eq(annotations.context, annotationContext), versionFilter)),
       loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(universeId, overrides)),
+      isRetry ? Promise.resolve([]) : loadRandomExemplars(universeId, 2),
     ])
 
     const userAnnotations = rows
       .filter((a) => a.noteText)
       .map((a) => `К фрагменту «${a.selectedText}»:\n${a.noteText}`)
       .join('\n\n')
+
+    if (exemplars.length > 0) {
+      console.log(`[WRITER] using ${exemplars.length} canonical exemplar(s): ${exemplars.map((e) => `«${e.title || 'untitled'}»`).join(', ')}`)
+    }
 
     const result = await runWriterOnly({
       seed,
@@ -62,6 +68,7 @@ export function triggerTextPhase(
       ...(universeContext !== undefined ? { universeContext } : {}),
       ...(styleGuide !== undefined ? { styleGuide } : {}),
       ...(sashaContext !== undefined && sashaContext !== null ? { sashaContext } : {}),
+      ...(exemplars.length > 0 ? { exemplars } : {}),
       ...(isRetry ? { previousText: currentText } : {}),
       ...(userAnnotations ? { userAnnotations } : {}),
       onStepChange: (step) => setCurrentStep(storyId, step),

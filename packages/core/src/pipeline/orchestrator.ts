@@ -4,6 +4,7 @@ import { runPlotterQuestions, type PlotterQuestionItem } from './stages/plotter-
 import { generateStoryTitle } from './stages/title-generator'
 import { resolvePrompt, type ResolvedPrompt } from './prompt-resolver'
 import type { CriticOutput } from './schemas'
+import type { Exemplar } from './load-exemplars'
 import { withPipelineTrace, withPipelineTraceIfNone, addStoryContext } from '@bedtime/observability'
 
 export interface PipelineModels {
@@ -152,6 +153,7 @@ export async function runTextPhase(options: {
   universeContext?: string
   styleGuide?: string
   sashaContext?: string | null
+  exemplars?: Exemplar[]
   cwd?: string
   onStepChange?: (step: string) => void
 }): Promise<TextPhaseResult> {
@@ -169,6 +171,9 @@ export async function runTextPhase(options: {
     : {}
   const sashaContextArg = options.sashaContext !== undefined && options.sashaContext !== null
     ? { sashaContext: options.sashaContext }
+    : {}
+  const exemplarsArg = options.exemplars && options.exemplars.length > 0
+    ? { exemplars: options.exemplars }
     : {}
 
   const writerPrompt: ResolvedPrompt = await resolvePrompt(
@@ -195,6 +200,7 @@ export async function runTextPhase(options: {
     ...universeContextArg,
     ...styleGuideArg,
     ...sashaContextArg,
+    ...exemplarsArg,
     ...storyIdArg,
   })
 
@@ -279,6 +285,7 @@ export async function runWriterOnly(options: {
   universeContext?: string
   styleGuide?: string
   sashaContext?: string | null
+  exemplars?: Exemplar[]
   previousText?: string
   userAnnotations?: string
   cwd?: string
@@ -293,6 +300,7 @@ export async function runWriterOnly(options: {
   const universeContextArg = options.universeContext !== undefined ? { universeContext: options.universeContext } : {}
   const styleGuideArg = options.styleGuide !== undefined ? { styleGuide: options.styleGuide } : {}
   const sashaContextArg = options.sashaContext !== undefined && options.sashaContext !== null ? { sashaContext: options.sashaContext } : {}
+  const exemplarsArg = options.exemplars && options.exemplars.length > 0 ? { exemplars: options.exemplars } : {}
   const previousTextArg = options.previousText !== undefined ? { previousText: options.previousText } : {}
   const userAnnotationsArg = options.userAnnotations ? { userAnnotations: options.userAnnotations } : {}
   const onChunkArg = options.onChunk !== undefined ? { onChunk: options.onChunk } : {}
@@ -317,6 +325,7 @@ export async function runWriterOnly(options: {
     ...universeContextArg,
     ...styleGuideArg,
     ...sashaContextArg,
+    ...exemplarsArg,
     ...previousTextArg,
     ...userAnnotationsArg,
     ...onChunkArg,
