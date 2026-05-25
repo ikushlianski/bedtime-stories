@@ -8,7 +8,7 @@ export type RetryDecision =
 
 export function decidePipelineRetry(
   status: PipelineStatusValue,
-  story: Pick<Story, 'seed' | 'plan_final'> | null,
+  story: Pick<Story, 'seed' | 'plan_final' | 'mode'> | null,
 ): RetryDecision {
   if (story === null) return { action: 'hidden' }
 
@@ -21,6 +21,10 @@ export function decidePipelineRetry(
     status === 'questions_answered' ||
     status === 'questions_failed'
   ) {
+    return { action: 'hidden' }
+  }
+
+  if (status === 'pending' && story.mode === 'auto') {
     return { action: 'hidden' }
   }
 

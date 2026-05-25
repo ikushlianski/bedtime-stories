@@ -181,7 +181,11 @@ export function StoryListPage({ lockedStatus }: { lockedStatus?: StatusFilter })
     setShowModal(false)
 
     if ('seed' in input) {
-      void api.pipeline.run(created.id, input.seed)
+      try {
+        await api.pipeline.run(created.id, input.seed)
+      } catch (runError) {
+        console.warn(`Failed to start pipeline for story ${created.id}:`, runError)
+      }
     }
 
     navigate(`/stories/${created.id}/pipeline`)

@@ -318,7 +318,7 @@ export function PipelineStatusPage() {
 
       {status && (
         <div className="space-y-6">
-          {(status.status === 'pending' || status.status === 'questions_failed') && story && (
+          {(status.status === 'pending' || status.status === 'questions_failed') && story && story.mode !== 'auto' && (
             <div className="card border border-base-300 bg-base-100 shadow-sm">
               <div className="card-body gap-4">
                 <h2 className="font-serif text-2xl text-base-content">Уточняющие вопросы</h2>

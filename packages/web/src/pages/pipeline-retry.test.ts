@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { decidePipelineRetry } from './pipeline-retry'
 import type { Story } from '../lib/api'
 
-function mkStory(overrides: Partial<Pick<Story, 'seed' | 'plan_final'>> = {}): Pick<Story, 'seed' | 'plan_final'> {
-  return { seed: 'a brave bunny', plan_final: null, ...overrides }
+function mkStory(overrides: Partial<Pick<Story, 'seed' | 'plan_final' | 'mode'>> = {}): Pick<Story, 'seed' | 'plan_final' | 'mode'> {
+  return { seed: 'a brave bunny', plan_final: null, mode: 'manual', ...overrides }
 }
 
 describe('decidePipelineRetry', () => {
@@ -43,6 +43,10 @@ describe('decidePipelineRetry', () => {
         action: 'blocked',
         reason: 'missing_seed',
       })
+    })
+
+    it('hides the retry button for auto stories — the auto trigger handles kickoff, the manual button would 409', () => {
+      expect(decidePipelineRetry('pending', mkStory({ mode: 'auto' }))).toEqual({ action: 'hidden' })
     })
   })
 
