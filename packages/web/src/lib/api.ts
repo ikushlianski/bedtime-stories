@@ -115,7 +115,7 @@ export interface Story {
   writer_critic_model: string | null
   writer_critic_prompt_version: number | null
   created_at: string
-  status: 'draft' | 'ready' | 'read' | 'archived'
+  status: 'draft' | 'proofreading' | 'ready' | 'read' | 'archived'
   tags: string[] | null
   source: 'agent' | 'legacy' | 'user'
   is_legacy: boolean
@@ -428,7 +428,7 @@ export const api = {
         body: JSON.stringify({ approved }),
       }),
 
-    updateStatus: (id: number, status: 'draft' | 'ready' | 'read' | 'archived') =>
+    updateStatus: (id: number, status: 'draft' | 'proofreading' | 'ready' | 'read' | 'archived') =>
       request<Story>(`/api/stories/${id}/status`, {
         method: 'PATCH',
         body: JSON.stringify({ status }),

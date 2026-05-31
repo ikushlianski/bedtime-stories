@@ -1,4 +1,4 @@
-type StoryFilterValue = 'all' | 'draft' | 'ready' | 'read' | 'archived'
+type StoryFilterValue = 'all' | 'draft' | 'proofreading' | 'ready' | 'read' | 'archived'
 
 interface StoryFilterTabsProps {
   value: StoryFilterValue
@@ -8,6 +8,7 @@ interface StoryFilterTabsProps {
 const filterTabs: Array<{ label: string; value: StoryFilterValue }> = [
   { label: 'Все', value: 'all' },
   { label: 'Черновик', value: 'draft' },
+  { label: 'На вычитке', value: 'proofreading' },
   { label: 'Готово', value: 'ready' },
   { label: 'Прочитано', value: 'read' },
   { label: 'Архив', value: 'archived' },

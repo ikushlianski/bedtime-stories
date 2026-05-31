@@ -17,6 +17,7 @@ import { updateStyleGuide } from '@bedtime/core/pipeline/style-guide-updater'
 import { runUniverseFactExtractor } from '@bedtime/core/pipeline/stages/universe-fact-extractor'
 import { loadUniverseContext } from './load-universe-context'
 import { synthesizeUniverseMemory } from '@bedtime/core/pipeline/synthesize-universe-memory'
+import { notifyStoryReady } from './pipeline-notifications'
 
 const router = Router()
 
@@ -64,7 +65,7 @@ function toSnakeCase(row: Story) {
 }
 
 const updateStatusSchema = z.object({
-  status: z.enum(['draft', 'ready', 'read', 'archived']),
+  status: z.enum(['draft', 'proofreading', 'ready', 'read', 'archived']),
 })
 
 const approvePlanSchema = z.object({
@@ -195,7 +196,7 @@ router.get('/', async (req, res) => {
     const conditions = []
 
     if (status) {
-      conditions.push(eq(stories.status, status as 'draft' | 'ready' | 'read' | 'archived'))
+      conditions.push(eq(stories.status, status as 'draft' | 'proofreading' | 'ready' | 'read' | 'archived'))
     }
 
     if (groupId !== undefined && typeof groupId === 'string') {
@@ -675,6 +676,8 @@ router.post('/:id/approve-text', validate(approveTextSchema), async (req, res) =
       res.status(404).json({ error: 'Story not found' })
       return
     }
+
+    notifyStoryReady(storyId)
 
     res.json(toSnakeCase(story as Story))
   } catch (err) {

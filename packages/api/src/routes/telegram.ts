@@ -60,7 +60,7 @@ async function sendStoriesList(ctx: Context): Promise<void> {
   const kb = new InlineKeyboard()
 
   for (const s of allStories) {
-    const emoji = s.status === 'ready' ? '✅' : s.status === 'read' ? '📝' : s.status === 'archived' ? '🗂️' : '⏳'
+    const emoji = s.status === 'ready' ? '✅' : s.status === 'read' ? '📝' : s.status === 'archived' ? '🗂️' : s.status === 'proofreading' ? '📖' : '⏳'
     const label = `${emoji} ${s.title || `История #${s.id}`}`
     kb.text(label, `story:${s.id}`).row()
   }

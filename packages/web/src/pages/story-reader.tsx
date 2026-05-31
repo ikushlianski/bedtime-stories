@@ -324,7 +324,7 @@ setStoryTags((story.tags as string[] | null) ?? [])
     <div>
       <Toast message={toastMessage} />
 
-      {(currentStatus ?? story.status) === 'draft' && textToDisplay && (
+      {(currentStatus ?? story.status) === 'proofreading' && textToDisplay && (
         <div className="mb-6 rounded-box border border-primary/30 bg-primary/10 p-4">
           {story.text_change_summary && (
             <div className="mb-4 rounded-box border border-info/30 bg-info/10 p-4">
@@ -340,7 +340,7 @@ setStoryTags((story.tags as string[] | null) ?? [])
             }}
           />
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-base-content">История готова к проверке. Одобри или отправь на доработку.</p>
+            <p className="text-sm text-base-content">История на вычитке. Прочитай, оставь заметки, отправь на доработку — или одобри для Саши.</p>
             <div className="flex gap-2">
               {reviewActionError && (
                 <span className="text-xs text-error">{reviewActionError}</span>
@@ -368,7 +368,7 @@ setStoryTags((story.tags as string[] | null) ?? [])
                     })
                 }}
               >
-                {approvingText ? 'Сохраняем…' : 'Одобрить историю'}
+                {approvingText ? 'Сохраняем…' : 'Готово для Саши'}
               </button>
             </div>
           </div>
@@ -576,10 +576,10 @@ setStoryTags((story.tags as string[] | null) ?? [])
         </div>
       )}
 
-      {(currentStatus ?? story.status) === 'draft' && textToDisplay && (
+      {(currentStatus ?? story.status) === 'proofreading' && textToDisplay && (
         <div className="mt-4 rounded-box border border-primary/30 bg-primary/10 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-base-content">Одобри историю или отправь на доработку.</p>
+            <p className="text-sm text-base-content">Отправь на доработку или одобри для Саши.</p>
             <div className="flex gap-2">
               {reviewActionError && <span className="text-xs text-error self-center">{reviewActionError}</span>}
               <button
@@ -605,7 +605,7 @@ setStoryTags((story.tags as string[] | null) ?? [])
                     })
                 }}
               >
-                {approvingText ? 'Сохраняем…' : 'Одобрить историю'}
+                {approvingText ? 'Сохраняем…' : 'Готово для Саши'}
               </button>
             </div>
           </div>
@@ -690,7 +690,7 @@ setStoryTags((story.tags as string[] | null) ?? [])
         </div>
       )}
 
-      {story.status !== 'draft' && (
+      {story.status !== 'draft' && story.status !== 'proofreading' && (
         <section className="mt-12 space-y-6">
           <PageHeader
             eyebrow="Отзыв"

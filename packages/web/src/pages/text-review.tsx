@@ -283,9 +283,9 @@ export function TextReviewPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Проверка"
-        title="Проверка текста"
-        description="Прочитай текст, оставь комментарии и одобри — или запусти доработку."
+        eyebrow="На вычитке"
+        title="Вычитка текста"
+        description="Прочитай текст, оставь комментарии и одобри для Саши — или отправь на доработку."
         backAction={
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>
             ← К историям
@@ -316,7 +316,7 @@ export function TextReviewPage() {
                 {redoing ? 'Запускаем...' : 'Отправить на доработку'}
               </button>
               <button className="btn btn-primary btn-sm" onClick={() => void handleApprove()} disabled={approving || redoing}>
-                {approving ? 'Одобряем...' : 'Одобрить текст'}
+                {approving ? 'Сохраняем…' : 'Готово для Саши'}
               </button>
             </div>
           </div>
@@ -336,7 +336,7 @@ export function TextReviewPage() {
               {redoing ? 'Запускаем...' : 'Отправить на доработку'}
             </button>
             <button className="btn btn-primary btn-sm" onClick={() => void handleApprove()} disabled={approving || redoing}>
-              {approving ? 'Одобряем...' : 'Одобрить текст'}
+              {approving ? 'Сохраняем…' : 'Готово для Саши'}
             </button>
           </div>
         </div>

@@ -69,6 +69,7 @@ function Sidebar({ isDark, onToggle }: { isDark: boolean; onToggle: () => void }
 
       <nav className="flex flex-1 flex-col gap-1">
         <NavLink to="/drafts" label="Черновики" />
+        <NavLink to="/proofreading" label="На вычитке" />
         <NavLink to="/" label="Непрочитанные" />
 
         <div className="my-3 border-t border-base-300" />
@@ -154,6 +155,7 @@ function AppShell() {
                     <Routes>
                       <Route path="/" element={<StoryListPage lockedStatus="ready" />} />
                       <Route path="/drafts" element={<StoryListPage lockedStatus="draft" />} />
+                      <Route path="/proofreading" element={<StoryListPage lockedStatus="proofreading" />} />
                       <Route path="/read" element={<StoryListPage lockedStatus="read" />} />
                       <Route path="/stories/:id" element={<StoryReaderPage />} />
                       <Route path="/stories/:id/plan-review" element={<PlanReviewPage />} />

@@ -60,7 +60,7 @@ export const stories = pgTable('stories', {
   writerCriticModel: text('writer_critic_model'),
   writerCriticPromptVersion: integer('writer_critic_prompt_version'),
   createdAt: timestamp('created_at').defaultNow(),
-  status: text('status').$type<'draft' | 'ready' | 'read' | 'archived'>().default('draft'),
+  status: text('status').$type<'draft' | 'proofreading' | 'ready' | 'read' | 'archived'>().default('draft'),
   tags: jsonb('tags').default([]),
   source: text('source').$type<'agent' | 'legacy' | 'user'>().default('agent'),
   isLegacy: boolean('is_legacy').default(false),

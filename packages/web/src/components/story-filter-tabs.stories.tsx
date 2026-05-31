@@ -12,7 +12,7 @@ export default meta
 type Story = StoryObj<typeof StoryFilterTabs>
 
 function StoryFilterTabsPreview() {
-  const [value, setValue] = useState<'all' | 'draft' | 'ready' | 'read' | 'archived'>('ready')
+  const [value, setValue] = useState<'all' | 'draft' | 'proofreading' | 'ready' | 'read' | 'archived'>('ready')
 
   return <StoryFilterTabs value={value} onChange={setValue} />
 }

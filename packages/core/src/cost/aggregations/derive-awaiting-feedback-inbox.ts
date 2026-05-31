@@ -1,7 +1,7 @@
 export interface AwaitingInboxStoryRow {
   storyId: number
   title: string
-  status: 'ready' | 'read' | 'draft' | 'archived' | string
+  status: 'ready' | 'read' | 'draft' | 'proofreading' | 'archived' | string
   readyAt: Date | null
   hasFeedback: boolean
 }

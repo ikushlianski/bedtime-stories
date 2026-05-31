@@ -23,12 +23,17 @@ const PAGE_META: Record<string, { eyebrow: string; title: string; description: s
   draft: {
     eyebrow: 'В работе',
     title: 'Черновики',
-    description: 'Истории в процессе создания — от идеи до одобрения.',
+    description: 'Истории в процессе создания — от идеи до одобрения плана.',
+  },
+  proofreading: {
+    eyebrow: 'На вычитке',
+    title: 'На вычитке',
+    description: 'Текст готов, но требует твоей вычитки. Прочитай, оставь заметки, отправь на доработку — или одобри для Саши.',
   },
   ready: {
     eyebrow: 'К прочтению',
     title: 'Непрочитанные',
-    description: 'Готовые истории, которые ещё не читали.',
+    description: 'Истории, одобренные для Саши и ещё не прочитанные.',
   },
   read: {
     eyebrow: 'Прочитанные',
@@ -257,6 +262,7 @@ export function StoryListPage({ lockedStatus }: { lockedStatus?: StatusFilter })
           {(() => {
             const labels: Record<string, string> = {
               draft: 'Черновиков',
+              proofreading: 'Историй на вычитке',
               ready: 'Непрочитанных историй',
               read: 'Прочитанных историй',
               archived: 'Архивных историй',

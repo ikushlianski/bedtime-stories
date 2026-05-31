@@ -3,7 +3,7 @@ import { z } from 'zod'
 import type { StoryGroup } from '../lib/api'
 import StoryFilterTabs from './story-filter-tabs'
 
-export type StatusFilter = 'all' | 'draft' | 'ready' | 'read' | 'archived'
+export type StatusFilter = 'all' | 'draft' | 'proofreading' | 'ready' | 'read' | 'archived'
 export type SortOption =
   | 'custom'
   | 'created_desc'
@@ -30,7 +30,7 @@ export const DEFAULT_FILTERS: StoryFilterState = {
 const STORED_FILTERS_KEY = 'story-list-filters-v2'
 
 const storedFiltersSchema = z.object({
-  status: z.enum(['all', 'draft', 'ready', 'read', 'archived']),
+  status: z.enum(['all', 'draft', 'proofreading', 'ready', 'read', 'archived']),
   groupId: z.number().int().nullable(),
   tag: z.string().nullable(),
   sort: z
@@ -93,6 +93,7 @@ export function hasCustomFilters(f: StoryFilterState): boolean {
 const statusLabels: Record<StatusFilter, string> = {
   all: 'Все',
   draft: 'Черновики',
+  proofreading: 'На вычитке',
   ready: 'Готовые',
   read: 'Прочитанные',
   archived: 'Архив',
@@ -110,6 +111,7 @@ const sortLabels: Record<SortOption, string> = {
 
 const sortOptionsByStatus: Record<StatusFilter, SortOption[]> = {
   draft: ['custom', 'created_desc', 'created_asc', 'updated_desc'],
+  proofreading: ['custom', 'updated_desc', 'created_desc', 'created_asc'],
   ready: ['custom', 'ready_desc', 'created_desc', 'created_asc'],
   read: ['custom', 'newest_read', 'oldest_read'],
   all: ['custom', 'created_desc', 'created_asc'],
