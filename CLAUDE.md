@@ -97,6 +97,27 @@ Auth between GitHub Actions and GCP uses **Workload Identity Federation** (no lo
 ### Workflow file
 `.github/workflows/deploy.yml`
 
+### How to trigger a deploy
+
+**Canonical source of truth: `docs/ci-cd/README.md` → "How to deploy".** Read that file before running any deploy command in a fresh session.
+
+Two paths only:
+
+1. **Push to `main`** — the normal path; pipeline runs automatically.
+2. **Manual dispatch** — only when explicitly asked. Always pass the current branch, never hardcode `main`:
+   ```bash
+   CURRENT_BRANCH=$(git branch --show-current)
+   gh workflow run deploy.yml \
+     --ref "$CURRENT_BRANCH" \
+     --field environment=prod \
+     --field pulumi_refresh=false \
+     -R ikushlianski/bedtime-stories
+   ```
+
+Inputs: `environment` (only `prod`), `pulumi_refresh` (default `false`; set `true` only after a manual GCP change). GitHub remote: `ikushlianski/bedtime-stories`. Production URL: `https://bedtime-agent.ilya.online`.
+
+Monitor with `gh run list --workflow=deploy.yml --limit=5 -R ikushlianski/bedtime-stories` and `gh run watch <id> --exit-status -R ikushlianski/bedtime-stories`.
+
 ### Required GitHub secrets
 See `docs/ci-cd/README.md` for the full secrets table.
 

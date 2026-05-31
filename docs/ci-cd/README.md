@@ -11,13 +11,16 @@ GitHub push to main  (or manual workflow_dispatch)
         │              auth via Workload Identity Federation (keyless, no SA JSON key)
         └── deploy   — docker build → push → gcloud run deploy (needs: infra)
 
-User browser
-  └── Cloud Run (europe-west3)  https://bedtime-api-<hash>-ew.a.run.app
-        ├── /api/*  → Express API handlers
-        └── /*      → packages/web/dist (React SPA, bundled in Docker image)
+User browser  →  https://bedtime-agent.ilya.online
+  └── Cloud Run DomainMapping (us-central1, free managed cert)
+        └── Cloud Run service `bedtime-api` (us-central1)
+              ├── /api/*  → Express API handlers
+              └── /*      → packages/web/dist (React SPA, bundled in Docker image)
 ```
 
 The API and frontend are served from the same Cloud Run URL. This keeps auth cookies on the same origin (HTTP-only, `sameSite: strict`) and eliminates CORS entirely.
+
+There is **no Global External HTTPS Load Balancer**. The custom domain is wired via Cloud Run's DomainMapping (GA in `us-central1`), which provides a free Google-managed certificate. Route 53 (`ilya.online` hosted zone `Z2DCC0LAF4MJM8`) holds the CNAME → `ghs.googlehosted.com` that DomainMapping requires.
 
 ---
 
@@ -27,14 +30,15 @@ Every GCP resource is declared in `infra/index.ts` and managed by Pulumi. Do not
 
 - GCP project `bedtime-prod`
 - Service API enables (Cloud Run, Artifact Registry, Storage, IAM, Cloud Resource Manager, STS, IAM Credentials)
-- Artifact Registry repo `bedtime-api` (Docker, `europe-west3`)
-- GCS bucket `bedtime-prod-storage` (versioned, `EUROPE-WEST3`) — reserved for future media/export use
+- Artifact Registry repo `bedtime-api` (Docker, `us-central1`)
+- GCS bucket `bedtime-prod-storage` (versioned, `europe-west3` — intentionally left there, cross-region reads are fine for low volume)
 - Service accounts:
   - `bedtime-api@bedtime-prod.iam.gserviceaccount.com` — Cloud Run runtime identity
-  - `github-ci@bedtime-prod.iam.gserviceaccount.com` — GitHub Actions CI identity
+  - `github-ci@bedtime-prod.iam.gserviceaccount.com` — GitHub Actions CI identity (also a verified owner of `ilya.online` in Google Site Verification, required for DomainMapping)
 - IAM bindings for CI SA: `run.admin`, `artifactregistry.writer`, `storage.admin`, `iam.serviceAccountUser`
-- Cloud Run service `bedtime-api` (`europe-west3`, public, 3 max instances, 512Mi/1CPU)
+- Cloud Run service `bedtime-api` (`us-central1`, public, 3 max instances, 512Mi/1CPU)
 - Cloud Run public invoker (`allUsers` → `roles/run.invoker`)
+- Cloud Run DomainMapping `bedtime-agent.ilya.online` → `bedtime-api` (`us-central1`)
 
 Pulumi state is stored in GCS: `gs://bedtime-pulumi-state` (not Pulumi Cloud). The passphrase is in GitHub secret `PROD_PULUMI_CONFIG_PASSPHRASE`.
 
@@ -77,9 +81,9 @@ The workflow uses both **variables** (non-secret config) and **secrets** (sensit
 
 | Variable | Value |
 |----------|-------|
-| `PROD_REGION` | `europe-west3` |
+| `PROD_REGION` | `us-central1` |
 | `PROD_PROJECT_ID` | `bedtime-prod` |
-| `PROD_REGISTRY` | `europe-west3-docker.pkg.dev/bedtime-prod/bedtime-api` |
+| `PROD_REGISTRY` | `us-central1-docker.pkg.dev/bedtime-prod/bedtime-api` |
 | `PROD_SENTRY_ORG` | `ilya-org-jo` |
 | `PROD_SENTRY_PROJECT` | `bedtime-agent` |
 | `PROD_LANGFUSE_BASE_URL` | `https://cloud.langfuse.com` |
@@ -102,16 +106,55 @@ The workflow uses both **variables** (non-secret config) and **secrets** (sensit
 
 ## Deploying
 
-### Automatic (push to main)
+### Authoritative facts (do not guess)
 
-Every push to `main` triggers the full pipeline: test → infra → deploy.
+- Workflow file: `.github/workflows/deploy.yml`
+- Trigger: push to `main`, or `workflow_dispatch`
+- Inputs (workflow_dispatch only):
+  - `environment` — choice, only valid value: `prod`
+  - `pulumi_refresh` — boolean, default `false`. On push triggers refresh always runs anyway.
+- GitHub remote: `ikushlianski/bedtime-stories`
+- Default branch: `main`
+- Production URL: `https://bedtime-agent.ilya.online`
+- Fallback Cloud Run URL: discoverable via `gcloud run services describe bedtime-api --region us-central1 --project bedtime-prod --format='value(status.url)'`
 
-### Manual dispatch
+### How to deploy (the only two paths)
 
-The workflow can be triggered from the GitHub Actions UI with:
+**Path A — push to `main`.** This is the normal path. The pipeline (`test → infra → deploy`) runs automatically.
 
-- **Environment** dropdown: selects the target (`prod` only for now)
-- **Pulumi refresh checkbox**: when checked, runs `pulumi refresh` before `pulumi up` to sync GCP state into Pulumi. Use this after any manual GCP change or after state corruption recovery. On automatic pushes, refresh always runs.
+```bash
+git push origin main
+```
+
+**Path B — manual dispatch from any branch.** Use this only when explicitly asked. Always deploy from the current branch — never substitute `main`.
+
+```bash
+CURRENT_BRANCH=$(git branch --show-current)
+gh workflow run deploy.yml \
+  --ref "$CURRENT_BRANCH" \
+  --field environment=prod \
+  --field pulumi_refresh=false \
+  -R ikushlianski/bedtime-stories
+```
+
+Set `pulumi_refresh=true` only after a manual GCP change or state-corruption recovery.
+
+### How to monitor a run
+
+```bash
+gh run list --workflow=deploy.yml --limit=5 -R ikushlianski/bedtime-stories
+gh run watch <run-id> --exit-status -R ikushlianski/bedtime-stories
+```
+
+### What the `/commit-push-deploy` skill does
+
+1. Reads `.github/workflows/deploy.yml` to derive the inputs above (do not hardcode).
+2. Commits staged changes (imperative mood, no AI mentions, no `Co-Authored-By`).
+3. `git push` (or `git push -u origin <current branch>` on first push).
+4. `gh workflow run deploy.yml --ref <current branch> --field environment=prod --field pulumi_refresh=false`.
+5. Reports the run URL.
+
+Never deploy from `main` or any hardcoded branch in the manual-dispatch step — always pass `git branch --show-current`.
 
 ---
 
@@ -121,12 +164,12 @@ Re-deploy a previous image tag:
 
 ```bash
 gcloud run deploy bedtime-api \
-  --image europe-west3-docker.pkg.dev/bedtime-prod/bedtime-api/api:<PREVIOUS_SHA> \
+  --image us-central1-docker.pkg.dev/bedtime-prod/bedtime-api/api:<PREVIOUS_SHA> \
   --project bedtime-prod \
-  --region europe-west3
+  --region us-central1
 ```
 
-Find available image tags in Artifact Registry: https://console.cloud.google.com/artifacts/docker/bedtime-prod/europe-west3/bedtime-api
+Find available image tags in Artifact Registry: https://console.cloud.google.com/artifacts/docker/bedtime-prod/us-central1/bedtime-api
 
 ---
 
