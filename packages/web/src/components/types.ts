@@ -1,4 +1,4 @@
-export type StoryStatus = "draft" | "ready" | "read" | "archived";
+export type StoryStatus = "draft" | "proofreading" | "ready" | "read" | "archived";
 
 export type AgentName =
   | "Questions"

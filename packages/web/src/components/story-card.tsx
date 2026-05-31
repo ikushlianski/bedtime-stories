@@ -26,6 +26,7 @@ interface StoryCardProps {
 
 const statusConfig: Record<StoryStatus, { label: string; tone: string }> = {
   draft: { label: 'Черновик', tone: 'badge-ghost' },
+  proofreading: { label: 'На вычитке', tone: 'badge-info' },
   ready: { label: 'Готово', tone: 'badge-primary' },
   read: { label: 'Прочитано', tone: 'badge-success' },
   archived: { label: 'Архив', tone: 'badge-warning' },
