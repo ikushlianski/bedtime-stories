@@ -1,9 +1,11 @@
 import { aiRunner } from '../../ai'
 import { PLOTTER_SYSTEM_PROMPT_DEFAULT } from './plotter'
+import { MAX_FRAGMENTS_PER_STORY, type EligibleFragment } from '../load-fragments'
 
 export interface SeriesPlanItem {
   outline: string
   titleHint: string
+  usedFragmentIds: number[]
 }
 
 export async function runPlotterSeries(options: {
@@ -13,6 +15,7 @@ export async function runPlotterSeries(options: {
   universeContext?: string
   styleGuide?: string
   sashaContext?: string | null
+  eligibleFragments?: EligibleFragment[]
   cwd?: string
 }): Promise<SeriesPlanItem[]> {
   const { seed, model } = options
@@ -34,8 +37,25 @@ export async function runPlotterSeries(options: {
     ? `\n\n---\nСТИЛЬ ИСТОРИЙ (чему учат примерные истории — учитывай при работе):\n${options.styleGuide}\n---\n`
     : ''
 
+  const fragments = options.eligibleFragments ?? []
+
+  const fragmentsBlock = fragments.length > 0
+    ? [
+        '\n\n---',
+        'ФРАГМЕНТЫ (необязательные вставки от родителя — забавные, тёплые или поучительные детали):',
+        fragments.map((f) => `[Фрагмент #${f.id}${f.usedCount > 0 ? ' (уже использован ранее)' : ''}] ${f.text}`).join('\n'),
+        '',
+        `Для каждого черновика реши отдельно: какие фрагменты (от нуля до ${MAX_FRAGMENTS_PER_STORY}) ложатся сюда органично. Обычно меньше; ни одного — нормально. Никогда не строй сюжет вокруг фрагмента. «Уже использованный» бери лишь как редкую отсылку. Для каждого плана верни массив id выбранных фрагментов (пустой массив, если ни одного).`,
+        '---\n',
+      ].join('\n')
+    : ''
+
+  const fragmentField = fragments.length > 0
+    ? `, "usedFragmentIds": [<id выбранных фрагментов или пусто>]`
+    : ''
+
   const prompt = [
-    `${basePrompt}${universeContextBlock}${styleGuideBlock}${sashaContextBlock}`,
+    `${basePrompt}${universeContextBlock}${styleGuideBlock}${sashaContextBlock}${fragmentsBlock}`,
     '',
     `SEED (real-life situation to base the stories on):\n${seed}`,
     '',
@@ -48,9 +68,9 @@ export async function runPlotterSeries(options: {
     `Верни ТОЛЬКО валидный JSON без markdown, без комментариев:`,
     `{`,
     `  "plans": [`,
-    `    { "outline": "<полный план на русском со всеми разделами>", "titleHint": "<название 3-5 слов>" },`,
-    `    { "outline": "...", "titleHint": "..." },`,
-    `    { "outline": "...", "titleHint": "..." }`,
+    `    { "outline": "<полный план на русском со всеми разделами>", "titleHint": "<название 3-5 слов>"${fragmentField} },`,
+    `    { "outline": "...", "titleHint": "..."${fragmentField} },`,
+    `    { "outline": "...", "titleHint": "..."${fragmentField} }`,
     `  ]`,
     `}`,
   ].join('\n')
@@ -104,9 +124,15 @@ function parsePlotterSeriesResponse(raw: string): SeriesPlanItem[] {
       throw new Error(`Plotter-series plan[${i}] missing outline or titleHint`)
     }
 
+    const rawFragmentIds = (item as Record<string, unknown>)['usedFragmentIds']
+    const usedFragmentIds = Array.isArray(rawFragmentIds)
+      ? Array.from(new Set(rawFragmentIds.filter((v): v is number => typeof v === 'number' && Number.isInteger(v)))).slice(0, MAX_FRAGMENTS_PER_STORY)
+      : []
+
     return {
       outline: ((item as Record<string, unknown>)['outline'] as string).trim(),
       titleHint: ((item as Record<string, unknown>)['titleHint'] as string).trim(),
+      usedFragmentIds,
     }
   })
 }

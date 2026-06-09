@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { runPlanPhase } from '@bedtime/core/pipeline/orchestrator'
+import { recordStoryFragments } from '@bedtime/core/pipeline/load-fragments'
 import { synthesizeSashaContext } from '@bedtime/core/pipeline/feedback-synthesizer'
 import { db } from '@bedtime/core/db/client'
 import { runSnapshots, stories } from '@bedtime/core/db/schema'
@@ -33,6 +34,8 @@ export function triggerAutoPipeline(
       storyId,
       models,
       promptVersions: defaultPromptVersions,
+      universeId,
+      injectFragments: true,
       ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
       ...(universeContext !== undefined ? { universeContext } : {}),
       ...(styleGuide !== undefined ? { styleGuide } : {}),
@@ -43,6 +46,7 @@ export function triggerAutoPipeline(
     try {
       await db.insert(runSnapshots).values(buildPlanSnapshotInsert(storyId, plan))
       await db.update(stories).set(buildPlanStoriesUpdate(plan)).where(eq(stories.id, storyId))
+      await recordStoryFragments(storyId, plan.usedFragmentIds)
 
       triggerTextPhase(
         storyId,

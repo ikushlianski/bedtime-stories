@@ -246,6 +246,20 @@
       "when": 1780214221499,
       "tag": "0034_proofreading_status_backfill",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1781024342813,
+      "tag": "0035_fragments",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1781029367573,
+      "tag": "0036_story_fragments",
+      "breakpoints": true
     }
   ]
 }

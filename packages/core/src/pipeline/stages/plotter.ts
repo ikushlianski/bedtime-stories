@@ -1,5 +1,6 @@
 import { aiRunner } from '../../ai'
 import { resolvePrompt, type ResolvedPrompt } from '../prompt-resolver'
+import { buildFragmentsBlock, type EligibleFragment } from '../load-fragments'
 import type { CriticOutput } from '../schemas'
 
 export const PLOTTER_SYSTEM_PROMPT_DEFAULT = `You are the editor-in-chief of a Belarusian children's magazine. A writer has come to you with a story idea. Your job is to sketch a rough story outline — a working brief for the writer, not a draft of the story itself.
@@ -80,6 +81,7 @@ export async function runPlotter(options: {
   universeContext?: string
   styleGuide?: string
   sashaContext?: string | null
+  eligibleFragments?: EligibleFragment[]
   cwd?: string
   storyId?: number
 }): Promise<string> {
@@ -104,8 +106,12 @@ export async function runPlotter(options: {
     ? `\n\n---\nСТИЛЬ ИСТОРИЙ (чему учат примерные истории — учитывай при работе):\n${options.styleGuide}\n---\n`
     : ''
 
+  const fragmentsBlock = options.eligibleFragments && options.eligibleFragments.length > 0
+    ? buildFragmentsBlock(options.eligibleFragments)
+    : ''
+
   const parts: string[] = [
-    `${basePrompt}${universeContextBlock}${styleGuideBlock}${sashaContextBlock}`,
+    `${basePrompt}${universeContextBlock}${styleGuideBlock}${sashaContextBlock}${fragmentsBlock}`,
     '',
     `SEED (real-life situation to base the story on):\n${seed}`,
   ]

@@ -133,6 +133,7 @@ export interface Story {
   cost?: StoryCostBreakdown | null
   active_text_version_id?: number | null
   active_text?: string | null
+  used_fragment_texts?: string[] | null
 }
 
 export interface TextVersion {
@@ -226,6 +227,16 @@ export interface DiaryEntry {
   id: number
   content: string
   createdAt: string
+}
+
+export interface Fragment {
+  id: number
+  text: string
+  universeId: number | null
+  rank: number
+  usedCount: number
+  createdAt: string | null
+  updatedAt: string | null
 }
 
 export interface ChildProfile {
@@ -586,6 +597,21 @@ export const api = {
         body: JSON.stringify({ content }),
       }),
     delete: (id: number) => requestEmpty(`/api/diary/${id}`, { method: 'DELETE' }),
+  },
+
+  fragments: {
+    list: () => request<Fragment[]>('/api/fragments'),
+    create: (data: { text: string; universeId?: number | null; rank?: number }) =>
+      request<Fragment>('/api/fragments', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    update: (id: number, data: Partial<{ text: string; universeId: number | null; rank: number }>) =>
+      request<Fragment>(`/api/fragments/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+    delete: (id: number) => requestEmpty(`/api/fragments/${id}`, { method: 'DELETE' }),
   },
 
   childProfile: {

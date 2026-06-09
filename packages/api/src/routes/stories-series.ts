@@ -7,6 +7,7 @@ import { stories, storyGroups } from '@bedtime/core/db/schema'
 import type { NewStory } from '@bedtime/core/db/types'
 import { validate } from '../middleware/validate'
 import { runPlotterSeries } from '@bedtime/core/pipeline/stages/plotter-series'
+import { loadEligibleFragments, recordStoryFragments } from '@bedtime/core/pipeline/load-fragments'
 import { synthesizeSashaContext } from '@bedtime/core/pipeline/feedback-synthesizer'
 import { resolvePipelineModels } from './pipeline-defaults'
 import { withPipelineTrace } from '@bedtime/observability'
@@ -38,10 +39,11 @@ router.post('/', validate(createSeriesSchema), async (req, res) => {
 
     const seriesTraceId = `series-${randomUUID()}`
 
-    const { plans, models } = await withPipelineTrace(seriesTraceId, async () => {
-      const [sashaContext, resolvedModels] = await Promise.all([
+    const { plans, models, eligibleFragments } = await withPipelineTrace(seriesTraceId, async () => {
+      const [sashaContext, resolvedModels, eligibleFragments] = await Promise.all([
         synthesizeSashaContext(),
         resolvePipelineModels(groupId ?? null, null),
+        loadEligibleFragments(groupId ?? null),
       ])
 
       const resolvedPlans = await runPlotterSeries({
@@ -51,12 +53,15 @@ router.post('/', validate(createSeriesSchema), async (req, res) => {
         ...(universeContext !== undefined ? { universeContext } : {}),
         ...(styleGuide !== undefined ? { styleGuide } : {}),
         ...(sashaContext !== null ? { sashaContext } : {}),
+        ...(eligibleFragments.length > 0 ? { eligibleFragments } : {}),
       })
 
-      return { plans: resolvedPlans, models: resolvedModels }
+      return { plans: resolvedPlans, models: resolvedModels, eligibleFragments }
     })
 
     const seriesId = randomUUID()
+
+    const eligibleFragmentIds = new Set(eligibleFragments.map((f) => f.id))
 
     const inserts: NewStory[] = plans.map(({ outline, titleHint }) => ({
       title: titleHint || 'Без названия',
@@ -73,6 +78,13 @@ router.post('/', validate(createSeriesSchema), async (req, res) => {
     }))
 
     const created = await db.insert(stories).values(inserts).returning()
+
+    await Promise.all(
+      created.map((row, i) => {
+        const ids = (plans[i]?.usedFragmentIds ?? []).filter((id) => eligibleFragmentIds.has(id))
+        return recordStoryFragments(row.id, ids)
+      }),
+    )
 
     res.status(201).json({
       seriesId,

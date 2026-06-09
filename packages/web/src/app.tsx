@@ -10,6 +10,7 @@ import { IdeasPage } from './pages/ideas'
 import { UniversesPage } from './pages/universes'
 import { UniverseDetailPage } from './pages/universe-detail'
 import { DiaryPage } from './pages/diary'
+import { FragmentsPage } from './pages/fragments'
 import { ChildProfilePage } from './pages/child-profile'
 import { AdminPage } from './pages/admin'
 import { SettingsPage } from './pages/settings'
@@ -20,6 +21,7 @@ import { ProtectedRoute } from './components/protected-route'
 
 const OTHER_NAV = [
   { to: '/ideas', label: 'Идеи' },
+  { to: '/fragments', label: 'Фрагменты' },
   { to: '/child-profile', label: 'Мой ребёнок' },
   { to: '/dashboard', label: 'Панель' },
   { to: '/admin', label: 'Админ' },
@@ -166,6 +168,7 @@ function AppShell() {
                       <Route path="/admin" element={<AdminPage />} />
                       <Route path="/ideas" element={<IdeasPage />} />
                       <Route path="/diary" element={<DiaryPage />} />
+                      <Route path="/fragments" element={<FragmentsPage />} />
                       <Route path="/child-profile" element={<ChildProfilePage />} />
                       <Route path="/universes" element={<UniversesPage />} />
                       <Route path="/universes/:id" element={<UniverseDetailPage />} />

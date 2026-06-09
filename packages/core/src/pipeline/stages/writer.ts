@@ -34,6 +34,7 @@ export async function runWriter(options: {
   styleGuide?: string
   sashaContext?: string | null
   exemplars?: Exemplar[]
+  chosenFragments?: string[]
   userAnnotations?: string
   onChunk?: (chunk: string) => void
   onChunkReset?: () => void
@@ -68,8 +69,12 @@ export async function runWriter(options: {
         .join('\n\n---\n\n')}\n---\n`
     : ''
 
+  const fragmentBlock = options.chosenFragments && options.chosenFragments.length > 0 && !isRevision
+    ? `\n\n---\nФРАГМЕНТЫ ДЛЯ ВПЛЕТЕНИЯ (родитель хотел увидеть эти детали — впиши каждую органично и естественно, не выпячивая и не сваливая в одну сцену; если это короткая фраза или образ — сохрани её узнаваемой):\n${options.chosenFragments.map((f) => `- ${f}`).join('\n')}\n---\n`
+    : ''
+
   const parts: string[] = [
-    `${basePrompt}${universeContextBlock}${styleGuideBlock}${sashaContextBlock}${exemplarsBlock}`,
+    `${basePrompt}${universeContextBlock}${styleGuideBlock}${sashaContextBlock}${exemplarsBlock}${fragmentBlock}`,
     '',
     `STORY PLAN:\n${plan}`,
   ]

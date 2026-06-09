@@ -1,5 +1,11 @@
 import { z } from 'zod'
-import { annotations, childDiary, childProfiles, childReactions, feedback, parentReviews, planConversations, planQuestions, prompts, runSnapshots, stories, storyGroups, storyReadings, storyTextVersions, universeCharacters, universeSuggestions } from './schema.js'
+import { annotations, childDiary, childProfiles, childReactions, feedback, fragments, parentReviews, planConversations, planQuestions, prompts, runSnapshots, stories, storyFragments, storyGroups, storyReadings, storyTextVersions, universeCharacters, universeSuggestions } from './schema.js'
+
+export type Fragment = typeof fragments.$inferSelect
+export type NewFragment = typeof fragments.$inferInsert
+
+export type StoryFragment = typeof storyFragments.$inferSelect
+export type NewStoryFragment = typeof storyFragments.$inferInsert
 
 export type StoryGroup = typeof storyGroups.$inferSelect
 export type NewStoryGroup = typeof storyGroups.$inferInsert

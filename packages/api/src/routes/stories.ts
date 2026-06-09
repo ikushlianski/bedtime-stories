@@ -16,6 +16,7 @@ import { runStoryAnalyzer } from '@bedtime/core/pipeline/stages/story-analyzer'
 import { updateStyleGuide } from '@bedtime/core/pipeline/style-guide-updater'
 import { runUniverseFactExtractor } from '@bedtime/core/pipeline/stages/universe-fact-extractor'
 import { loadUniverseContext } from './load-universe-context'
+import { loadStoryFragmentTexts } from '@bedtime/core/pipeline/load-fragments'
 import { synthesizeUniverseMemory } from '@bedtime/core/pipeline/synthesize-universe-memory'
 import { notifyStoryReady } from './pipeline-notifications'
 
@@ -350,7 +351,9 @@ router.get('/:id', async (req, res) => {
     const validCallRows = callRows.filter((r): r is typeof r & { usdMicros: number; createdAt: Date } => r.usdMicros !== null && r.createdAt !== null)
     const cost = validCallRows.length > 0 ? deriveStoryCostBreakdown(validCallRows) : null
 
-    res.json({ ...toSnakeCase(story as Story), cost, active_text: activeText })
+    const usedFragmentTexts = await loadStoryFragmentTexts(storyId)
+
+    res.json({ ...toSnakeCase(story as Story), cost, active_text: activeText, used_fragment_texts: usedFragmentTexts })
   } catch (err) {
     console.error('GET /stories/:id failed:', err)
     res.status(500).json({ error: 'Failed to fetch story' })

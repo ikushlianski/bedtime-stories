@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { runPlotterOnly } from '@bedtime/core/pipeline/orchestrator'
+import { recordStoryFragments } from '@bedtime/core/pipeline/load-fragments'
 import { synthesizeSashaContext } from '@bedtime/core/pipeline/feedback-synthesizer'
 import { db } from '@bedtime/core/db/client'
 import { runSnapshots, stories } from '@bedtime/core/db/schema'
@@ -52,6 +53,8 @@ export function triggerPlanPhaseFromAnswers(
       storyId,
       models,
       promptVersions: defaultPromptVersions,
+      universeId,
+      injectFragments: true,
       ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
       ...(universeContext !== undefined ? { universeContext } : {}),
       ...(styleGuide !== undefined ? { styleGuide } : {}),
@@ -65,6 +68,7 @@ export function triggerPlanPhaseFromAnswers(
     try {
       await db.insert(runSnapshots).values(buildPlotterOnlySnapshotInsert(storyId, result))
       await db.update(stories).set(buildPlotterOnlyStoriesUpdate(result)).where(eq(stories.id, storyId))
+      await recordStoryFragments(storyId, result.usedFragmentIds)
       setPipelineStatus(storyId, 'plan_ready')
     } catch (dbError) {
       console.error(`Failed to persist plan phase for storyId=${storyId}:`, dbError)

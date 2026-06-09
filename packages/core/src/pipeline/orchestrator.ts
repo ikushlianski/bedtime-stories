@@ -3,6 +3,7 @@ import { runWriter, WRITER_SYSTEM_PROMPT_DEFAULT } from './stages/writer'
 import { runPlotterQuestions, type PlotterQuestionItem } from './stages/plotter-questions'
 import { generateStoryTitle } from './stages/title-generator'
 import { resolvePrompt, type ResolvedPrompt } from './prompt-resolver'
+import { loadEligibleFragments, extractFragmentMarkers, MAX_FRAGMENTS_PER_STORY } from './load-fragments'
 import type { CriticOutput } from './schemas'
 import type { Exemplar } from './load-exemplars'
 import { withPipelineTrace, withPipelineTraceIfNone, addStoryContext } from '@bedtime/observability'
@@ -31,6 +32,7 @@ export interface PlanPhaseResult {
   models: PipelineModels
   promptVersions: PipelinePromptVersions
   sashaContext: string | null
+  usedFragmentIds: number[]
 }
 
 export interface PlotterOnlyResult {
@@ -39,6 +41,7 @@ export interface PlotterOnlyResult {
   models: PipelineModels
   promptVersions: PipelinePromptVersions
   sashaContext: string | null
+  usedFragmentIds: number[]
 }
 
 export interface WriterOnlyResult {
@@ -80,6 +83,8 @@ export async function runPlanPhase(options: {
   styleGuide?: string
   sashaContext?: string | null
   userFeedback?: string
+  universeId?: number | null
+  injectFragments?: boolean
   cwd?: string
   onStepChange?: (step: string) => void
 }): Promise<PlanPhaseResult> {
@@ -109,8 +114,13 @@ export async function runPlanPhase(options: {
   const userFeedbackArg = options.userFeedback ? { userFeedback: options.userFeedback } : {}
   const storyIdArg = { storyId: options.storyId }
 
+  const eligibleFragments = options.injectFragments
+    ? await loadEligibleFragments(options.universeId ?? null)
+    : []
+  const fragmentsArg = eligibleFragments.length > 0 ? { eligibleFragments } : {}
+
   notify('Plotter')
-  const planV1 = await runPlotter({
+  const planRaw = await runPlotter({
     seed,
     model: models.plotter,
     resolvedPrompt: plotterPrompt,
@@ -119,9 +129,15 @@ export async function runPlanPhase(options: {
     ...universeContextArg,
     ...styleGuideArg,
     ...sashaContextArg,
+    ...fragmentsArg,
     ...userFeedbackArg,
     ...storyIdArg,
   })
+
+  const marker = extractFragmentMarkers(planRaw)
+  const planV1 = marker.cleanedText
+  const eligibleIds = new Set(eligibleFragments.map((f) => f.id))
+  const usedFragmentIds = marker.fragmentIds.filter((id) => eligibleIds.has(id)).slice(0, MAX_FRAGMENTS_PER_STORY)
 
   notify('TitleGenerator')
   const titleSuggested = await generateStoryTitle({
@@ -140,6 +156,7 @@ export async function runPlanPhase(options: {
     models,
     promptVersions: resolvedVersions,
     sashaContext: options.sashaContext ?? null,
+    usedFragmentIds,
   }
 }
 
@@ -223,6 +240,8 @@ export async function runPlotterOnly(options: {
   styleGuide?: string
   sashaContext?: string | null
   userFeedback?: string
+  universeId?: number | null
+  injectFragments?: boolean
   cwd?: string
   onStepChange?: (step: string) => void
 }): Promise<PlotterOnlyResult> {
@@ -244,8 +263,13 @@ export async function runPlotterOnly(options: {
 
   const storyIdArg = { storyId: options.storyId }
 
+  const eligibleFragments = options.injectFragments
+    ? await loadEligibleFragments(options.universeId ?? null)
+    : []
+  const fragmentsArg = eligibleFragments.length > 0 ? { eligibleFragments } : {}
+
   notify('Plotter')
-  const planV1 = await runPlotter({
+  const planRaw = await runPlotter({
     seed,
     model: models.plotter,
     resolvedPrompt: plotterPrompt,
@@ -254,9 +278,15 @@ export async function runPlotterOnly(options: {
     ...universeContextArg,
     ...styleGuideArg,
     ...sashaContextArg,
+    ...fragmentsArg,
     ...userFeedbackArg,
     ...storyIdArg,
   })
+
+  const marker = extractFragmentMarkers(planRaw)
+  const planV1 = marker.cleanedText
+  const eligibleIds = new Set(eligibleFragments.map((f) => f.id))
+  const usedFragmentIds = marker.fragmentIds.filter((id) => eligibleIds.has(id)).slice(0, MAX_FRAGMENTS_PER_STORY)
 
   notify('TitleGenerator')
   const titleSuggested = await generateStoryTitle({
@@ -272,6 +302,7 @@ export async function runPlotterOnly(options: {
     models,
     promptVersions: resolvedVersions,
     sashaContext: options.sashaContext ?? null,
+    usedFragmentIds,
   }
 }
 
@@ -286,6 +317,7 @@ export async function runWriterOnly(options: {
   styleGuide?: string
   sashaContext?: string | null
   exemplars?: Exemplar[]
+  chosenFragments?: string[]
   previousText?: string
   userAnnotations?: string
   cwd?: string
@@ -301,6 +333,7 @@ export async function runWriterOnly(options: {
   const styleGuideArg = options.styleGuide !== undefined ? { styleGuide: options.styleGuide } : {}
   const sashaContextArg = options.sashaContext !== undefined && options.sashaContext !== null ? { sashaContext: options.sashaContext } : {}
   const exemplarsArg = options.exemplars && options.exemplars.length > 0 ? { exemplars: options.exemplars } : {}
+  const chosenFragmentsArg = options.chosenFragments && options.chosenFragments.length > 0 ? { chosenFragments: options.chosenFragments } : {}
   const previousTextArg = options.previousText !== undefined ? { previousText: options.previousText } : {}
   const userAnnotationsArg = options.userAnnotations ? { userAnnotations: options.userAnnotations } : {}
   const onChunkArg = options.onChunk !== undefined ? { onChunk: options.onChunk } : {}
@@ -326,6 +359,7 @@ export async function runWriterOnly(options: {
     ...styleGuideArg,
     ...sashaContextArg,
     ...exemplarsArg,
+    ...chosenFragmentsArg,
     ...previousTextArg,
     ...userAnnotationsArg,
     ...onChunkArg,

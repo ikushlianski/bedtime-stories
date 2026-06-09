@@ -405,6 +405,19 @@ setStoryTags((story.tags as string[] | null) ?? [])
         }
       />
 
+      {story.used_fragment_texts && story.used_fragment_texts.length > 0 && (
+        <div className="mb-4 rounded-box border border-secondary/30 bg-secondary/5 px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-secondary">
+            ✨ {story.used_fragment_texts.length > 1 ? 'Вплетённые фрагменты' : 'Вплетён фрагмент'}
+          </p>
+          <ul className="mt-1 space-y-1">
+            {story.used_fragment_texts.map((text, i) => (
+              <li key={i} className="text-sm italic text-base-content/80">— {text}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="mb-6 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm">
         <p className="mb-3 text-xs font-medium uppercase tracking-wide text-base-content/50">Категории</p>
         <StoryTagEditor

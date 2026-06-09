@@ -1,6 +1,7 @@
 import { eq, desc, and, isNull, or } from 'drizzle-orm'
 import { runWriterOnly } from '@bedtime/core/pipeline/orchestrator'
 import { loadRandomExemplars } from '@bedtime/core/pipeline/load-exemplars'
+import { loadStoryFragmentTexts } from '@bedtime/core/pipeline/load-fragments'
 import { db } from '@bedtime/core/db/client'
 import { runSnapshots, stories, annotations } from '@bedtime/core/db/schema'
 import {
@@ -57,6 +58,12 @@ export function triggerTextPhase(
       console.log(`[WRITER] using ${exemplars.length} canonical exemplar(s): ${exemplars.map((e) => `«${e.title || 'untitled'}»`).join(', ')}`)
     }
 
+    const chosenFragments = isRetry ? [] : await loadStoryFragmentTexts(storyId)
+
+    if (chosenFragments.length > 0) {
+      console.log(`[WRITER] weaving in ${chosenFragments.length} fragment(s)`)
+    }
+
     const result = await runWriterOnly({
       seed,
       planFinal,
@@ -68,6 +75,7 @@ export function triggerTextPhase(
       ...(styleGuide !== undefined ? { styleGuide } : {}),
       ...(sashaContext !== undefined && sashaContext !== null ? { sashaContext } : {}),
       ...(exemplars.length > 0 ? { exemplars } : {}),
+      ...(chosenFragments.length > 0 ? { chosenFragments } : {}),
       ...(isRetry ? { previousText: currentText } : {}),
       ...(userAnnotations ? { userAnnotations } : {}),
       onStepChange: (step) => setCurrentStep(storyId, step),
