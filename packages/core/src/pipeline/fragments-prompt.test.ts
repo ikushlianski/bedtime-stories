@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { extractFragmentMarkers, buildFragmentsBlock, MAX_FRAGMENTS_PER_STORY } from './load-fragments'
+import { extractFragmentMarkers, buildFragmentsBlock, MAX_FRAGMENTS_PER_STORY } from './fragments-prompt'
 
 describe('extractFragmentMarkers', () => {
   it('extracts a single chosen fragment id and strips the marker line', () => {
