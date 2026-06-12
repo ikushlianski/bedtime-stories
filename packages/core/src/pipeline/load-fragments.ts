@@ -1,6 +1,6 @@
 import { eq, inArray, isNull, or, sql } from 'drizzle-orm'
 import { db } from '../db/client'
-import { fragments, storyFragments, stories } from '../db/schema'
+import { fragments, storyFragments } from '../db/schema'
 import type { EligibleFragment } from './fragments-prompt'
 
 export * from './fragments-prompt'
@@ -14,10 +14,10 @@ export async function loadEligibleFragments(
     : isNull(fragments.universeId)
 
   const usedCount = sql<number>`(
-    select count(distinct ${storyFragments.storyId})::int from ${storyFragments}
-    join ${stories} on ${stories.id} = ${storyFragments.storyId}
-    where ${storyFragments.fragmentId} = ${fragments.id}
-      and ${stories.status} in ('proofreading', 'ready', 'read')
+    select count(distinct "story_fragments"."story_id")::int from "story_fragments"
+    join "stories" on "stories"."id" = "story_fragments"."story_id"
+    where "story_fragments"."fragment_id" = "fragments"."id"
+      and "stories"."status" in ('proofreading', 'ready', 'read')
   )`
 
   const rows = await db
