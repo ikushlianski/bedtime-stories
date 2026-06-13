@@ -1,23 +1,54 @@
 import { Bot, Context, InlineKeyboard } from 'grammy'
-import { eq, desc } from 'drizzle-orm'
+import { desc, eq, inArray, isNotNull } from 'drizzle-orm'
 import { db } from '@bedtime/core/db/client.js'
-import { stories, storyGroups, annotations } from '@bedtime/core/db/schema.js'
+import { stories, storyGroups, storyReadings } from '@bedtime/core/db/schema.js'
 import { deriveIsAuthorizedUser, deriveIdeaFromMessage } from './telegram-utils.js'
+import {
+  UNREAD_STATUSES,
+  READ_STATUSES,
+  parseStoryIdMessage,
+  formatStoriesList,
+  storyLabel,
+  chunkText,
+  pickReadableText,
+} from './telegram-format.js'
 import { triggerAutoPipeline } from './pipeline-auto-trigger.js'
 import { registerStoryReadyCallback } from './pipeline-notifications.js'
 
 export { deriveIsAuthorizedUser, deriveIdeaFromMessage }
 
-type BotState = 'idle' | 'awaiting_seed' | 'in_story' | 'awaiting_feedback'
-
 const token = process.env['TELEGRAM_BOT_TOKEN']
 const allowedUserId = Number(process.env['TELEGRAM_ALLOWED_USER_ID'] ?? '0')
 
-const userState = new Map<number, BotState>()
-const pendingSeeds = new Map<number, { seedText: string; universeId: number }>()
-const pendingFeedback = new Map<number, number>()
+const CATEGORY_UNREAD = 'cat:unread'
+const CATEGORY_READ = 'cat:read'
+const STORIES_MENU = 'stories:menu'
+const LIST_LIMIT = 30
 
-async function createStoryAndFire(seedText: string, universeId: number): Promise<number> {
+async function resolveDefaultUniverseId(): Promise<number | null> {
+  const [recent] = await db
+    .select({ groupId: stories.groupId })
+    .from(stories)
+    .where(isNotNull(stories.groupId))
+    .orderBy(desc(stories.createdAt))
+    .limit(1)
+
+  if (recent?.groupId) {
+    return recent.groupId
+  }
+
+  const [first] = await db.select({ id: storyGroups.id }).from(storyGroups).orderBy(storyGroups.id).limit(1)
+
+  return first?.id ?? null
+}
+
+async function createStoryAndFire(seedText: string): Promise<number | null> {
+  const universeId = await resolveDefaultUniverseId()
+
+  if (universeId === null) {
+    return null
+  }
+
   const [universe] = await db.select().from(storyGroups).where(eq(storyGroups.id, universeId))
 
   const [newStory] = await db
@@ -45,47 +76,145 @@ async function createStoryAndFire(seedText: string, universeId: number): Promise
   return storyId
 }
 
-async function sendStoriesList(ctx: Context): Promise<void> {
-  const allStories = await db
+function categoryKeyboard(): InlineKeyboard {
+  return new InlineKeyboard()
+    .text('📥 Новые / на вычитке', CATEGORY_UNREAD)
+    .row()
+    .text('📖 Прочитанные', CATEGORY_READ)
+}
+
+async function sendCategoryMenu(ctx: Context): Promise<void> {
+  await ctx.reply('Какие сказки показать?', { reply_markup: categoryKeyboard() })
+}
+
+async function sendStoriesByCategory(ctx: Context, category: 'unread' | 'read'): Promise<void> {
+  const statuses = category === 'unread' ? UNREAD_STATUSES : READ_STATUSES
+
+  const rows = await db
     .select({ id: stories.id, title: stories.title, status: stories.status })
     .from(stories)
+    .where(inArray(stories.status, [...statuses]))
     .orderBy(desc(stories.createdAt))
-    .limit(20)
+    .limit(LIST_LIMIT)
 
-  if (allStories.length === 0) {
-    await ctx.reply('Историй пока нет.')
+  const heading = category === 'unread' ? 'Новые и на вычитке:' : 'Прочитанные:'
+  const text = formatStoriesList(rows, heading)
+
+  if (rows.length === 0) {
+    await ctx.reply(text)
     return
   }
 
   const kb = new InlineKeyboard()
 
-  for (const s of allStories) {
-    const emoji = s.status === 'ready' ? '✅' : s.status === 'read' ? '📝' : s.status === 'archived' ? '🗂️' : s.status === 'proofreading' ? '📖' : '⏳'
-    const label = `${emoji} ${s.title || `История #${s.id}`}`
-    kb.text(label, `story:${s.id}`).row()
+  for (const row of rows) {
+    kb.text(storyLabel(row).slice(0, 60), `story:${row.id}`).row()
   }
 
-  await ctx.reply('Твои истории:', { reply_markup: kb })
+  await ctx.reply(text, { reply_markup: kb })
+}
+
+async function showStory(ctx: Context, storyId: number): Promise<void> {
+  const [story] = await db
+    .select({
+      title: stories.title,
+      status: stories.status,
+      textFinal: stories.textFinal,
+      textV1: stories.textV1,
+      textV2: stories.textV2,
+    })
+    .from(stories)
+    .where(eq(stories.id, storyId))
+
+  if (!story) {
+    await ctx.reply(`История №${storyId} не найдена. Нажми /stories, чтобы увидеть список.`)
+    return
+  }
+
+  const body = pickReadableText(story)
+
+  if (!body) {
+    await ctx.reply('История ещё генерируется, подожди немного ⏳')
+    return
+  }
+
+  if (story.status === 'ready') {
+    await db.update(stories).set({ status: 'read', updatedAt: new Date() }).where(eq(stories.id, storyId))
+    await db.insert(storyReadings).values({ storyId })
+  }
+
+  const header = story.title && story.title.trim().length > 0 ? `📖 ${story.title}\n\n` : ''
+
+  for (const chunk of chunkText(header + body)) {
+    await ctx.reply(chunk)
+  }
+
+  await ctx.reply('Что дальше?', {
+    reply_markup: new InlineKeyboard().text('← К списку', STORIES_MENU),
+  })
 }
 
 export const bot: Bot<Context> | null = token ? new Bot<Context>(token) : null
 
 if (bot) {
   registerStoryReadyCallback((storyId) => {
-    bot!.api.sendMessage(allowedUserId, `История #${storyId} готова! Используй /stories, чтобы прочитать.`).catch((err) => {
-      console.error('[telegram] failed to send story-ready notification:', err)
-    })
+    bot!.api
+      .sendMessage(allowedUserId, `Сказка №${storyId} готова! Отправь «${storyId}», чтобы прочитать, или нажми /stories.`)
+      .catch((err) => {
+        console.error('[telegram] failed to send story-ready notification:', err)
+      })
   })
 
   bot.command('start', async (ctx) => {
     if (!deriveIsAuthorizedUser(ctx.from?.id, allowedUserId)) return
-    userState.set(ctx.from!.id, 'idle')
-    await ctx.reply('Привет! Отправь мне идею для сказки, и я создам её для Саши.')
+
+    await ctx.reply(
+      'Привет! 👋\n\n' +
+        '• Создать сказку — пришли мне её идею одним сообщением (или нажми /new).\n' +
+        '• Почитать — нажми /stories и выбери список.',
+    )
+  })
+
+  bot.command('new', async (ctx) => {
+    if (!deriveIsAuthorizedUser(ctx.from?.id, allowedUserId)) return
+
+    await ctx.reply('Опиши идею новой сказки одним сообщением 👇')
   })
 
   bot.command('stories', async (ctx) => {
     if (!deriveIsAuthorizedUser(ctx.from?.id, allowedUserId)) return
-    await sendStoriesList(ctx)
+
+    await sendCategoryMenu(ctx)
+  })
+
+  bot.callbackQuery(CATEGORY_UNREAD, async (ctx) => {
+    if (!deriveIsAuthorizedUser(ctx.from?.id, allowedUserId)) {
+      await ctx.answerCallbackQuery()
+      return
+    }
+
+    await ctx.answerCallbackQuery()
+    await sendStoriesByCategory(ctx, 'unread')
+  })
+
+  bot.callbackQuery(CATEGORY_READ, async (ctx) => {
+    if (!deriveIsAuthorizedUser(ctx.from?.id, allowedUserId)) {
+      await ctx.answerCallbackQuery()
+      return
+    }
+
+    await ctx.answerCallbackQuery()
+    await sendStoriesByCategory(ctx, 'read')
+  })
+
+  bot.callbackQuery(STORIES_MENU, async (ctx) => {
+    if (!deriveIsAuthorizedUser(ctx.from?.id, allowedUserId)) {
+      await ctx.answerCallbackQuery()
+      return
+    }
+
+    await ctx.answerCallbackQuery()
+    await sendCategoryMenu(ctx)
   })
 
   bot.callbackQuery(/^story:\d+$/, async (ctx) => {
@@ -94,138 +223,33 @@ if (bot) {
       return
     }
 
-    const storyId = parseInt(ctx.callbackQuery.data.split(':')[1] ?? '0', 10)
-    const [story] = await db
-      .select({ title: stories.title, textFinal: stories.textFinal, status: stories.status })
-      .from(stories)
-      .where(eq(stories.id, storyId))
+    const storyId = Number.parseInt(ctx.callbackQuery.data.split(':')[1] ?? '0', 10)
 
     await ctx.answerCallbackQuery()
-
-    if (!story) {
-      await ctx.reply('История не найдена.')
-      return
-    }
-
-    if (!story.textFinal) {
-      await ctx.reply('История ещё генерируется, подожди немного ⏳')
-      return
-    }
-
-    const header = story.title ? `*${story.title}*\n\n` : ''
-    const fullText = header + story.textFinal
-    const CHUNK_SIZE = 4096
-
-    for (let i = 0; i < fullText.length; i += CHUNK_SIZE) {
-      const chunk = fullText.slice(i, i + CHUNK_SIZE)
-      if (i === 0 && header) {
-        await ctx.reply(chunk, { parse_mode: 'Markdown' })
-      } else {
-        await ctx.reply(chunk)
-      }
-    }
-
-    const postReadKb = new InlineKeyboard()
-      .text('Оставить отзыв', `feedback_req:${storyId}`)
-      .text('← Истории', 'back_stories')
-
-    await ctx.reply('Что дальше?', { reply_markup: postReadKb })
-  })
-
-  bot.callbackQuery(/^feedback_req:\d+$/, async (ctx) => {
-    if (!deriveIsAuthorizedUser(ctx.from?.id, allowedUserId)) {
-      await ctx.answerCallbackQuery()
-      return
-    }
-
-    const userId = ctx.from.id
-    const storyId = parseInt(ctx.callbackQuery.data.split(':')[1] ?? '0', 10)
-
-    pendingFeedback.set(userId, storyId)
-    userState.set(userId, 'awaiting_feedback')
-    await ctx.answerCallbackQuery()
-    await ctx.reply('Напиши свой отзыв на историю:')
-  })
-
-  bot.callbackQuery('back_stories', async (ctx) => {
-    if (!deriveIsAuthorizedUser(ctx.from?.id, allowedUserId)) {
-      await ctx.answerCallbackQuery()
-      return
-    }
-
-    await ctx.answerCallbackQuery()
-    await sendStoriesList(ctx)
+    await showStory(ctx, storyId)
   })
 
   bot.on('message:text', async (ctx) => {
     if (!deriveIsAuthorizedUser(ctx.from?.id, allowedUserId)) return
 
-    const userId = ctx.from.id
     const text = ctx.message.text.trim()
-    const state = userState.get(userId)
 
-    if (state === 'awaiting_feedback') {
-      const storyId = pendingFeedback.get(userId)
+    if (text.length === 0) return
 
-      if (storyId) {
-        await db.insert(annotations).values({
-          storyId,
-          type: 'my_note',
-          selectedText: 'Общий отзыв',
-          noteText: text,
-          context: 'text',
-        })
+    const maybeId = parseStoryIdMessage(text)
 
-        pendingFeedback.delete(userId)
-        userState.set(userId, 'idle')
-        await ctx.reply('Отзыв сохранён! ✓')
-      }
-
+    if (maybeId !== null) {
+      await showStory(ctx, maybeId)
       return
     }
 
-    const universes = await db.select({ id: storyGroups.id, name: storyGroups.name }).from(storyGroups)
+    const storyId = await createStoryAndFire(text)
 
-    if (universes.length === 1) {
-      const universe = universes[0]!
-      userState.set(userId, 'in_story')
-      pendingSeeds.delete(userId)
-      await ctx.reply('Генерирую, скоро пришлю!')
-      await createStoryAndFire(text, universe.id)
+    if (storyId === null) {
+      await ctx.reply('Не получилось создать сказку: сначала добавь вселенную в приложении.')
       return
     }
 
-    pendingSeeds.set(userId, { seedText: text, universeId: 0 })
-    userState.set(userId, 'awaiting_seed')
-
-    const kb = new InlineKeyboard()
-
-    for (const u of universes) {
-      kb.text(u.name, `universe:${u.id}`).row()
-    }
-
-    await ctx.reply('Выбери вселенную:', { reply_markup: kb })
-  })
-
-  bot.callbackQuery(/^universe:\d+$/, async (ctx) => {
-    if (!deriveIsAuthorizedUser(ctx.from?.id, allowedUserId)) {
-      await ctx.answerCallbackQuery()
-      return
-    }
-
-    const userId = ctx.from.id
-    const universeId = parseInt(ctx.callbackQuery.data.split(':')[1] ?? '0', 10)
-    const pending = pendingSeeds.get(userId)
-
-    if (!pending) {
-      await ctx.answerCallbackQuery({ text: 'Нет ожидающего текста — отправь идею ещё раз' })
-      return
-    }
-
-    pendingSeeds.delete(userId)
-    userState.set(userId, 'in_story')
-    await ctx.answerCallbackQuery()
-    await ctx.reply('Генерирую, скоро пришлю!')
-    await createStoryAndFire(pending.seedText, universeId)
+    await ctx.reply(`Генерирую сказку №${storyId} ✨ Пришлю, когда будет готова.`)
   })
 }
