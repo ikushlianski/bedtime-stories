@@ -133,6 +133,7 @@ jobs:
             --region ${{ vars.PROD_REGION }} \
             --platform managed \
             --allow-unauthenticated \
+            --no-cpu-throttling \
             --set-env-vars="NODE_ENV=production,HOST=0.0.0.0" \
             --set-env-vars="DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}" \
             --set-env-vars="JWT_SECRET=${{ secrets.PROD_JWT_SECRET }}" \
