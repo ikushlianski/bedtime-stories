@@ -147,6 +147,7 @@ jobs:
             --set-env-vars="GOOGLE_REDIRECT_URI=https://bedtime-agent.ilya.online/api/auth/google/callback" \
             --set-env-vars="TELEGRAM_BOT_TOKEN=${{ secrets.PROD_TELEGRAM_BOT_TOKEN }}" \
             --set-env-vars="TELEGRAM_ALLOWED_USER_ID=${{ secrets.PROD_TELEGRAM_ALLOWED_USER_ID }}" \
+            --set-env-vars="TELEGRAM_WEBHOOK_URL=https://bedtime-agent.ilya.online/api/telegram/webhook" \
             --set-env-vars="CATALOG_SYNC_SECRET=${{ secrets.PROD_CATALOG_SYNC_SECRET }}" \
             --set-env-vars="CATALOG_SYNC_MODE=gcp" \
             --quiet

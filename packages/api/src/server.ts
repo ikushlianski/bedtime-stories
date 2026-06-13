@@ -46,7 +46,7 @@ app.get('/_healthz', (_req, res) => res.json({ status: 'ok' }))
 app.use('/api/auth', authRouter)
 app.use('/api/internal/catalog-sync', internalCatalogSyncRouter)
 
-if (bot && process.env['NODE_ENV'] === 'production') {
+if (bot) {
   app.post('/api/telegram/webhook', webhookCallback(bot, 'express'))
 }
 
@@ -99,17 +99,25 @@ export function startServer(): void {
     }
 
     bot.api.setMyCommands([
-      { command: 'start', description: 'Начать работу с ботом' },
-      { command: 'stories', description: 'Список всех историй' },
+      { command: 'new', description: 'Новая сказка' },
+      { command: 'stories', description: 'Мои сказки' },
+      { command: 'start', description: 'Начать' },
     ]).catch((e: unknown) => console.error('Telegram setMyCommands failed:', e))
 
-    if (process.env['NODE_ENV'] === 'production') {
-      const webhookUrl = 'https://bedtime-agent.ilya.online/api/telegram/webhook'
+    const webhookUrl = process.env['TELEGRAM_WEBHOOK_URL']
+
+    if (webhookUrl) {
       bot.api.setWebhook(webhookUrl)
         .then(() => console.log('Telegram webhook set:', webhookUrl))
         .catch((e: unknown) => console.error('Telegram webhook setup failed:', e))
-    } else {
+    } else if (process.env['TELEGRAM_ENABLE_POLLING'] === 'true') {
+      bot.api.deleteWebhook().catch(() => {})
       bot.start()
+      console.log('Telegram bot started in long-polling mode')
+    } else {
+      console.log(
+        'Telegram bot loaded (outbound only). Set TELEGRAM_WEBHOOK_URL for webhook delivery, or TELEGRAM_ENABLE_POLLING=true to long-poll locally.',
+      )
     }
   })
 }
