@@ -48,9 +48,9 @@
 
 ## Telegram Full Integration (create + read from chat)
 
-Implemented; needs deploy + one manual round-trip to confirm inbound delivery. Open decisions:
+Implemented and deployed. Prod webhook confirmed healthy. Open items:
 
-1. **Deploy gate.** The prod webhook is currently empty (local polling had deleted it). The fix only takes effect on a prod deploy (`setWebhook` runs on startup via the new `TELEGRAM_WEBHOOK_URL`). Awaiting go-ahead to commit + deploy. After deploy, re-check `getWebhookInfo` (`url` populated, `last_error_message` null) and send one real message.
+1. **Manual round-trip (only remaining verification).** Deployed to prod; `getWebhookInfo` on `@bedtime_agent_prod_bot` shows `url` set, 0 pending, no errors. Send one real message to the prod bot to confirm the full UX. NOTE: prod (`@bedtime_agent_prod_bot`) and local dev (`@bedtime_agent_dev_bot`) are SEPARATE bots/tokens — the earlier "local polling killed the prod webhook" theory was wrong (it can't, different tokens). The true cause of the old "not usable" was the dead-end interactive UX, now rewritten.
 
 2. **Reading in Telegram does not trigger `synthesizeUniverseMemory`.** The web read path (`stories.ts:281-287`) updates universe style-memory when a `ready` story is opened; the Telegram read path only marks it `read`. Deliberate divergence for now — should phone reads also feed universe memory, or is that web-only by design?
 
