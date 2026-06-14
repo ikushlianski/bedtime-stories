@@ -46,7 +46,9 @@ app.get('/_healthz', (_req, res) => res.json({ status: 'ok' }))
 app.use('/api/auth', authRouter)
 app.use('/api/internal/catalog-sync', internalCatalogSyncRouter)
 
-if (bot) {
+const useTelegramPolling = !process.env['TELEGRAM_WEBHOOK_URL'] && process.env['TELEGRAM_ENABLE_POLLING'] === 'true'
+
+if (bot && !useTelegramPolling) {
   app.post('/api/telegram/webhook', webhookCallback(bot, 'express'))
 }
 
