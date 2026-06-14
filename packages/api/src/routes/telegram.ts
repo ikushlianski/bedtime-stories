@@ -157,11 +157,19 @@ async function showStory(ctx: Context, storyId: number): Promise<void> {
 export const bot: Bot<Context> | null = token ? new Bot<Context>(token) : null
 
 if (bot) {
-  registerStoryReadyCallback((storyId) => {
+  registerStoryReadyCallback((storyId, stage) => {
+    const message =
+      stage === 'generated'
+        ? `Сказка №${storyId} сгенерирована и ждёт вычитки 📝 Отправь «${storyId}», чтобы прочитать, или нажми /stories → «Новые / на вычитке».`
+        : `Сказка №${storyId} готова! Отправь «${storyId}», чтобы прочитать, или нажми /stories.`
+
     bot!.api
-      .sendMessage(allowedUserId, `Сказка №${storyId} готова! Отправь «${storyId}», чтобы прочитать, или нажми /stories.`)
+      .sendMessage(allowedUserId, message)
+      .then(() => {
+        console.log(`[telegram] story notification sent for story #${storyId} (stage=${stage})`)
+      })
       .catch((err) => {
-        console.error('[telegram] failed to send story-ready notification:', err)
+        console.error('[telegram] failed to send story notification:', err)
       })
   })
 

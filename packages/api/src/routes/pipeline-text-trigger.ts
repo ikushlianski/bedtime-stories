@@ -10,6 +10,7 @@ import {
 } from './pipeline-persistence'
 import { getPipelineStatus, setPipelineStatus, setCurrentStep, emitPipelineEvent } from './pipeline-state'
 import { defaultPromptVersions, resolvePipelineModels, loadStoryOverrides } from './pipeline-defaults'
+import { notifyStoryReady } from './pipeline-notifications'
 import { withPipelineTraceIfNone } from '@bedtime/observability'
 
 export { getPipelineStatus, setPipelineStatus }
@@ -99,12 +100,18 @@ export function triggerTextPhase(
       }
 
       const versionId = await insertTextVersion(storyId, result.textV1, result.models.writer, 'writer_initial')
+      const isAuto = mode === 'auto'
+
       await db
         .update(stories)
         .set({ ...buildWriterOnlyStoriesUpdate(result), activeTextVersionId: versionId, status: 'proofreading', updatedAt: new Date() })
         .where(eq(stories.id, storyId))
 
-      setPipelineStatus(storyId, mode === 'auto' ? 'text_ready' : 'text_review')
+      setPipelineStatus(storyId, isAuto ? 'text_ready' : 'text_review')
+
+      if (isAuto) {
+        notifyStoryReady(storyId, 'generated')
+      }
     } catch (dbError) {
       console.error(`Failed to persist text phase for storyId=${storyId}:`, dbError)
       setPipelineStatus(storyId, 'text_failed')

@@ -680,7 +680,7 @@ router.post('/:id/approve-text', validate(approveTextSchema), async (req, res) =
       return
     }
 
-    notifyStoryReady(storyId)
+    notifyStoryReady(storyId, 'approved')
 
     res.json(toSnakeCase(story as Story))
   } catch (err) {
