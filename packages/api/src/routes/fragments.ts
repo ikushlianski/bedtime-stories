@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { desc, eq, sql } from 'drizzle-orm'
 import { db } from '@bedtime/core/db/client'
-import { fragments, storyFragments, stories } from '@bedtime/core/db/schema'
+import { fragments, storyFragments } from '@bedtime/core/db/schema'
 import { validate } from '../middleware/validate'
 
 const router = Router()
@@ -20,10 +20,11 @@ const updateFragmentSchema = z.object({
 })
 
 const usedCount = sql<number>`(
-  select count(distinct ${storyFragments.storyId})::int from ${storyFragments}
-  join ${stories} on ${stories.id} = ${storyFragments.storyId}
-  where ${storyFragments.fragmentId} = ${fragments.id}
-    and ${stories.status} in ('proofreading', 'ready', 'read')
+  select count(distinct sf.story_id)::int
+  from story_fragments sf
+  join stories s on s.id = sf.story_id
+  where sf.fragment_id = ${fragments}.id
+    and s.status in ('proofreading', 'ready', 'read')
 )`
 
 router.get('/', async (_req, res) => {
