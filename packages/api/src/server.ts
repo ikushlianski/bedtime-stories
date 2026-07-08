@@ -26,6 +26,7 @@ import adminRouter from './routes/admin'
 import authRouter from './routes/auth.routes'
 import settingsRouter from './routes/settings'
 import internalCatalogSyncRouter from './routes/internal-catalog-sync'
+import internalBackfillRouter from './routes/internal-backfill'
 import { requireAuth } from './middleware/auth.middleware'
 import { bot } from './routes/telegram'
 import { webhookCallback } from 'grammy'
@@ -45,6 +46,7 @@ app.get('/_healthz', (_req, res) => res.json({ status: 'ok' }))
 
 app.use('/api/auth', authRouter)
 app.use('/api/internal/catalog-sync', internalCatalogSyncRouter)
+app.use('/api/internal/backfill', internalBackfillRouter)
 
 const useTelegramPolling = !process.env['TELEGRAM_WEBHOOK_URL'] && process.env['TELEGRAM_ENABLE_POLLING'] === 'true'
 
