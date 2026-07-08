@@ -6,6 +6,7 @@ import { storyIdeas, storyGroups, stories } from '@bedtime/core/db/schema'
 import { runIdeaSuggester } from '@bedtime/core/pipeline/stages/idea-suggester'
 import { validate } from '../middleware/validate'
 import { DEFAULT_STAGE_MODELS } from '@bedtime/core/pipeline/derivers/stage-defaults'
+import { triggerAutoPipeline } from './pipeline-auto-trigger'
 
 const router = Router({ mergeParams: true })
 
@@ -170,6 +171,8 @@ router.post('/:ideaId/approve', validate(approveSchema), async (req, res) => {
     let createdStoryId: number | null = null
 
     if (body.createStory) {
+      const [universe] = await db.select().from(storyGroups).where(eq(storyGroups.id, universeId))
+
       const [newStory] = await db
         .insert(stories)
         .values({
@@ -184,6 +187,15 @@ router.post('/:ideaId/approve', validate(approveSchema), async (req, res) => {
 
       if (newStory) {
         createdStoryId = newStory.id
+
+        triggerAutoPipeline(
+          newStory.id,
+          idea.seedText,
+          universe?.systemPrompt ?? undefined,
+          universe?.universeContext ?? undefined,
+          universe?.styleGuide ?? undefined,
+          universeId,
+        )
       }
     }
 

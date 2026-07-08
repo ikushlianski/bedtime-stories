@@ -11,6 +11,7 @@ import {
 import { setPipelineStatus, setCurrentStep } from './pipeline-state'
 import { defaultPromptVersions, resolvePipelineModels, loadStoryOverrides } from './pipeline-defaults'
 import { triggerTextPhase } from './pipeline-text-trigger'
+import { loadUniverseContext } from './load-universe-context'
 import { withPipelineTrace } from '@bedtime/observability'
 
 export function triggerAutoPipeline(
@@ -24,10 +25,15 @@ export function triggerAutoPipeline(
   setPipelineStatus(storyId, 'plan_running')
 
   withPipelineTrace(String(storyId), async () => {
-    const [sashaContext, models] = await Promise.all([
+    const [sashaContext, models, enrichedContext] = await Promise.all([
       synthesizeSashaContext(),
       loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(universeId, overrides)),
+      universeId !== null ? loadUniverseContext(universeId) : Promise.resolve(null),
     ])
+
+    const effectiveSystemPrompt = enrichedContext?.universeSystemPrompt ?? universeSystemPrompt
+    const effectiveUniverseContext = enrichedContext?.universeContext ?? universeContext
+    const effectiveStyleGuide = enrichedContext?.styleGuide ?? styleGuide
 
     const plan = await runPlanPhase({
       seed,
@@ -36,9 +42,9 @@ export function triggerAutoPipeline(
       promptVersions: defaultPromptVersions,
       universeId,
       injectFragments: true,
-      ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
-      ...(universeContext !== undefined ? { universeContext } : {}),
-      ...(styleGuide !== undefined ? { styleGuide } : {}),
+      ...(effectiveSystemPrompt !== undefined ? { universeSystemPrompt: effectiveSystemPrompt } : {}),
+      ...(effectiveUniverseContext !== undefined ? { universeContext: effectiveUniverseContext } : {}),
+      ...(effectiveStyleGuide !== undefined ? { styleGuide: effectiveStyleGuide } : {}),
       ...(sashaContext !== null ? { sashaContext } : {}),
       onStepChange: (step) => setCurrentStep(storyId, step),
     })
@@ -53,10 +59,10 @@ export function triggerAutoPipeline(
         seed,
         plan.planFinal,
         'auto',
-        universeSystemPrompt,
+        effectiveSystemPrompt,
         sashaContext,
-        universeContext,
-        styleGuide,
+        effectiveUniverseContext,
+        effectiveStyleGuide,
         universeId,
       )
     } catch (dbError) {
