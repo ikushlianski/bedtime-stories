@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { STORY_STRUCTURES, selectStoryStructure, buildStructureBlock } from './plotter'
+import { STORY_STRUCTURES, selectStoryStructure, buildStructureBlock } from './story-structures'
 
 describe('selectStoryStructure', () => {
   it('picks a stable structure for a given storyId', () => {
