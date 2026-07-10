@@ -10,6 +10,7 @@ export interface ChatRequest {
   model: string
   messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>
   stream?: boolean
+  temperature?: number
   response_format?: unknown
 }
 

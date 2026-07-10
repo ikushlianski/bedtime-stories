@@ -10,6 +10,7 @@ export interface RunTextOptions {
   prompt: string
   cwd?: string
   label?: string
+  temperature?: number
   thinking?: ThinkingConfig
   onChunk?: (chunk: string) => void
   onChunkReset?: () => void

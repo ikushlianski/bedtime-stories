@@ -2,7 +2,10 @@ import { aiRunner } from '../../ai'
 import { resolvePrompt, type ResolvedPrompt } from '../prompt-resolver'
 import { buildFragmentsBlock, type EligibleFragment } from '../load-fragments'
 import { selectStoryStructure, buildStructureBlock } from './story-structures'
+import { selectCharacterLens, buildCharacterLensBlock } from './character-lenses'
 import type { CriticOutput } from '../schemas'
+
+const PLOTTER_TEMPERATURE = 0.95
 
 export const PLOTTER_SYSTEM_PROMPT_DEFAULT = `You are the editor-in-chief of a Belarusian children's magazine. A writer has come to you with a story idea. Your job is to sketch a rough story outline — a working brief for the writer, not a draft of the story itself.
 
@@ -112,9 +115,10 @@ export async function runPlotter(options: {
     : ''
 
   const structureBlock = buildStructureBlock(selectStoryStructure(options.storyId))
+  const characterLensBlock = buildCharacterLensBlock(selectCharacterLens(options.storyId))
 
   const parts: string[] = [
-    `${basePrompt}${structureBlock}${universeContextBlock}${styleGuideBlock}${sashaContextBlock}${fragmentsBlock}`,
+    `${basePrompt}${structureBlock}${characterLensBlock}${universeContextBlock}${styleGuideBlock}${sashaContextBlock}${fragmentsBlock}`,
     '',
     `SEED (real-life situation to base the story on):\n${seed}`,
   ]
@@ -153,5 +157,5 @@ export async function runPlotter(options: {
 
   const storyIdArg = options.storyId !== undefined ? { storyId: options.storyId } : {}
 
-  return aiRunner.runText({ model, prompt, label: `plotter:v${resolved.version}`, stage: 'plotter', ...cwdArg, ...storyIdArg })
+  return aiRunner.runText({ model, prompt, label: `plotter:v${resolved.version}`, stage: 'plotter', temperature: PLOTTER_TEMPERATURE, ...cwdArg, ...storyIdArg })
 }

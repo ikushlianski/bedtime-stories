@@ -3,6 +3,8 @@ import { resolvePrompt, type ResolvedPrompt } from '../prompt-resolver'
 import type { CriticOutput } from '../schemas'
 import type { Exemplar } from '../load-exemplars'
 
+const WRITER_TEMPERATURE = 0.9
+
 export const WRITER_SYSTEM_PROMPT_DEFAULT = `You are a writer creating a bedtime therapeutic story for a 6-year-old boy named Gosha (Sasha).
 Write the full story text in Russian based on the plan provided. Requirements:
 - Language: Russian only. Use warm, vivid, conversational language suitable for reading aloud to a child.
@@ -131,5 +133,5 @@ export async function runWriter(options: {
 
   const storyIdArg = options.storyId !== undefined ? { storyId: options.storyId } : {}
 
-  return aiRunner.runText({ model, prompt, label: `writer:v${resolved.version}`, stage: 'writer', ...cwdArg, ...onChunkArg, ...onChunkResetArg, ...storyIdArg })
+  return aiRunner.runText({ model, prompt, label: `writer:v${resolved.version}`, stage: 'writer', temperature: WRITER_TEMPERATURE, ...cwdArg, ...onChunkArg, ...onChunkResetArg, ...storyIdArg })
 }

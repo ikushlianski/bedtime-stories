@@ -134,6 +134,7 @@ export class OpenRouterRunner implements AiRunner {
             { role: 'system', content: SYSTEM_PROMPT },
             { role: 'user', content: options.prompt },
           ],
+          ...(options.temperature !== undefined ? { temperature: options.temperature } : {}),
         })) {
           if (ev.delta !== undefined) {
             collected += ev.delta
