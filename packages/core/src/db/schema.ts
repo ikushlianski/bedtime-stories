@@ -95,6 +95,23 @@ export const storyFragments = pgTable('story_fragments', {
   createdAt: timestamp('created_at').defaultNow(),
 }, (t) => [unique('story_fragments_story_fragment_unique').on(t.storyId, t.fragmentId)])
 
+export const topics = pgTable('topics', {
+  id: serial('id').primaryKey(),
+  title: text('title').notNull(),
+  note: text('note'),
+  universeId: integer('universe_id').references(() => storyGroups.id),
+  rank: integer('rank').notNull().default(0),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+})
+
+export const storyTopics = pgTable('story_topics', {
+  id: serial('id').primaryKey(),
+  storyId: integer('story_id').references(() => stories.id).notNull(),
+  topicId: integer('topic_id').references(() => topics.id).notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (t) => [unique('story_topics_story_topic_unique').on(t.storyId, t.topicId)])
+
 export const feedback = pgTable('feedback', {
   id: serial('id').primaryKey(),
   storyId: integer('story_id').references(() => stories.id),

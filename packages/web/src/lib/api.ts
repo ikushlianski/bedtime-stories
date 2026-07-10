@@ -239,6 +239,24 @@ export interface Fragment {
   updatedAt: string | null
 }
 
+export interface Topic {
+  id: number
+  title: string
+  note: string | null
+  universeId: number | null
+  rank: number
+  usedCount: number
+  createdAt: string | null
+  updatedAt: string | null
+}
+
+export interface TopicCombo {
+  topicIds: number[]
+  title: string
+  seed: string
+  rationale: string
+}
+
 export interface ChildProfile {
   id: number
   name: string
@@ -612,6 +630,31 @@ export const api = {
         body: JSON.stringify(data),
       }),
     delete: (id: number) => requestEmpty(`/api/fragments/${id}`, { method: 'DELETE' }),
+  },
+
+  topics: {
+    list: () => request<Topic[]>('/api/topics'),
+    create: (data: { title: string; note?: string | null; universeId?: number | null; rank?: number }) =>
+      request<Topic>('/api/topics', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    update: (id: number, data: Partial<{ title: string; note: string | null; universeId: number | null; rank: number }>) =>
+      request<Topic>(`/api/topics/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+    delete: (id: number) => requestEmpty(`/api/topics/${id}`, { method: 'DELETE' }),
+    suggestCombos: (data: { universeId?: number | null; model?: string }) =>
+      request<{ combos: TopicCombo[] }>('/api/topics/suggest-combos', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    generate: (data: { topicIds: number[]; universeId: number; seed?: string; model?: string }) =>
+      request<{ storyId: number }>('/api/topics/generate', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
   },
 
   childProfile: {
