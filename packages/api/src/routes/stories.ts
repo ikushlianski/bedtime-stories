@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { eq, desc, and, sql } from 'drizzle-orm'
 import { db } from '@bedtime/core/db/client'
-import { stories, annotations, feedback, runSnapshots, storyGroups, planQuestions, planConversations, childDiary, parentReviews, childReactions, universeCharacters, universeSuggestions, storyReadings, modelCalls, storyTextVersions } from '@bedtime/core/db/schema'
+import { stories, annotations, feedback, runSnapshots, storyGroups, planQuestions, planConversations, parentReviews, childReactions, storyReadings, modelCalls, storyTextVersions } from '@bedtime/core/db/schema'
 import { deriveStoryCostBreakdown } from '@bedtime/core/cost/aggregations/derive-story-cost-breakdown'
 import type { Story, NewStory, NewAnnotation, ParentReview, ChildReaction } from '@bedtime/core/db/types'
 import { validate } from '../middleware/validate'
@@ -12,10 +12,8 @@ import { triggerTextCritique, triggerTextRewrite } from './pipeline-text-critiqu
 import { decideApprovePlan } from './approve-plan-decision'
 import textVersionsRouter from './text-versions'
 import { createStorySchema, resolveCreateStoryMode } from './create-story-schema'
-import { runStoryAnalyzer } from '@bedtime/core/pipeline/stages/story-analyzer'
-import { updateStyleGuide } from '@bedtime/core/pipeline/style-guide-updater'
-import { formatParentFeedback } from '@bedtime/core/pipeline/derivers/format-parent-feedback'
-import { runUniverseFactExtractor } from '@bedtime/core/pipeline/stages/universe-fact-extractor'
+import { analyzeStoryAndLearn } from './story-analysis'
+import { dispatchAnalysis } from './pipeline-dispatch'
 import { loadUniverseContext } from './load-universe-context'
 import { loadStoryFragmentTexts } from '@bedtime/core/pipeline/load-fragments'
 import { synthesizeUniverseMemory } from '@bedtime/core/pipeline/synthesize-universe-memory'
@@ -686,6 +684,10 @@ router.post('/:id/approve-text', validate(approveTextSchema), async (req, res) =
 
     notifyStoryReady(storyId, 'approved')
 
+    void dispatchAnalysis(storyId).catch((err) => {
+      console.error(`Failed to dispatch analysis for storyId=${storyId}:`, err)
+    })
+
     res.json(toSnakeCase(story as Story))
   } catch (err) {
     console.error('POST /stories/:id/approve-text failed:', err)
@@ -788,85 +790,9 @@ router.post('/:id/analyze', async (req, res) => {
       return
     }
 
-    let universeContext: string | undefined
+    const result = await analyzeStoryAndLearn(storyId)
 
-    if (story.groupId !== null && story.groupId !== undefined) {
-      const [group] = await db.select().from(storyGroups).where(eq(storyGroups.id, story.groupId))
-
-      if (group) {
-        universeContext = group.universeContext ?? undefined
-      }
-    }
-
-    console.log(`[analyze] story ${storyId} "${story.title}" — running analyzer`)
-
-    const output = await runStoryAnalyzer({
-      storyText,
-      ...(universeContext !== undefined ? { universeContext } : {}),
-    })
-
-    console.log(`[analyze] story ${storyId} — reactions: ${output.extracted_reactions.length}, saving analysis`)
-
-    await db
-      .update(stories)
-      .set({ storyAnalysis: output.analysis_summary })
-      .where(eq(stories.id, storyId))
-
-    if (output.extracted_reactions.length > 0) {
-      await db.insert(childDiary).values(
-        output.extracted_reactions.map((r) => ({
-          content: `Из истории «${story.title}»: ${r.reaction_text} — «${r.surrounding_quote}»`,
-        })),
-      )
-    }
-
-    let suggestionsCreated = 0
-
-    if (story.groupId !== null && story.groupId !== undefined) {
-      const groupId = story.groupId
-
-      console.log(`[analyze] story ${storyId} — updating style guide for group ${groupId}`)
-      const [existingChars, parentReview, storyAnnotations] = await Promise.all([
-        db
-          .select({ name: universeCharacters.name, description: universeCharacters.description })
-          .from(universeCharacters)
-          .where(eq(universeCharacters.universeId, groupId)),
-        db.select().from(parentReviews).where(eq(parentReviews.storyId, storyId)),
-        db.select().from(annotations).where(eq(annotations.storyId, storyId)),
-      ])
-
-      const parentFeedback = formatParentFeedback({ review: parentReview[0] ?? null, annotations: storyAnnotations })
-
-      await Promise.all([
-        updateStyleGuide(groupId, output, story.title, parentFeedback),
-        runUniverseFactExtractor({ storyText, existingCharacters: existingChars })
-          .then(async (factOutput) => {
-            if (factOutput.facts.length === 0) return
-
-            await db.insert(universeSuggestions).values(
-              factOutput.facts.map((f) => ({
-                universeId: groupId,
-                factText: f.fact_text,
-                sourceStoryId: storyId,
-                status: 'pending' as const,
-              })),
-            )
-            suggestionsCreated = factOutput.facts.length
-          })
-          .catch((err) => {
-            console.error(`[analyze] story ${storyId} — fact extractor failed:`, err)
-          }),
-      ])
-    }
-
-    console.log(`[analyze] story ${storyId} — done`)
-
-    res.json({
-      storyAnalysis: output.analysis_summary,
-      reactionsExtracted: output.extracted_reactions.length,
-      styleGuideUpdated: story.groupId !== null && story.groupId !== undefined,
-      suggestionsCreated,
-    })
+    res.json(result)
   } catch (err) {
     console.error('POST /stories/:id/analyze failed:', err)
     res.status(500).json({ error: 'Failed to analyze story' })
