@@ -21,6 +21,7 @@ const requiredApis = [
   'sts.googleapis.com',
   'compute.googleapis.com',
   'cloudscheduler.googleapis.com',
+  'cloudtasks.googleapis.com',
 ]
 
 const enabledApis = requiredApis.map(
@@ -151,6 +152,32 @@ const apiDomainMapping = new gcp.cloudrun.DomainMapping(
   { dependsOn: [apiService] },
 )
 
+const pipelineQueueResource = new gcp.cloudtasks.Queue(
+  'bedtime-pipeline',
+  {
+    project: project.projectId,
+    location: region,
+    name: 'bedtime-pipeline',
+    rateLimits: {
+      maxConcurrentDispatches: 3,
+      maxDispatchesPerSecond: 1,
+    },
+    retryConfig: {
+      maxAttempts: 5,
+      minBackoff: '30s',
+      maxBackoff: '600s',
+      maxDoublings: 3,
+    },
+  },
+  { dependsOn: enabledApis },
+)
+
+new gcp.projects.IAMMember('api-cloudtasks-enqueuer', {
+  project: project.projectId,
+  role: 'roles/cloudtasks.enqueuer',
+  member: pulumi.interpolate`serviceAccount:${apiSa.email}`,
+})
+
 const catalogSyncSecret = config.requireSecret('catalogSyncSecret')
 
 new gcp.cloudscheduler.Job(
@@ -189,3 +216,4 @@ export const registryUrl = pulumi.interpolate`${region}-docker.pkg.dev/${project
 export const ciSaEmail = ciSa.email
 export const bucketName = storageBucket.name
 export const domainMappingRecords = apiDomainMapping.statuses
+export const pipelineQueue = pipelineQueueResource.id

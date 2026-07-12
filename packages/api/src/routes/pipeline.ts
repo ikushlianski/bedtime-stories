@@ -18,7 +18,7 @@ import {
 import { getPipelineStatus, setPipelineStatus, getCurrentStep, getStepSummaries, subscribePipelineEvents } from './pipeline-state'
 import { defaultModels, defaultPromptVersions, resolvePipelineModels, loadStoryOverrides } from './pipeline-defaults'
 import pipelineQuestionsRouter from './pipeline-questions'
-import { triggerAutoPipeline } from './pipeline-auto-trigger'
+import { dispatchAutoPipeline } from './pipeline-dispatch'
 import { triggerTextPhase } from './pipeline-text-trigger'
 import { withPipelineTraceIfNone } from '@bedtime/observability'
 
@@ -98,7 +98,7 @@ router.post('/run', validate(runPipelineSchema), async (req, res) => {
     const mode = storyRow.mode ?? 'auto'
 
     if (mode === 'auto') {
-      triggerAutoPipeline(storyId, seed, universeSystemPrompt, universeContext, styleGuide, storyRow.groupId ?? null)
+      await dispatchAutoPipeline({ storyId, seed, universeSystemPrompt, universeContext, styleGuide, universeId: storyRow.groupId ?? null })
       res.json({ started: true, storyId, phase: 'auto' })
       return
     }

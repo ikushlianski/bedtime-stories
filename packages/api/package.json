@@ -10,6 +10,7 @@
   "dependencies": {
     "@bedtime/core": "*",
     "@bedtime/observability": "^0.1.0",
+    "@google-cloud/tasks": "^6.0.0",
     "@grammyjs/conversations": "^2.1.1",
     "@sentry/node": "^9.47.1",
     "google-auth-library": "^10.6.2",

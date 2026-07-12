@@ -16,22 +16,39 @@ import { withPipelineTraceIfNone } from '@bedtime/observability'
 
 export { getPipelineStatus, setPipelineStatus }
 
-export function triggerTextPhase(
-  storyId: number,
-  seed: string,
-  planFinal: string,
-  mode: 'auto' | 'manual',
-  universeSystemPrompt?: string,
-  sashaContext?: string | null,
-  universeContext?: string,
-  styleGuide?: string,
-  universeId: number | null = null,
-  currentText?: string,
-  activeTextVersionId?: number | null,
-): void {
+export interface TextPhaseParams {
+  storyId: number
+  seed: string
+  planFinal: string
+  mode: 'auto' | 'manual'
+  universeSystemPrompt?: string | undefined
+  sashaContext?: string | null | undefined
+  universeContext?: string | undefined
+  styleGuide?: string | undefined
+  universeId?: number | null | undefined
+  currentText?: string | undefined
+  activeTextVersionId?: number | null | undefined
+}
+
+export async function runTextPhaseDurable(params: TextPhaseParams): Promise<void> {
+  const {
+    storyId,
+    seed,
+    planFinal,
+    mode,
+    universeSystemPrompt,
+    sashaContext,
+    universeContext,
+    styleGuide,
+    universeId = null,
+    currentText,
+    activeTextVersionId,
+  } = params
+
   setPipelineStatus(storyId, 'text_running')
 
-  withPipelineTraceIfNone(String(storyId), async () => {
+  try {
+    await withPipelineTraceIfNone(String(storyId), async () => {
     const isRetry = currentText !== undefined && currentText.length > 0
 
     const annotationContext = isRetry ? 'text' : 'plan'
@@ -124,8 +141,40 @@ export function triggerTextPhase(
       }
     } catch (dbError) {
       console.error(`Failed to persist text phase for storyId=${storyId}:`, dbError)
-      setPipelineStatus(storyId, 'text_failed')
+      throw dbError
     }
+    })
+  } catch (textError) {
+    setPipelineStatus(storyId, 'text_failed')
+    throw textError
+  }
+}
+
+export function triggerTextPhase(
+  storyId: number,
+  seed: string,
+  planFinal: string,
+  mode: 'auto' | 'manual',
+  universeSystemPrompt?: string,
+  sashaContext?: string | null,
+  universeContext?: string,
+  styleGuide?: string,
+  universeId: number | null = null,
+  currentText?: string,
+  activeTextVersionId?: number | null,
+): void {
+  void runTextPhaseDurable({
+    storyId,
+    seed,
+    planFinal,
+    mode,
+    universeSystemPrompt,
+    sashaContext,
+    universeContext,
+    styleGuide,
+    universeId,
+    currentText,
+    activeTextVersionId,
   }).catch((textError) => {
     setPipelineStatus(storyId, 'text_failed')
     console.error(`Text phase failed for storyId=${storyId}:`, textError)

@@ -6,7 +6,7 @@ import { storyIdeas, storyGroups, stories } from '@bedtime/core/db/schema'
 import { runIdeaSuggester } from '@bedtime/core/pipeline/stages/idea-suggester'
 import { validate } from '../middleware/validate'
 import { DEFAULT_STAGE_MODELS } from '@bedtime/core/pipeline/derivers/stage-defaults'
-import { triggerAutoPipeline } from './pipeline-auto-trigger'
+import { dispatchAutoPipeline } from './pipeline-dispatch'
 
 const router = Router({ mergeParams: true })
 
@@ -188,14 +188,14 @@ router.post('/:ideaId/approve', validate(approveSchema), async (req, res) => {
       if (newStory) {
         createdStoryId = newStory.id
 
-        triggerAutoPipeline(
-          newStory.id,
-          idea.seedText,
-          universe?.systemPrompt ?? undefined,
-          universe?.universeContext ?? undefined,
-          universe?.styleGuide ?? undefined,
+        await dispatchAutoPipeline({
+          storyId: newStory.id,
+          seed: idea.seedText,
+          universeSystemPrompt: universe?.systemPrompt ?? undefined,
+          universeContext: universe?.universeContext ?? undefined,
+          styleGuide: universe?.styleGuide ?? undefined,
           universeId,
-        )
+        })
       }
     }
 

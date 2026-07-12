@@ -10,69 +10,86 @@ import {
 } from './pipeline-persistence'
 import { setPipelineStatus, setCurrentStep } from './pipeline-state'
 import { defaultPromptVersions, resolvePipelineModels, loadStoryOverrides } from './pipeline-defaults'
-import { triggerTextPhase } from './pipeline-text-trigger'
+import { runTextPhaseDurable } from './pipeline-text-trigger'
 import { loadUniverseContext } from './load-universe-context'
 import { withPipelineTrace } from '@bedtime/observability'
 
-export function triggerAutoPipeline(
-  storyId: number,
-  seed: string,
-  universeSystemPrompt?: string,
-  universeContext?: string,
-  styleGuide?: string,
-  universeId: number | null = null,
-): void {
+export interface AutoPipelineParams {
+  storyId: number
+  seed: string
+  universeSystemPrompt?: string | undefined
+  universeContext?: string | undefined
+  styleGuide?: string | undefined
+  universeId?: number | null | undefined
+}
+
+export async function runAutoPipeline(params: AutoPipelineParams): Promise<void> {
+  const { storyId, seed, universeSystemPrompt, universeContext, styleGuide, universeId = null } = params
+
   setPipelineStatus(storyId, 'plan_running')
 
-  withPipelineTrace(String(storyId), async () => {
-    const [sashaContext, models, enrichedContext] = await Promise.all([
-      synthesizeSashaContext(),
-      loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(universeId, overrides)),
-      universeId !== null ? loadUniverseContext(universeId) : Promise.resolve(null),
-    ])
-
-    const effectiveSystemPrompt = enrichedContext?.universeSystemPrompt ?? universeSystemPrompt
-    const effectiveUniverseContext = enrichedContext?.universeContext ?? universeContext
-    const effectiveStyleGuide = enrichedContext?.styleGuide ?? styleGuide
-    const bibleCharacters = enrichedContext?.bibleCharacters ?? []
-
-    const plan = await runPlanPhase({
-      seed,
-      storyId,
-      models,
-      promptVersions: defaultPromptVersions,
-      universeId,
-      injectFragments: true,
-      ...(effectiveSystemPrompt !== undefined ? { universeSystemPrompt: effectiveSystemPrompt } : {}),
-      ...(effectiveUniverseContext !== undefined ? { universeContext: effectiveUniverseContext } : {}),
-      ...(effectiveStyleGuide !== undefined ? { styleGuide: effectiveStyleGuide } : {}),
-      ...(sashaContext !== null ? { sashaContext } : {}),
-      ...(bibleCharacters.length > 0 ? { bibleCharacters } : {}),
-      onStepChange: (step) => setCurrentStep(storyId, step),
-    })
+  await withPipelineTrace(String(storyId), async () => {
+    let planFinal: string
+    let sashaContext: string | null
+    let effectiveSystemPrompt: string | undefined
+    let effectiveUniverseContext: string | undefined
+    let effectiveStyleGuide: string | undefined
 
     try {
+      const [sasha, models, enrichedContext] = await Promise.all([
+        synthesizeSashaContext(),
+        loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(universeId, overrides)),
+        universeId !== null ? loadUniverseContext(universeId) : Promise.resolve(null),
+      ])
+
+      sashaContext = sasha
+      effectiveSystemPrompt = enrichedContext?.universeSystemPrompt ?? universeSystemPrompt
+      effectiveUniverseContext = enrichedContext?.universeContext ?? universeContext
+      effectiveStyleGuide = enrichedContext?.styleGuide ?? styleGuide
+      const bibleCharacters = enrichedContext?.bibleCharacters ?? []
+
+      const plan = await runPlanPhase({
+        seed,
+        storyId,
+        models,
+        promptVersions: defaultPromptVersions,
+        universeId,
+        injectFragments: true,
+        ...(effectiveSystemPrompt !== undefined ? { universeSystemPrompt: effectiveSystemPrompt } : {}),
+        ...(effectiveUniverseContext !== undefined ? { universeContext: effectiveUniverseContext } : {}),
+        ...(effectiveStyleGuide !== undefined ? { styleGuide: effectiveStyleGuide } : {}),
+        ...(sashaContext !== null ? { sashaContext } : {}),
+        ...(bibleCharacters.length > 0 ? { bibleCharacters } : {}),
+        onStepChange: (step) => setCurrentStep(storyId, step),
+      })
+
+      planFinal = plan.planFinal
+
       await db.insert(runSnapshots).values(buildPlanSnapshotInsert(storyId, plan))
       await db.update(stories).set(buildPlanStoriesUpdate(plan)).where(eq(stories.id, storyId))
       await recordStoryFragments(storyId, plan.usedFragmentIds)
-
-      triggerTextPhase(
-        storyId,
-        seed,
-        plan.planFinal,
-        'auto',
-        effectiveSystemPrompt,
-        sashaContext,
-        effectiveUniverseContext,
-        effectiveStyleGuide,
-        universeId,
-      )
-    } catch (dbError) {
-      console.error(`Failed to persist plan phase (auto) for storyId=${storyId}:`, dbError)
+    } catch (planError) {
+      console.error(`Auto pipeline plan phase failed for storyId=${storyId}:`, planError)
       setPipelineStatus(storyId, 'plan_failed')
+      throw planError
     }
-  }).catch((err) => {
-    setPipelineStatus(storyId, 'plan_failed')
-    console.error(`Auto pipeline plan phase failed for storyId=${storyId}:`, err)
+
+    await runTextPhaseDurable({
+      storyId,
+      seed,
+      planFinal,
+      mode: 'auto',
+      universeSystemPrompt: effectiveSystemPrompt,
+      sashaContext,
+      universeContext: effectiveUniverseContext,
+      styleGuide: effectiveStyleGuide,
+      universeId,
+    })
+  })
+}
+
+export function triggerAutoPipeline(params: AutoPipelineParams): void {
+  void runAutoPipeline(params).catch((err) => {
+    console.error(`Auto pipeline failed for storyId=${params.storyId}:`, err)
   })
 }

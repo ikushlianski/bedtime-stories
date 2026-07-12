@@ -4,7 +4,7 @@ import { db } from '@bedtime/core/db/client'
 import { stories } from '@bedtime/core/db/schema'
 import type { PipelineInternalStatus } from './pipeline-status'
 import { getPipelineStatus } from './pipeline-state'
-import { triggerAutoPipeline } from './pipeline-auto-trigger'
+import { dispatchAutoPipeline } from './pipeline-dispatch'
 
 const RETRIABLE_STATUSES: ReadonlySet<PipelineInternalStatus> = new Set([
   'plan_failed',
@@ -60,7 +60,9 @@ router.post('/', async (req, res) => {
         continue
       }
 
-      triggerAutoPipeline(story.id, story.seed as string, undefined, undefined, undefined, story.groupId ?? null)
+      void dispatchAutoPipeline({ storyId: story.id, seed: story.seed as string, universeId: story.groupId ?? null }).catch((err) => {
+        console.error(`Failed to dispatch auto pipeline for storyId=${story.id}:`, err)
+      })
       triggered.push(story.id)
     }
 

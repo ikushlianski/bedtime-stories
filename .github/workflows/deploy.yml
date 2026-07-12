@@ -134,6 +134,7 @@ jobs:
             --platform managed \
             --allow-unauthenticated \
             --no-cpu-throttling \
+            --timeout=900 \
             --set-env-vars="NODE_ENV=production,HOST=0.0.0.0" \
             --set-env-vars="DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}" \
             --set-env-vars="JWT_SECRET=${{ secrets.PROD_JWT_SECRET }}" \
@@ -151,6 +152,9 @@ jobs:
             --set-env-vars="CATALOG_SYNC_SECRET=${{ secrets.PROD_CATALOG_SYNC_SECRET }}" \
             --set-env-vars="CATALOG_SYNC_MODE=gcp" \
             --set-env-vars="BACKFILL_SECRET=${{ secrets.PROD_BACKFILL_SECRET }}" \
+            --set-env-vars="PIPELINE_QUEUE=projects/bedtime-prod/locations/us-central1/queues/bedtime-pipeline" \
+            --set-env-vars="PIPELINE_WORKER_URL=https://bedtime-agent.ilya.online" \
+            --set-env-vars="PIPELINE_WORKER_SECRET=${{ secrets.PROD_PIPELINE_WORKER_SECRET }}" \
             --quiet
 
       - name: Verify deployment health

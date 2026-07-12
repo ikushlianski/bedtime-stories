@@ -12,7 +12,7 @@ import {
   chunkText,
   pickReadableText,
 } from './telegram-format.js'
-import { triggerAutoPipeline } from './pipeline-auto-trigger.js'
+import { dispatchAutoPipeline } from './pipeline-dispatch.js'
 import { registerStoryReadyCallback } from './pipeline-notifications.js'
 
 export { deriveIsAuthorizedUser, deriveIdeaFromMessage }
@@ -64,14 +64,16 @@ async function createStoryAndFire(seedText: string): Promise<number | null> {
 
   const storyId = newStory!.id
 
-  triggerAutoPipeline(
+  void dispatchAutoPipeline({
     storyId,
-    seedText,
-    universe?.systemPrompt ?? undefined,
-    universe?.universeContext ?? undefined,
-    universe?.styleGuide ?? undefined,
+    seed: seedText,
+    universeSystemPrompt: universe?.systemPrompt ?? undefined,
+    universeContext: universe?.universeContext ?? undefined,
+    styleGuide: universe?.styleGuide ?? undefined,
     universeId,
-  )
+  }).catch((err) => {
+    console.error(`Failed to dispatch auto pipeline for storyId=${storyId}:`, err)
+  })
 
   return storyId
 }

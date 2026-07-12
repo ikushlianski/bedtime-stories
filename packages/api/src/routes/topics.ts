@@ -8,7 +8,7 @@ import { filterValidCombos, isValidComboSelection, synthesizeSeedFromTopics } fr
 import { DEFAULT_STAGE_MODELS } from '@bedtime/core/pipeline/derivers/stage-defaults'
 import { validate } from '../middleware/validate'
 import { loadUniverseContext } from './load-universe-context'
-import { triggerAutoPipeline } from './pipeline-auto-trigger'
+import { dispatchAutoPipeline } from './pipeline-dispatch'
 
 const router = Router()
 
@@ -238,7 +238,7 @@ router.post('/generate', validate(generateSchema), async (req, res) => {
       .values(orderedTopics.map((t) => ({ storyId: newStory.id, topicId: t.id })))
       .onConflictDoNothing()
 
-    triggerAutoPipeline(newStory.id, storySeed, undefined, undefined, undefined, universeId)
+    await dispatchAutoPipeline({ storyId: newStory.id, seed: storySeed, universeId })
 
     res.status(201).json({ storyId: newStory.id })
   } catch (err) {
