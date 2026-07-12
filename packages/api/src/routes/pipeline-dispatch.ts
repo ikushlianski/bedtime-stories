@@ -33,8 +33,12 @@ async function enqueueTask(path: string, body: unknown): Promise<void> {
 
 export async function dispatchAutoPipeline(params: AutoPipelineParams): Promise<void> {
   if (process.env['PIPELINE_QUEUE']) {
-    await enqueueTask('/api/internal/worker/pipeline', params)
-    return
+    try {
+      await enqueueTask('/api/internal/worker/pipeline', params)
+      return
+    } catch (err) {
+      console.error(`[dispatch] enqueue failed for storyId=${params.storyId}, running in-process:`, err)
+    }
   }
 
   triggerAutoPipeline(params)
@@ -42,8 +46,12 @@ export async function dispatchAutoPipeline(params: AutoPipelineParams): Promise<
 
 export async function dispatchAnalysis(storyId: number): Promise<void> {
   if (process.env['PIPELINE_QUEUE']) {
-    await enqueueTask('/api/internal/worker/analyze', { storyId })
-    return
+    try {
+      await enqueueTask('/api/internal/worker/analyze', { storyId })
+      return
+    } catch (err) {
+      console.error(`[dispatch] analysis enqueue failed for storyId=${storyId}, running in-process:`, err)
+    }
   }
 
   triggerAnalysis(storyId)
