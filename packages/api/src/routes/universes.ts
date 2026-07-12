@@ -39,11 +39,21 @@ const updateGroupSchema = z.object({
 const createCharacterSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
+  age: z.string().optional(),
+  setting: z.string().optional(),
+  traits: z.string().optional(),
+  relationships: z.string().optional(),
+  coOccurrenceNote: z.string().optional(),
 })
 
 const updateCharacterSchema = z.object({
   name: z.string().min(1).optional(),
   description: z.string().optional(),
+  age: z.string().optional(),
+  setting: z.string().optional(),
+  traits: z.string().optional(),
+  relationships: z.string().optional(),
+  coOccurrenceNote: z.string().optional(),
 })
 
 async function toPublic(row: StoryGroup) {
@@ -227,7 +237,16 @@ router.post('/:id/characters', validate(createCharacterSchema), async (req, res)
 
     const [created] = await db
       .insert(universeCharacters)
-      .values({ universeId: id, name: body.name, description: body.description ?? '' })
+      .values({
+        universeId: id,
+        name: body.name,
+        description: body.description ?? '',
+        age: body.age ?? null,
+        setting: body.setting ?? null,
+        traits: body.traits ?? null,
+        relationships: body.relationships ?? null,
+        coOccurrenceNote: body.coOccurrenceNote ?? null,
+      })
       .returning()
 
     res.status(201).json(created)

@@ -1,6 +1,25 @@
 import { useState } from 'react'
 import { api, type UniverseCharacter } from '../lib/api'
 import FormField from './form-field'
+import CharacterBibleFields, { type CharacterBibleValues } from './character-bible-fields'
+
+function bibleFromCharacter(character: UniverseCharacter): CharacterBibleValues {
+  return {
+    age: character.age ?? '',
+    setting: character.setting ?? '',
+    traits: character.traits ?? '',
+    relationships: character.relationships ?? '',
+    coOccurrenceNote: character.coOccurrenceNote ?? '',
+  }
+}
+
+const EMPTY_BIBLE: CharacterBibleValues = {
+  age: '',
+  setting: '',
+  traits: '',
+  relationships: '',
+  coOccurrenceNote: '',
+}
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -17,6 +36,7 @@ function CharacterCard({ character, universeId, onUpdated, onDeleted }: Characte
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(character.name)
   const [description, setDescription] = useState(character.description)
+  const [bible, setBible] = useState<CharacterBibleValues>(bibleFromCharacter(character))
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -26,7 +46,15 @@ function CharacterCard({ character, universeId, onUpdated, onDeleted }: Characte
     setError(null)
 
     try {
-      const updated = await api.universes.updateCharacter(universeId, character.id, { name: name.trim(), description: description.trim() })
+      const updated = await api.universes.updateCharacter(universeId, character.id, {
+        name: name.trim(),
+        description: description.trim(),
+        age: bible.age.trim(),
+        setting: bible.setting.trim(),
+        traits: bible.traits.trim(),
+        relationships: bible.relationships.trim(),
+        coOccurrenceNote: bible.coOccurrenceNote.trim(),
+      })
 
       onUpdated(updated)
       setEditing(false)
@@ -70,12 +98,13 @@ function CharacterCard({ character, universeId, onUpdated, onDeleted }: Characte
               onChange={(e) => setDescription(e.target.value)}
             />
           </FormField>
+          <CharacterBibleFields values={bible} onChange={(patch) => setBible((p) => ({ ...p, ...patch }))} />
           {error && <p className="text-xs text-error">{error}</p>}
           <div className="flex gap-2">
             <button className="btn btn-primary btn-sm" disabled={saving || !name.trim()} onClick={() => void handleSave()}>
               {saving ? 'Сохраняем...' : 'Сохранить'}
             </button>
-            <button className="btn btn-ghost btn-sm" onClick={() => { setEditing(false); setName(character.name); setDescription(character.description) }}>
+            <button className="btn btn-ghost btn-sm" onClick={() => { setEditing(false); setName(character.name); setDescription(character.description); setBible(bibleFromCharacter(character)) }}>
               Отмена
             </button>
           </div>
@@ -129,6 +158,7 @@ interface AddCharacterFormProps {
 function AddCharacterForm({ universeId, onAdded, onCancel }: AddCharacterFormProps) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
+  const [bible, setBible] = useState<CharacterBibleValues>(EMPTY_BIBLE)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -139,7 +169,15 @@ function AddCharacterForm({ universeId, onAdded, onCancel }: AddCharacterFormPro
     setError(null)
 
     try {
-      const created = await api.universes.createCharacter(universeId, { name: name.trim(), description: description.trim() })
+      const created = await api.universes.createCharacter(universeId, {
+        name: name.trim(),
+        description: description.trim(),
+        age: bible.age.trim(),
+        setting: bible.setting.trim(),
+        traits: bible.traits.trim(),
+        relationships: bible.relationships.trim(),
+        coOccurrenceNote: bible.coOccurrenceNote.trim(),
+      })
 
       onAdded(created)
     } catch (err) {
@@ -168,6 +206,7 @@ function AddCharacterForm({ universeId, onAdded, onCancel }: AddCharacterFormPro
             onChange={(e) => setDescription(e.target.value)}
           />
         </FormField>
+        <CharacterBibleFields values={bible} onChange={(patch) => setBible((p) => ({ ...p, ...patch }))} />
         {error && <p className="text-xs text-error">{error}</p>}
         <div className="flex gap-2">
           <button className="btn btn-primary btn-sm" disabled={saving || !name.trim()} onClick={() => void handleSave()}>
