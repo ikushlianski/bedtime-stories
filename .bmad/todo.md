@@ -7,9 +7,9 @@ Things the loop cannot do itself — for Ilya after the code lands.
 - [ ] Add a few target words on the new Слова page for universe 1 to see vocabulary weaving in action.
 - [ ] Deploy to prod when ready (push to main triggers CI; migration 0038 runs in the deploy job against prod Neon).
 
-## Bug B (Cloud Tasks durable pipeline) — activation steps
-The code ships with a local fallback, so nothing changes until these are done:
-- [ ] Create GitHub secret `PROD_PIPELINE_WORKER_SECRET` (any random string).
-- [ ] `cd infra && pulumi up` — creates the `bedtime-pipeline` Cloud Tasks queue, the enqueuer IAM binding, and enables the Cloud Tasks API.
-- [ ] Deploy (push to main / manual dispatch) — sets `PIPELINE_QUEUE`, `PIPELINE_WORKER_URL`, `PIPELINE_WORKER_SECRET` on Cloud Run. Once set, generation goes through the durable queue; until then it uses the old in-process path.
-- [ ] After deploy, POST the existing `/api/internal/backfill` once to rescue story 107 (and any other stalled draft).
+## Bug B (Cloud Tasks durable pipeline) — activation
+The deploy workflow provisions everything in one run (infra job runs `pulumi up` → creates the queue + IAM; deploy job sets the env vars). Status:
+- [x] GitHub secret `PROD_PIPELINE_WORKER_SECRET` created.
+- [x] Deploy dispatched on the feature branch (runs pulumi up + migration 0038 + Cloud Run).
+- [ ] After deploy succeeds: verify one real generation completes via the queue (post-deploy canary), then POST `/api/internal/backfill` once to rescue story 107 and any other stalled draft.
+- [ ] Merge `feature/story-pipeline-improvements` into main when happy (prod is deployed from the branch right now; main is behind).
