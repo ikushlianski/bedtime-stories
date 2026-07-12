@@ -12,9 +12,11 @@ import { UniverseDetailPage } from './pages/universe-detail'
 import { DiaryPage } from './pages/diary'
 import { FragmentsPage } from './pages/fragments'
 import { TopicsPage } from './pages/topics'
+import { WordsPage } from './pages/words'
 import { ChildProfilePage } from './pages/child-profile'
 import { AdminPage } from './pages/admin'
 import { SettingsPage } from './pages/settings'
+import { GlobalStoryModals } from './components'
 import { useTheme } from './lib/use-theme'
 import { useAuth } from './auth/auth.context'
 import { LoginPage } from './pages/login/login.page'
@@ -24,6 +26,7 @@ const OTHER_NAV = [
   { to: '/ideas', label: 'Идеи' },
   { to: '/topics', label: 'Темы' },
   { to: '/fragments', label: 'Фрагменты' },
+  { to: '/words', label: 'Слова' },
   { to: '/child-profile', label: 'Мой ребёнок' },
   { to: '/dashboard', label: 'Панель' },
   { to: '/admin', label: 'Админ' },
@@ -172,6 +175,7 @@ function AppShell() {
                       <Route path="/diary" element={<DiaryPage />} />
                       <Route path="/fragments" element={<FragmentsPage />} />
                       <Route path="/topics" element={<TopicsPage />} />
+                      <Route path="/words" element={<WordsPage />} />
                       <Route path="/child-profile" element={<ChildProfilePage />} />
                       <Route path="/universes" element={<UniversesPage />} />
                       <Route path="/universes/:id" element={<UniverseDetailPage />} />
@@ -190,6 +194,8 @@ function AppShell() {
             <Sidebar isDark={isDark} onToggle={toggleTheme} />
           </div>
         )}
+
+        {!loading && username && <GlobalStoryModals />}
       </div>
     </div>
   )

@@ -1,16 +1,13 @@
-import type { CreateStoryInput, PerStageOverrides } from '../lib/api'
+import type { CreateStoryInput } from '../lib/api'
 
 export interface CreateStoryFormState {
   seed: string
   groupId: number | null
-  pipelineMode: 'auto' | 'manual'
-  perStageOverrides?: PerStageOverrides
 }
 
 export const INITIAL_CREATE_STORY_FORM: CreateStoryFormState = {
   seed: '',
   groupId: null,
-  pipelineMode: 'manual',
 }
 
 export type CreateStoryFormValidation =
@@ -36,9 +33,8 @@ export function validateCreateStoryForm(state: CreateStoryFormState): CreateStor
     valid: true,
     input: {
       seed,
-      pipelineMode: state.pipelineMode,
+      pipelineMode: 'auto',
       groupId: state.groupId,
-      perStageOverrides: state.perStageOverrides,
     },
   }
 }

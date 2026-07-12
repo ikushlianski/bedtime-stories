@@ -15,8 +15,8 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { api, type Story, type CreateStoryInput, type StoryGroup } from '../lib/api'
-import { AddExampleStoryModal, CreateStoryModal, PageHeader, StatusCallout, StoryCard, StoryFilters } from '../components'
+import { api, type Story, type StoryGroup } from '../lib/api'
+import { PageHeader, StatusCallout, StoryCard, StoryFilters } from '../components'
 import { loadStoredFilters, saveStoredFilters, type StoryFilterState, type StatusFilter } from '../components/story-filters'
 
 const PAGE_META: Record<string, { eyebrow: string; title: string; description: string }> = {
@@ -93,9 +93,6 @@ function SortableStoryCard({ story, universeName, onTitleClick, onDelete }: Sort
 export function StoryListPage({ lockedStatus }: { lockedStatus?: StatusFilter }) {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const seedFromUrl = searchParams.get('seed')
-  const groupIdFromUrl = searchParams.get('groupId')
-  const modalParam = searchParams.get('modal')
 
   const [stories, setStories] = useState<Story[]>([])
   const [loading, setLoading] = useState(true)
@@ -121,20 +118,16 @@ export function StoryListPage({ lockedStatus }: { lockedStatus?: StatusFilter })
   }, [filters])
 
   const [universes, setUniverses] = useState<StoryGroup[]>([])
-  const [showModal, setShowModal] = useState(modalParam === 'create' || seedFromUrl !== null)
-  const [showExampleModal, setShowExampleModal] = useState(modalParam === 'example')
 
   useEffect(() => {
     api.universes.list().then(setUniverses).catch(() => undefined)
   }, [])
 
-  useEffect(() => {
-    if (modalParam === 'create') {
-      setShowModal(true)
-    } else if (modalParam === 'example') {
-      setShowExampleModal(true)
-    }
-  }, [modalParam])
+  function openModal(kind: 'create' | 'example') {
+    const next = new URLSearchParams(searchParams)
+    next.set('modal', kind)
+    setSearchParams(next)
+  }
 
   const allTags = Array.from(
     new Set(stories.flatMap((s) => (s.tags as string[] | null) ?? []))
@@ -180,22 +173,6 @@ export function StoryListPage({ lockedStatus }: { lockedStatus?: StatusFilter })
     })
   }
 
-  async function handleCreateStory(input: CreateStoryInput) {
-    const created = await api.stories.create(input)
-
-    setShowModal(false)
-
-    if ('seed' in input) {
-      try {
-        await api.pipeline.run(created.id, input.seed)
-      } catch (runError) {
-        console.warn(`Failed to start pipeline for story ${created.id}:`, runError)
-      }
-    }
-
-    navigate(`/stories/${created.id}/pipeline`)
-  }
-
   const handleDeleteStory = useCallback((story: Story) => {
     if (!confirm('Удалить эту историю навсегда? Это действие нельзя отменить.')) {
       return
@@ -209,12 +186,6 @@ export function StoryListPage({ lockedStatus }: { lockedStatus?: StatusFilter })
       )
   }, [])
 
-  function clearModalParam(params: URLSearchParams) {
-    params.delete('modal')
-    params.delete('seed')
-    params.delete('groupId')
-  }
-
   const meta = PAGE_META[lockedStatus ?? 'ready'] ?? PAGE_META.ready
 
   return (
@@ -225,13 +196,13 @@ export function StoryListPage({ lockedStatus }: { lockedStatus?: StatusFilter })
         description={meta.description}
         action={
           <div className="flex flex-wrap gap-2">
-            <button className="btn btn-secondary gap-2" onClick={() => setShowExampleModal(true)}>
+            <button className="btn btn-secondary gap-2" onClick={() => openModal('example')}>
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                 <path d="M4 3a2 2 0 00-2 2v9.5A2.5 2.5 0 004.5 17H16a2 2 0 002-2V6a2 2 0 00-2-2h-5.5L9.3 2.4A1 1 0 008.5 2H4z" />
               </svg>
               Добавить пример
             </button>
-            <button className="btn btn-primary gap-2" onClick={() => setShowModal(true)}>
+            <button className="btn btn-primary gap-2" onClick={() => openModal('create')}>
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                 <path d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" />
               </svg>
@@ -276,7 +247,7 @@ export function StoryListPage({ lockedStatus }: { lockedStatus?: StatusFilter })
                 <span>{label} пока нет. </span>
                 <button
                   className="btn-link text-sm font-normal underline-offset-2"
-                  onClick={() => setShowModal(true)}
+                  onClick={() => openModal('create')}
                 >
                   Создай историю
                 </button>
@@ -305,30 +276,6 @@ export function StoryListPage({ lockedStatus }: { lockedStatus?: StatusFilter })
         </DndContext>
       )}
 
-      <CreateStoryModal
-        open={showModal}
-        initialSeed={seedFromUrl ?? ''}
-        initialGroupId={groupIdFromUrl ? parseInt(groupIdFromUrl, 10) : null}
-        onClose={() => {
-          setShowModal(false)
-          const next = new URLSearchParams(searchParams)
-          clearModalParam(next)
-          setSearchParams(next, { replace: true })
-        }}
-        onSubmit={handleCreateStory}
-        onSeriesCreated={() => void fetchStories()}
-      />
-
-      <AddExampleStoryModal
-        open={showExampleModal}
-        onClose={() => {
-          setShowExampleModal(false)
-          const next = new URLSearchParams(searchParams)
-          clearModalParam(next)
-          setSearchParams(next, { replace: true })
-          void fetchStories()
-        }}
-      />
     </div>
   )
 }

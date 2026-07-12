@@ -5,7 +5,6 @@ import {
   type CreateStoryFormState,
 } from './create-story-form'
 import FormField from './form-field'
-import ModelPicker from './model-picker'
 
 interface CreateStoryModalProps {
   open: boolean
@@ -42,7 +41,6 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
   const [form, setForm] = useState<CreateStoryFormState>({
     seed: initialSeed,
     groupId: initialGroupId ?? loadLastUniverseId(),
-    pipelineMode: 'manual',
   })
   const [submitting, setSubmitting] = useState(false)
   const [creatingSeries, setCreatingSeries] = useState(false)
@@ -57,7 +55,6 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
       setForm({
         seed: initialSeed,
         groupId: initialGroupId ?? loadLastUniverseId(),
-        pipelineMode: 'manual',
       })
       setError(null)
       setShowCreateUniverse(false)
@@ -90,7 +87,7 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
 
     try {
       await onSubmit(validation.input)
-      setForm({ seed: '', groupId: null, pipelineMode: 'manual', perStageOverrides: {} })
+      setForm({ seed: '', groupId: null })
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Не удалось создать историю')
     } finally {
@@ -139,7 +136,7 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
     try {
       const result = await api.stories.createSeries({ seed: form.seed.trim(), groupId: form.groupId })
 
-      setForm({ seed: '', groupId: null, pipelineMode: 'manual', perStageOverrides: {} })
+      setForm({ seed: '', groupId: null })
       onSeriesCreated?.(result.stories.length)
       onClose()
     } catch (seriesError) {
@@ -242,38 +239,6 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
             />
           </FormField>
 
-          <FormField label="Режим конвейера">
-            <div className="join" role="radiogroup" aria-label="Режим конвейера">
-              <button
-                type="button"
-                role="radio"
-                aria-checked={form.pipelineMode === 'auto'}
-                className={`btn join-item ${form.pipelineMode === 'auto' ? 'btn-primary' : 'btn-outline'}`}
-                onClick={() => setForm((prev) => ({ ...prev, pipelineMode: 'auto' }))}
-              >
-                Авто
-              </button>
-              <button
-                type="button"
-                role="radio"
-                aria-checked={form.pipelineMode === 'manual'}
-                className={`btn join-item ${form.pipelineMode === 'manual' ? 'btn-primary' : 'btn-outline'}`}
-                onClick={() => setForm((prev) => ({ ...prev, pipelineMode: 'manual' }))}
-              >
-                Ручной
-              </button>
-            </div>
-          </FormField>
-
-          <FormField
-            label="Модели по стадиям"
-            hint="Необязательно — без выбора используется DeepSeek V4 Pro"
-          >
-            <ModelPicker
-              value={form.perStageOverrides ?? {}}
-              onChange={(next) => setForm((prev) => ({ ...prev, perStageOverrides: next }))}
-            />
-          </FormField>
         </div>
 
         {error && <p className="mt-3 text-sm text-error">{error}</p>}

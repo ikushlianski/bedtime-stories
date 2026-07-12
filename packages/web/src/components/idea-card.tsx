@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { type ModelCategories, type StoryIdea, flatModels } from '../lib/api'
 import { Button } from './button'
 import { IdeaRejectModal } from './idea-reject-modal'
-import ModelSelectDropdown from './model-select-dropdown'
 
 export interface IdeaCardProps {
   idea: StoryIdea
@@ -16,19 +15,11 @@ export function IdeaCard({ idea, categories, onApprove, onReject, disabled = fal
   const [isApproving, setIsApproving] = useState(false)
   const [isRejecting, setIsRejecting] = useState(false)
   const [showRejectModal, setShowRejectModal] = useState(false)
-  const [showApproveModal, setShowApproveModal] = useState(false)
-  const [selectedApprovalModel, setSelectedApprovalModel] = useState('')
 
-  const handleApprove = () => {
-    setShowApproveModal(true)
-  }
-
-  const handleApproveWithModel = async () => {
+  const handleApprove = async () => {
     setIsApproving(true)
     try {
-      await onApprove(true, selectedApprovalModel || undefined)
-      setShowApproveModal(false)
-      setSelectedApprovalModel('')
+      await onApprove(true)
     } finally {
       setIsApproving(false)
     }
@@ -71,7 +62,7 @@ export function IdeaCard({ idea, categories, onApprove, onReject, disabled = fal
             </Button>
             <Button
               size="sm"
-              onClick={handleApprove}
+              onClick={() => void handleApprove()}
               disabled={disabled || isApproving}
               loading={isApproving}
             >
@@ -80,42 +71,6 @@ export function IdeaCard({ idea, categories, onApprove, onReject, disabled = fal
           </div>
         </div>
       </div>
-
-      {showApproveModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-base-100 rounded-lg p-6 max-w-sm w-full mx-4">
-            <h4 className="font-semibold mb-1">Создать историю</h4>
-            <p className="text-xs text-base-content/60 mb-4">Модель необязательна — без выбора используется DeepSeek V4 Pro</p>
-            <ModelSelectDropdown
-              categories={categories}
-              value={selectedApprovalModel}
-              onChange={setSelectedApprovalModel}
-            />
-            <div className="flex gap-2 mt-6">
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  setShowApproveModal(false)
-                  setSelectedApprovalModel('')
-                }}
-                disabled={isApproving}
-              >
-                Отмена
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleApproveWithModel}
-                loading={isApproving}
-                disabled={isApproving}
-                className="flex-1"
-              >
-                Создать историю
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {showRejectModal && (
         <IdeaRejectModal
