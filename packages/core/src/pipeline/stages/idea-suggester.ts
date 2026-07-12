@@ -1,6 +1,7 @@
 import { aiRunner } from '../../ai'
 import { IdeaSuggesterOutputSchema, type IdeaSuggesterOutput } from '../schemas'
 import { resolveStageModel } from '../derivers/resolve-stage-model'
+import { selectDiverseTopics, buildDiverseTopicsBlock } from './idea-topics'
 
 export async function runIdeaSuggester(options: {
   universeContext: string
@@ -48,16 +49,18 @@ export async function runIdeaSuggester(options: {
     rejectedBlock = `\n\nОТКЛОНЕННЫЕ ИДЕИ (ИЗБЕГАТЬ):\n${rejectedIdeasSummary}`
   }
 
+  const diverseTopicsBlock = buildDiverseTopicsBlock(selectDiverseTopics(14))
+
   const prompt = `Ты помощник по генерированию идей для сказок в определённой вселенной.
 
 КОНТЕКСТ ВСЕЛЕННОЙ:
-${universeContext}${styleGuideBlock}${storiesSummary}${approvedBlock}${rejectedBlock}
+${universeContext}${styleGuideBlock}${storiesSummary}${approvedBlock}${rejectedBlock}${diverseTopicsBlock}
 
 Генерируй 5-7 новых идей для сказок в этой вселенной. Идеи должны быть:
 - Уникальными и отличаться от предыдущих историй
 - Подходящими к стилю вселенной
-- Интересными для детей перед сном
-- Сгруппированными по темам (например: "приключения", "дружба", "семья", "волшебство" и т.д.)
+- Интересными для семилетнего ребёнка перед сном
+- Сгруппированными по РАЗНЫМ темам — каждая группа про свою область жизни, а не пять вариантов одного и того же
 
 Для каждой идеи укажи:
 - seed: одна-две строки, описывающие основную идею сказки
