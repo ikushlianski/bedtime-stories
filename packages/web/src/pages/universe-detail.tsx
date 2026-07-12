@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { api, type StoryGroup, type UniverseCharacter, type UniverseSuggestion, type StoryIdea } from '../lib/api'
+import { api, type StoryGroup, type UniverseCharacter, type UniverseSuggestion, type StoryIdea, type Topic } from '../lib/api'
 import FormField from '../components/form-field'
+import { TopicNudges } from '../components'
 import UniverseCharacters from '../components/universe-characters'
 import UniverseSuggestions from '../components/universe-suggestions'
 import { StoryIdeas } from '../components/story-ideas'
@@ -80,6 +81,7 @@ export function UniverseDetailPage() {
   const [characters, setCharacters] = useState<UniverseCharacter[]>([])
   const [suggestions, setSuggestions] = useState<UniverseSuggestion[]>([])
   const [ideas, setIdeas] = useState<StoryIdea[]>([])
+  const [topics, setTopics] = useState<Topic[]>([])
 
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -97,8 +99,9 @@ export function UniverseDetailPage() {
       api.universes.get(universeId),
       api.universes.listSuggestions(universeId),
       api.universes.listIdeas(universeId, 'pending').catch(() => []),
+      api.topics.list().catch(() => []),
     ])
-      .then(([u, sugg, ides]) => {
+      .then(([u, sugg, ides, allTopics]) => {
         setUniverse(u)
         setName(u.name)
         setDescription(u.description)
@@ -111,6 +114,7 @@ export function UniverseDetailPage() {
         setCharacters(u.characters)
         setSuggestions(sugg)
         setIdeas(ides)
+        setTopics(allTopics.filter((t) => t.universeId === universeId))
       })
       .catch((err) => {
         setLoadError(err instanceof Error ? err.message : 'Ошибка загрузки')
@@ -265,6 +269,8 @@ export function UniverseDetailPage() {
         </section>
       )}
 
+      <TopicNudges topics={topics} universeId={universeId} />
+
       <section className="flex flex-col gap-4">
         <h2 className="text-lg font-semibold">
           Идеи для историй
@@ -275,7 +281,7 @@ export function UniverseDetailPage() {
           universeId={universeId}
           onIdeasChange={setIdeas}
           onStoryCreated={(storyId) => {
-            navigate(`/stories/${storyId}`)
+            navigate(`/stories/${storyId}/pipeline`)
           }}
         />
       </section>

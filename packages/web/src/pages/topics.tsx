@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { PageHeader, StatusCallout } from '../components'
+import { PageHeader, StatusCallout, TopicNudges } from '../components'
 import { TopicCombosPanel } from '../components/topic-combos-panel'
 import { api, type Topic, type StoryGroup } from '../lib/api'
 
@@ -125,6 +125,8 @@ export function TopicsPage() {
         title="Темы для будущих историй"
         description="Собирай то, что хочешь однажды объяснить или показать сыну, — пока без готового сюжета. Позже 2–3 темы складываются в одну историю. Истории никогда не создаются автоматически: нажми «Сгенерировать», когда будешь готов."
       />
+
+      <TopicNudges topics={items} universeId={targetUniverseId} />
 
       <section className="mb-6 rounded-box border border-base-300 bg-base-100 p-6 shadow-sm">
         <input
