@@ -18,6 +18,7 @@ export async function updateStyleGuide(
   groupId: number,
   newAnalysis: StoryAnalysisOutput,
   storyTitle: string,
+  parentFeedback: string[] = [],
 ): Promise<void> {
   const [group] = await db.select().from(storyGroups).where(eq(storyGroups.id, groupId))
 
@@ -47,7 +48,15 @@ export async function updateStyleGuide(
     '- Пиши на русском языке',
     '- Дистиллируй — не копируй, объединяй похожие наблюдения',
     '- Если данных мало или нет — верни пустую строку для этой секции',
+    '- Обратная связь родителя имеет приоритет над автоматическим анализом при конфликте',
     '',
+    ...(parentFeedback.length > 0
+      ? [
+          'ПРЯМАЯ ОБРАТНАЯ СВЯЗЬ ОТ РОДИТЕЛЯ (высший приоритет — это правки живого читателя; учитывай их сильнее, чем автоматический анализ ниже):',
+          parentFeedback.map((line) => `- ${line}`).join('\n'),
+          '',
+        ]
+      : []),
     `СУЩЕСТВУЮЩИЙ ГАЙД:`,
     `works: ${existingWorks || '(пусто)'}`,
     `doesntWork: ${existingDoesntWork || '(пусто)'}`,
