@@ -1,10 +1,24 @@
 import { describe, it, expect } from 'vitest'
-import { decidePipelineRetry } from './pipeline-retry'
+import { decidePipelineRetry, isStoryStalled } from './pipeline-retry'
 import type { Story } from '../lib/api'
 
-function mkStory(overrides: Partial<Pick<Story, 'seed' | 'plan_final' | 'mode'>> = {}): Pick<Story, 'seed' | 'plan_final' | 'mode'> {
-  return { seed: 'a brave bunny', plan_final: null, mode: 'manual', ...overrides }
+type StoryFields = Pick<Story, 'seed' | 'plan_final' | 'mode' | 'created_at' | 'plan_v1' | 'text_v1'>
+
+function mkStory(overrides: Partial<StoryFields> = {}): StoryFields {
+  return {
+    seed: 'a brave bunny',
+    plan_final: null,
+    mode: 'manual',
+    created_at: new Date().toISOString(),
+    plan_v1: null,
+    text_v1: null,
+    ...overrides,
+  }
 }
+
+const NOW = new Date('2026-07-12T12:00:00Z')
+const TWO_HOURS_AGO = new Date('2026-07-12T10:00:00Z').toISOString()
+const TEN_MINUTES_AGO = new Date('2026-07-12T11:50:00Z').toISOString()
 
 describe('decidePipelineRetry', () => {
   describe('when the story has not loaded yet', () => {
@@ -47,6 +61,37 @@ describe('decidePipelineRetry', () => {
 
     it('hides the retry button for auto stories — the auto trigger handles kickoff, the manual button would 409', () => {
       expect(decidePipelineRetry('pending', mkStory({ mode: 'auto' }))).toEqual({ action: 'hidden' })
+    })
+  })
+
+  describe('when a story is stalled (over an hour old with no plotter or writer activity)', () => {
+    it('offers regeneration even for an auto story that the auto trigger silently dropped', () => {
+      const decision = decidePipelineRetry('pending', mkStory({ mode: 'auto', created_at: TWO_HOURS_AGO }), NOW)
+
+      expect(decision).toEqual({ action: 'regenerate', seed: 'a brave bunny' })
+    })
+
+    it('offers regeneration even if the zombie status still claims plan_running', () => {
+      const decision = decidePipelineRetry('plan_running', mkStory({ created_at: TWO_HOURS_AGO }), NOW)
+
+      expect(decision.action).toBe('regenerate')
+    })
+
+    it('blocks regeneration when the seed is missing', () => {
+      const decision = decidePipelineRetry('pending', mkStory({ seed: null, created_at: TWO_HOURS_AGO }), NOW)
+
+      expect(decision).toEqual({ action: 'blocked', reason: 'missing_seed' })
+    })
+
+    it('does not treat a recent story as stalled', () => {
+      const decision = decidePipelineRetry('plan_running', mkStory({ created_at: TEN_MINUTES_AGO }), NOW)
+
+      expect(decision.action).toBe('hidden')
+    })
+
+    it('does not treat a story with a plan or text as stalled, even if old', () => {
+      expect(isStoryStalled({ created_at: TWO_HOURS_AGO, plan_v1: 'a plan', text_v1: null }, NOW)).toBe(false)
+      expect(isStoryStalled({ created_at: TWO_HOURS_AGO, plan_v1: null, text_v1: 'some text' }, NOW)).toBe(false)
     })
   })
 

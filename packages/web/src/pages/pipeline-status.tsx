@@ -431,27 +431,36 @@ export function PipelineStatusPage() {
               )
             }
 
+            const canRun = retryDecision.action === 'retry_plan' || retryDecision.action === 'regenerate'
+
             const label =
-              retryDecision.action === 'retry_plan'
-                ? retryDecision.reason === 'pending'
-                  ? 'Запустить конвейер'
-                  : 'Повторить фазу планирования'
-                : 'Повторить фазу текста'
+              retryDecision.action === 'regenerate'
+                ? 'Перегенерировать историю'
+                : retryDecision.action === 'retry_plan'
+                  ? retryDecision.reason === 'pending'
+                    ? 'Запустить конвейер'
+                    : 'Повторить фазу планирования'
+                  : 'Повторить фазу текста'
 
             const onClick = () => {
-              if (retryDecision.action === 'retry_plan') {
+              if (retryDecision.action === 'retry_plan' || retryDecision.action === 'regenerate') {
                 void handleRetry(retryDecision.seed)
               }
             }
 
             return (
               <div className="space-y-2">
+                {retryDecision.action === 'regenerate' && (
+                  <p className="text-right text-xs text-base-content/60">
+                    Похоже, история застряла — больше часа по ней не работал ни сюжетник, ни писатель. Можно перегенерировать её заново.
+                  </p>
+                )}
                 {retryError && <StatusCallout tone="error" title="Перезапуск не удался" message={retryError} />}
                 <div className="flex justify-end">
                   <button
                     className="btn btn-primary"
                     onClick={onClick}
-                    disabled={retrying || retryDecision.action !== 'retry_plan'}
+                    disabled={retrying || !canRun}
                   >
                     {retrying ? 'Запускаем…' : label}
                   </button>
