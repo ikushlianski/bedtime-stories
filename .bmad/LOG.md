@@ -30,3 +30,9 @@ Batch B (create-flow changes) stays uncommitted — no commits without user auth
   - **Telegram `/topic` + `/fragment`** (subagent): add teaching themes + fragments from chat, universe-scoped via `resolveDefaultUniverseId`, no pipeline. +5 tests.
 - **Bug B (#3, Cloud Tasks durable queue) — AGREED, NOT YET BUILT.** Deferred as its own focused pass (infra + Pulumi + deploy-to-verify). Architecture Mermaid docs — separate subagent running, to land as a separate commit.
 - Gates: root tsc 0, web tsc 0, **393 tests / 56 files pass**. Still nothing committed.
+
+## Session 3 — commit + remaining features
+
+- **14:50 — COMMITTED to branch `feature/story-pipeline-improvements` (17 logical commits):** db schema; create-flow; diverse ideas; reaction personalization; character bible; words; story settings; topic nudges; styleguide-from-feedback; pipeline wiring; bug A (rework notes); telegram topic/fragment; architecture docs; planning; allow agent analysis; durable Cloud Tasks pipeline; auto-analyze on approval. Nothing pushed/deployed yet.
+- **Bug B (Cloud Tasks) built + reviewed:** durable queue with local fallback (unset env → old in-process path, so tests/dev unchanged). Reviewed dispatch fallback, worker secret-auth, all 5 callers, Pulumi queue+IAM, deploy env. root/infra tsc 0, 393 tests pass. NOT deploy-verified (needs pulumi up + GitHub secret + deploy — see todo.md). Known: analyze worker retry is not idempotent (rare dup diary/suggestion rows) — flagged, low-risk.
+- **3b done:** analyze gate opened to agent stories + auto-analysis dispatched on approval, routed through the durable queue.
