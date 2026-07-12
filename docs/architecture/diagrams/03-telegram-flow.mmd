@@ -1,0 +1,23 @@
+flowchart TD
+  msg["Incoming Telegram update<br/>(authorized user only)"]
+  cmds{"Command or plain text?"}
+  new["/new<br/>prompt for an idea"]
+  stories["/stories<br/>show category menu"]
+  topic["/topic &lt;text&gt;<br/>insert topic row"]
+  frag["/fragment &lt;text&gt;<br/>insert fragment row"]
+  text{"Plain text:<br/>looks like a story id?"}
+  show["showStory(id)<br/>reply with text, mark read"]
+  createfire["createStoryAndFire<br/>&rarr; triggerAutoPipeline"]
+  gen["Pipeline generates story<br/>(async, fire-and-forget)"]
+  cb["story-ready callback<br/>&rarr; bot.api.sendMessage"]
+
+  msg --> cmds
+  cmds --> new
+  cmds --> stories
+  cmds --> topic
+  cmds --> frag
+  cmds --> text
+  text -->|"yes"| show
+  text -->|"no"| createfire --> gen --> cb
+  cb -.->|"user taps id"| show
+  stories -->|"pick story:id button"| show

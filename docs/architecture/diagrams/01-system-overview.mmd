@@ -1,0 +1,30 @@
+flowchart LR
+  subgraph clients["Clients"]
+    B["Browser<br/>React SPA"]
+    TG["Telegram app"]
+  end
+  subgraph cr["Cloud Run: bedtime-api (us-central1, project bedtime-prod)"]
+    EX["Express server"]
+    API["REST routers<br/>/api/*"]
+    SPA["Static SPA<br/>(web/dist)"]
+    WH["Telegram webhook<br/>/api/telegram/webhook"]
+    PIPE["Generation pipeline<br/>(fire-and-forget async)"]
+  end
+  DB[("Neon Postgres")]
+  OR["OpenRouter<br/>(LLM models)"]
+  LF["Langfuse<br/>(traces)"]
+  SEN["Sentry<br/>(errors)"]
+
+  B -->|"page load"| SPA
+  B -->|"HTTPS /api/* (JWT cookie)"| API
+  TG -->|"webhook update"| WH
+  EX --> API
+  EX --> SPA
+  WH --> PIPE
+  API --> PIPE
+  API --> DB
+  PIPE -->|"read/write stories"| DB
+  PIPE -->|"chat/completions"| OR
+  PIPE -.->|"pipeline traces"| LF
+  EX -.->|"exceptions"| SEN
+  PIPE -->|"story-ready notify"| TG

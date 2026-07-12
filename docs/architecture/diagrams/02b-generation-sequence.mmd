@@ -1,0 +1,25 @@
+sequenceDiagram
+  participant U as User
+  participant API as Express API
+  participant Orq as Orchestrator
+  participant Plot as Plotter LLM
+  participant Writ as Writer LLM
+  participant DB as Neon DB
+
+  U->>API: create story with seed
+  API->>DB: insert story (status draft)
+  API-->>U: 201 created, returns immediately
+  Note over API,Orq: triggerAutoPipeline - fire-and-forget, wrapped in Langfuse trace
+
+  API->>Orq: runPlanPhase(seed)
+  Orq->>Plot: runPlotter - structure, setting, lens, bible, reactions, universe, style, sasha, fragments + seed
+  Plot-->>Orq: plan text
+  Orq->>Plot: generateStoryTitle
+  Plot-->>Orq: title
+  Orq->>DB: run_snapshots + stories (plan), record used fragments
+
+  Note over Orq,Writ: triggerTextPhase
+  Orq->>Writ: runWriterOnly then runWriter - words, fragments, exemplars, idiom and ending rules + plan
+  Writ-->>Orq: story text (streamed chunks)
+  Orq->>DB: story_text_versions + stories (status proofreading)
+  API-->>U: notifyStoryReady('generated') to Telegram

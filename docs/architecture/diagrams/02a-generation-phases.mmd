@@ -1,0 +1,17 @@
+flowchart TD
+  create["Create story<br/>status: draft"]
+  trig["triggerAutoPipeline<br/>(fire-and-forget)"]
+  plan["Plan phase: runPlanPhase"]
+  plotter["runPlotter<br/>assembles prompt blocks + seed"]
+  title["generateStoryTitle"]
+  persist1["Persist plan<br/>run_snapshots + stories + story_fragments"]
+  ttext["triggerTextPhase"]
+  writer["runWriterOnly &rarr; runWriter"]
+  persist2["Persist text<br/>story_text_versions + stories"]
+  proof["status: proofreading<br/>(pipeline state: text_ready)"]
+  notify["notifyStoryReady('generated')<br/>&rarr; Telegram"]
+
+  create --> trig --> plan --> plotter --> title --> persist1 --> ttext --> writer --> persist2 --> proof --> notify
+
+  note["NOTE: the auto path runs NO critic.<br/>planFinal = planV1, iterations = 1, empty critic output.<br/>runTextCritique / plot-critic run only on manual redo endpoints."]
+  plan -.-> note

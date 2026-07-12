@@ -1,0 +1,30 @@
+flowchart LR
+  subgraph plotterblocks["Plotter prompt (assembled top to bottom)"]
+    direction TB
+    p1["base + universe system prompt"]
+    p2["structure pattern"]
+    p3["setting"]
+    p4["character lens"]
+    p5["character bible"]
+    p6["reaction preferences"]
+    p7["universe context"]
+    p8["style guide"]
+    p9["Sasha context"]
+    p10["eligible fragments"]
+    p11["SEED (real-life situation)"]
+    p1 --> p2 --> p3 --> p4 --> p5 --> p6 --> p7 --> p8 --> p9 --> p10 --> p11
+  end
+  subgraph writerblocks["Writer prompt (assembled top to bottom)"]
+    direction TB
+    w1["base + universe system prompt"]
+    w2["universe context"]
+    w3["style guide"]
+    w4["Sasha context"]
+    w5["canonical exemplars"]
+    w6["chosen fragments"]
+    w7["target words"]
+    w8["ending rule"]
+    w9["idiom rule"]
+    w10["STORY PLAN"]
+    w1 --> w2 --> w3 --> w4 --> w5 --> w6 --> w7 --> w8 --> w9 --> w10
+  end

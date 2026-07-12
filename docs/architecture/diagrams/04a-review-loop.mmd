@@ -1,0 +1,15 @@
+flowchart TD
+  proof["status: proofreading"]
+  annot["Parent adds annotations<br/>(context: plan or text)"]
+  redo["redo-text &rarr; triggerTextRewrite<br/>&rarr; runAnnotatedRewrite (editor notes)"]
+  review["status: text_review<br/>new story_text_version"]
+  approve["approve-text<br/>status: ready, textFinal set, readyAt"]
+  notify["notifyStoryReady('approved')<br/>&rarr; Telegram"]
+  read["Read (web / Telegram)<br/>status: read + story_readings row"]
+
+  proof --> annot --> redo --> review
+  review -->|"needs more edits"| annot
+  review --> approve
+  proof -->|"approve as-is"| approve
+  approve --> notify
+  approve --> read

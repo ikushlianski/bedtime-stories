@@ -1,0 +1,26 @@
+flowchart LR
+  subgraph reactionloop["Reaction personalization (every universe)"]
+    direction LR
+    react["child_reactions"]
+    rp["loadReactionPreferences"]
+    plotter["Plotter reaction block"]
+    react --> rp --> plotter
+  end
+
+  subgraph analyzeloop["Analyze loop (LEGACY stories only — 422 otherwise)"]
+    direction TB
+    analyze["Analyze endpoint"]
+    sa["runStoryAnalyzer"]
+    diary["child_diary<br/>(extracted reactions)"]
+    prann["parent_reviews + annotations"]
+    sg["updateStyleGuide<br/>&rarr; story_groups.style_guide"]
+    fe["runUniverseFactExtractor"]
+    us["universe_suggestions<br/>(pending &rarr; parent approves)"]
+    analyze --> sa --> diary
+    sa --> sg
+    prann --> sg
+    sa --> fe --> us
+  end
+
+  sg -.->|"style block"| pw["Plotter &amp; Writer prompts"]
+  us -.->|"approved facts"| uc["universe_characters / context"]
