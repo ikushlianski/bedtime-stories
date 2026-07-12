@@ -267,6 +267,13 @@
       "when": 1783724487752,
       "tag": "0037_round_sleeper",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1783846292295,
+      "tag": "0038_clammy_cannonball",
+      "breakpoints": true
     }
   ]
 }

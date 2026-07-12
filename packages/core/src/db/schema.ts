@@ -28,6 +28,11 @@ export const universeCharacters = pgTable('universe_characters', {
   universeId: integer('universe_id').references(() => storyGroups.id).notNull(),
   name: text('name').notNull(),
   description: text('description').notNull().default(''),
+  age: text('age'),
+  setting: text('setting'),
+  traits: text('traits'),
+  relationships: text('relationships'),
+  coOccurrenceNote: text('co_occurrence_note'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 })
@@ -94,6 +99,23 @@ export const storyFragments = pgTable('story_fragments', {
   fragmentId: integer('fragment_id').references(() => fragments.id).notNull(),
   createdAt: timestamp('created_at').defaultNow(),
 }, (t) => [unique('story_fragments_story_fragment_unique').on(t.storyId, t.fragmentId)])
+
+export const words = pgTable('words', {
+  id: serial('id').primaryKey(),
+  word: text('word').notNull(),
+  hint: text('hint'),
+  universeId: integer('universe_id').references(() => storyGroups.id),
+  rank: integer('rank').notNull().default(0),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+})
+
+export const storyWords = pgTable('story_words', {
+  id: serial('id').primaryKey(),
+  storyId: integer('story_id').references(() => stories.id).notNull(),
+  wordId: integer('word_id').references(() => words.id).notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (t) => [unique('story_words_story_word_unique').on(t.storyId, t.wordId)])
 
 export const topics = pgTable('topics', {
   id: serial('id').primaryKey(),
