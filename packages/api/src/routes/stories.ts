@@ -14,6 +14,7 @@ import textVersionsRouter from './text-versions'
 import { createStorySchema, resolveCreateStoryMode } from './create-story-schema'
 import { runStoryAnalyzer } from '@bedtime/core/pipeline/stages/story-analyzer'
 import { updateStyleGuide } from '@bedtime/core/pipeline/style-guide-updater'
+import { formatParentFeedback } from '@bedtime/core/pipeline/derivers/format-parent-feedback'
 import { runUniverseFactExtractor } from '@bedtime/core/pipeline/stages/universe-fact-extractor'
 import { loadUniverseContext } from './load-universe-context'
 import { loadStoryFragmentTexts } from '@bedtime/core/pipeline/load-fragments'
@@ -553,6 +554,9 @@ router.post('/:id/redo-text', async (req, res) => {
       : { universeSystemPrompt: undefined, universeContext: undefined, styleGuide: undefined }
     let sashaContext: string | null = null
 
+    const rawInstructions = (req.body as { instructions?: unknown } | undefined)?.instructions
+    const instructions = typeof rawInstructions === 'string' ? rawInstructions.trim() : ''
+
     const annotationRows = await db
       .select({ noteText: annotations.noteText })
       .from(annotations)
@@ -560,8 +564,8 @@ router.post('/:id/redo-text', async (req, res) => {
 
     const hasNotes = annotationRows.some((r) => r.noteText)
 
-    if (!hasNotes) {
-      res.status(409).json({ error: 'No editor notes found — add annotations with notes before redoing the text' })
+    if (!hasNotes && !instructions) {
+      res.status(409).json({ error: 'Напиши, что изменить, или добавь заметки к тексту перед доработкой' })
       return
     }
 
@@ -576,7 +580,7 @@ router.post('/:id/redo-text', async (req, res) => {
       sashaContext = snapshot.sashaContext
     }
 
-    triggerTextRewrite(storyId, currentText, existing.planFinal, universeSystemPrompt, universeContext, styleGuide, sashaContext, existing.groupId ?? null, existing.activeTextVersionId ?? null)
+    triggerTextRewrite(storyId, currentText, existing.planFinal, universeSystemPrompt, universeContext, styleGuide, sashaContext, existing.groupId ?? null, existing.activeTextVersionId ?? null, instructions || undefined)
 
     res.json({ started: true, storyId })
   } catch (err) {
@@ -825,13 +829,19 @@ router.post('/:id/analyze', async (req, res) => {
       const groupId = story.groupId
 
       console.log(`[analyze] story ${storyId} — updating style guide for group ${groupId}`)
-      const existingChars = await db
-        .select({ name: universeCharacters.name, description: universeCharacters.description })
-        .from(universeCharacters)
-        .where(eq(universeCharacters.universeId, groupId))
+      const [existingChars, parentReview, storyAnnotations] = await Promise.all([
+        db
+          .select({ name: universeCharacters.name, description: universeCharacters.description })
+          .from(universeCharacters)
+          .where(eq(universeCharacters.universeId, groupId)),
+        db.select().from(parentReviews).where(eq(parentReviews.storyId, storyId)),
+        db.select().from(annotations).where(eq(annotations.storyId, storyId)),
+      ])
+
+      const parentFeedback = formatParentFeedback({ review: parentReview[0] ?? null, annotations: storyAnnotations })
 
       await Promise.all([
-        updateStyleGuide(groupId, output, story.title),
+        updateStyleGuide(groupId, output, story.title, parentFeedback),
         runUniverseFactExtractor({ storyText: story.textFinal, existingCharacters: existingChars })
           .then(async (factOutput) => {
             if (factOutput.facts.length === 0) return

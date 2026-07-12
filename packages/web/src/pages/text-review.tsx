@@ -234,6 +234,7 @@ export function TextReviewPage() {
   const [approveError, setApproveError] = useState<string | null>(null)
   const [redoing, setRedoing] = useState(false)
   const [redoError, setRedoError] = useState<string | null>(null)
+  const [redoInstructions, setRedoInstructions] = useState('')
 
   const handleApprove = async () => {
     setApproving(true)
@@ -254,7 +255,7 @@ export function TextReviewPage() {
     setRedoError(null)
 
     try {
-      await api.stories.redoText(storyId)
+      await api.stories.redoText(storyId, redoInstructions)
       navigate(`/stories/${storyId}/pipeline`)
     } catch (redoErr) {
       setRedoError(redoErr instanceof Error ? redoErr.message : 'Не удалось запустить доработку')
@@ -322,8 +323,23 @@ export function TextReviewPage() {
           </div>
 
           <p className="text-sm text-base-content/60">
-            Выдели любой фрагмент текста, чтобы оставить комментарий. Когда будешь готов — запусти критика или одобри текст сразу.
+            Выдели любой фрагмент текста, чтобы оставить точечный комментарий. Или напиши общие указания к доработке ниже — они попадут прямо к писателю.
           </p>
+
+          <div className="rounded-box border border-primary/20 bg-primary/5 p-4">
+            <label className="mb-2 block text-sm font-medium text-base-content">
+              Что изменить в этой версии?
+            </label>
+            <textarea
+              className="textarea textarea-bordered min-h-24 w-full bg-base-100 text-sm"
+              placeholder="Например: вплети в историю строчки этой песни… (можно вставить целиком). Эти указания получит писатель при следующем прогоне."
+              value={redoInstructions}
+              onChange={(e) => setRedoInstructions(e.target.value)}
+            />
+            <p className="mt-1 text-xs text-base-content/50">
+              Нажми «Отправить на доработку», чтобы переписать текст с учётом этих указаний.
+            </p>
+          </div>
 
           <TextAnnotationPanel
             storyId={storyId}

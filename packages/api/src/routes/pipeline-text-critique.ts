@@ -143,6 +143,7 @@ export function triggerTextRewrite(
   sashaContext?: string | null,
   universeId: number | null = null,
   activeTextVersionId?: number | null,
+  instructions?: string,
 ): void {
   setPipelineStatus(storyId, 'text_running')
 
@@ -161,7 +162,7 @@ export function triggerTextRewrite(
 
     const withNotes = rows.filter((r) => r.noteText)
 
-    console.log(`\n[TEXT-REWRITE] story=${storyId} — annotations: ${rows.length} total, ${withNotes.length} with notes`)
+    console.log(`\n[TEXT-REWRITE] story=${storyId} — annotations: ${rows.length} total, ${withNotes.length} with notes, freeform instructions: ${instructions ? 'yes' : 'no'}`)
 
     if (withNotes.length > 0) {
       withNotes.forEach((r, i) => {
@@ -169,7 +170,11 @@ export function triggerTextRewrite(
       })
     }
 
-    const userAnnotations = formatAnnotationsAsFeedback(rows)
+    const trimmedInstructions = instructions?.trim() ?? ''
+    const instructionBlock = trimmedInstructions
+      ? `Общие указания к переработке (примени ко всему тексту):\n${trimmedInstructions}`
+      : ''
+    const userAnnotations = [instructionBlock, formatAnnotationsAsFeedback(rows)].filter(Boolean).join('\n\n')
 
     const result = await runAnnotatedRewrite({
       currentText,
