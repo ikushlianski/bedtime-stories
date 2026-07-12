@@ -88,9 +88,9 @@ router.post('/questions/:storyId/submit', validate(submitAnswersSchema), async (
 
     const seed = storyRow.seed ?? ''
 
-    const { universeSystemPrompt, universeContext, styleGuide } = storyRow.groupId != null
+    const { universeSystemPrompt, universeContext, styleGuide, bibleCharacters } = storyRow.groupId != null
       ? await loadUniverseContext(storyRow.groupId)
-      : { universeSystemPrompt: undefined, universeContext: undefined, styleGuide: undefined }
+      : { universeSystemPrompt: undefined, universeContext: undefined, styleGuide: undefined, bibleCharacters: [] }
 
     const updatedQuestions = await db
       .select()
@@ -101,7 +101,7 @@ router.post('/questions/:storyId/submit', validate(submitAnswersSchema), async (
       .filter((q) => q.answerText !== null && q.answerText !== undefined)
       .map((q) => ({ question: q.questionText, answer: q.answerText ?? '' }))
 
-    triggerPlanPhaseFromAnswers(storyIdRaw, seed, qaArray, universeSystemPrompt, universeContext, styleGuide, storyRow.groupId ?? null)
+    triggerPlanPhaseFromAnswers(storyIdRaw, seed, qaArray, universeSystemPrompt, universeContext, styleGuide, storyRow.groupId ?? null, bibleCharacters)
 
     res.json({ ok: true })
   } catch (err) {
@@ -142,11 +142,11 @@ router.post('/questions/:storyId/retry-plan', async (req, res) => {
 
     const seed = storyRow.seed ?? ''
 
-    const { universeSystemPrompt: usp2, universeContext: uc2, styleGuide: sg2 } = storyRow.groupId != null
+    const { universeSystemPrompt: usp2, universeContext: uc2, styleGuide: sg2, bibleCharacters: bc2 } = storyRow.groupId != null
       ? await loadUniverseContext(storyRow.groupId)
-      : { universeSystemPrompt: undefined, universeContext: undefined, styleGuide: undefined }
+      : { universeSystemPrompt: undefined, universeContext: undefined, styleGuide: undefined, bibleCharacters: [] }
 
-    triggerPlanPhaseFromAnswers(storyIdRaw, seed, qaArray, usp2, uc2, sg2, storyRow.groupId ?? null)
+    triggerPlanPhaseFromAnswers(storyIdRaw, seed, qaArray, usp2, uc2, sg2, storyRow.groupId ?? null, bc2)
 
     res.json({ ok: true, storyId: storyIdRaw })
   } catch (err) {

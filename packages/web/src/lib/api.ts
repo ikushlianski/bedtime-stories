@@ -49,6 +49,11 @@ export interface UniverseCharacter {
   universeId: number
   name: string
   description: string
+  age: string | null
+  setting: string | null
+  traits: string | null
+  relationships: string | null
+  coOccurrenceNote: string | null
   createdAt: string | null
   updatedAt: string | null
 }
@@ -232,6 +237,17 @@ export interface DiaryEntry {
 export interface Fragment {
   id: number
   text: string
+  universeId: number | null
+  rank: number
+  usedCount: number
+  createdAt: string | null
+  updatedAt: string | null
+}
+
+export interface Word {
+  id: number
+  word: string
+  hint: string | null
   universeId: number | null
   rank: number
   usedCount: number
@@ -463,8 +479,11 @@ export const api = {
         body: JSON.stringify({ status }),
       }),
 
-    redoText: (id: number) =>
-      request<{ started: boolean; storyId: number }>(`/api/stories/${id}/redo-text`, { method: 'POST' }),
+    redoText: (id: number, instructions?: string) =>
+      request<{ started: boolean; storyId: number }>(`/api/stories/${id}/redo-text`, {
+        method: 'POST',
+        ...(instructions && instructions.trim() ? { body: JSON.stringify({ instructions: instructions.trim() }) } : {}),
+      }),
 
     delete: (id: number) =>
       requestEmpty(`/api/stories/${id}`, {
@@ -632,6 +651,21 @@ export const api = {
     delete: (id: number) => requestEmpty(`/api/fragments/${id}`, { method: 'DELETE' }),
   },
 
+  words: {
+    list: () => request<Word[]>('/api/words'),
+    create: (data: { word: string; hint?: string | null; universeId?: number | null; rank?: number }) =>
+      request<Word>('/api/words', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    update: (id: number, data: Partial<{ word: string; hint: string | null; universeId: number | null; rank: number }>) =>
+      request<Word>(`/api/words/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+    delete: (id: number) => requestEmpty(`/api/words/${id}`, { method: 'DELETE' }),
+  },
+
   topics: {
     list: () => request<Topic[]>('/api/topics'),
     create: (data: { title: string; note?: string | null; universeId?: number | null; rank?: number }) =>
@@ -704,13 +738,13 @@ export const api = {
 
     delete: (id: number) => requestEmpty(`/api/universes/${id}`, { method: 'DELETE' }),
 
-    createCharacter: (universeId: number, data: { name: string; description?: string }) =>
+    createCharacter: (universeId: number, data: { name: string; description?: string; age?: string; setting?: string; traits?: string; relationships?: string; coOccurrenceNote?: string }) =>
       request<UniverseCharacter>(`/api/universes/${universeId}/characters`, {
         method: 'POST',
         body: JSON.stringify(data),
       }),
 
-    updateCharacter: (universeId: number, charId: number, data: { name?: string; description?: string }) =>
+    updateCharacter: (universeId: number, charId: number, data: { name?: string; description?: string; age?: string; setting?: string; traits?: string; relationships?: string; coOccurrenceNote?: string }) =>
       request<UniverseCharacter>(`/api/universes/${universeId}/characters/${charId}`, {
         method: 'PATCH',
         body: JSON.stringify(data),

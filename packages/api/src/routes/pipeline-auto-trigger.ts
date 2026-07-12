@@ -34,6 +34,7 @@ export function triggerAutoPipeline(
     const effectiveSystemPrompt = enrichedContext?.universeSystemPrompt ?? universeSystemPrompt
     const effectiveUniverseContext = enrichedContext?.universeContext ?? universeContext
     const effectiveStyleGuide = enrichedContext?.styleGuide ?? styleGuide
+    const bibleCharacters = enrichedContext?.bibleCharacters ?? []
 
     const plan = await runPlanPhase({
       seed,
@@ -46,6 +47,7 @@ export function triggerAutoPipeline(
       ...(effectiveUniverseContext !== undefined ? { universeContext: effectiveUniverseContext } : {}),
       ...(effectiveStyleGuide !== undefined ? { styleGuide: effectiveStyleGuide } : {}),
       ...(sashaContext !== null ? { sashaContext } : {}),
+      ...(bibleCharacters.length > 0 ? { bibleCharacters } : {}),
       onStepChange: (step) => setCurrentStep(storyId, step),
     })
 

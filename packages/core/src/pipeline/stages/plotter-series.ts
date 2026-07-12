@@ -1,6 +1,7 @@
 import { aiRunner } from '../../ai'
 import { PLOTTER_SYSTEM_PROMPT_DEFAULT } from './plotter'
 import { MAX_FRAGMENTS_PER_STORY, type EligibleFragment } from '../load-fragments'
+import { buildCharacterBibleBlock, type CharacterBibleEntry } from './character-bible-block'
 
 export interface SeriesPlanItem {
   outline: string
@@ -16,6 +17,7 @@ export async function runPlotterSeries(options: {
   styleGuide?: string
   sashaContext?: string | null
   eligibleFragments?: EligibleFragment[]
+  bibleCharacters?: CharacterBibleEntry[]
   cwd?: string
 }): Promise<SeriesPlanItem[]> {
   const { seed, model } = options
@@ -54,8 +56,10 @@ export async function runPlotterSeries(options: {
     ? `, "usedFragmentIds": [<id выбранных фрагментов или пусто>]`
     : ''
 
+  const characterBibleBlock = buildCharacterBibleBlock(options.bibleCharacters ?? [])
+
   const prompt = [
-    `${basePrompt}${universeContextBlock}${styleGuideBlock}${sashaContextBlock}${fragmentsBlock}`,
+    `${basePrompt}${characterBibleBlock}${universeContextBlock}${styleGuideBlock}${sashaContextBlock}${fragmentsBlock}`,
     '',
     `SEED (real-life situation to base the stories on):\n${seed}`,
     '',

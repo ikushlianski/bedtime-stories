@@ -19,6 +19,7 @@ import storyIdeasRouter from './routes/story-ideas'
 import diaryRouter from './routes/diary'
 import fragmentsRouter from './routes/fragments'
 import topicsRouter from './routes/topics'
+import wordsRouter from './routes/words'
 import childProfileRouter from './routes/child-profile'
 import modelsRouter from './routes/models'
 import storiesSwapModelRouter from './routes/stories-swap-model'
@@ -70,6 +71,7 @@ app.use('/api/universes/:universeId/ideas', storyIdeasRouter)
 app.use('/api/diary', diaryRouter)
 app.use('/api/fragments', fragmentsRouter)
 app.use('/api/topics', topicsRouter)
+app.use('/api/words', wordsRouter)
 app.use('/api/child-profile', childProfileRouter)
 app.use('/api/models', modelsRouter)
 app.use('/api/stories/:id/swap-model', storiesSwapModelRouter)

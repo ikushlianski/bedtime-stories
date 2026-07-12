@@ -11,6 +11,7 @@ import {
 import { setPipelineStatus, setCurrentStep, setStepSummary } from './pipeline-state'
 import { defaultPromptVersions, resolvePipelineModels, loadStoryOverrides } from './pipeline-defaults'
 import { withPipelineTrace } from '@bedtime/observability'
+import type { CharacterBibleEntry } from '@bedtime/core/pipeline/stages/character-bible-block'
 
 function extractPlotterSummary(planText: string): string {
   const lines = planText.split('\n')
@@ -33,6 +34,7 @@ export function triggerPlanPhaseFromAnswers(
   universeContext?: string,
   styleGuide?: string,
   universeId: number | null = null,
+  bibleCharacters: CharacterBibleEntry[] = [],
 ): void {
   setPipelineStatus(storyId, 'questions_answered')
 
@@ -59,6 +61,7 @@ export function triggerPlanPhaseFromAnswers(
       ...(universeContext !== undefined ? { universeContext } : {}),
       ...(styleGuide !== undefined ? { styleGuide } : {}),
       ...(sashaContext !== null ? { sashaContext } : {}),
+      ...(bibleCharacters.length > 0 ? { bibleCharacters } : {}),
       onStepChange: (step) => setCurrentStep(storyId, step),
     })
 

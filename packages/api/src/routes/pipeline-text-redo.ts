@@ -12,6 +12,7 @@ import {
 } from './pipeline-persistence'
 import { setPipelineStatus, setCurrentStep } from './pipeline-state'
 import { defaultPromptVersions, resolvePipelineModels, loadStoryOverrides } from './pipeline-defaults'
+import { loadUniverseContext } from './load-universe-context'
 import { withPipelineTrace } from '@bedtime/observability'
 
 export function triggerTextRedoWithAnnotations(
@@ -27,10 +28,13 @@ export function triggerTextRedoWithAnnotations(
   setPipelineStatus(storyId, 'plan_running')
 
   withPipelineTrace(String(storyId), async () => {
-    const [sashaContext, models] = await Promise.all([
+    const [sashaContext, models, ctx] = await Promise.all([
       synthesizeSashaContext(),
       loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(universeId, overrides)),
+      universeId != null ? loadUniverseContext(universeId) : Promise.resolve(null),
     ])
+
+    const bibleCharacters = ctx?.bibleCharacters ?? []
 
     const plan = await runPlanPhase({
       seed: seedWithContext,
@@ -41,6 +45,7 @@ export function triggerTextRedoWithAnnotations(
       ...(universeContext !== undefined ? { universeContext } : {}),
       ...(styleGuide !== undefined ? { styleGuide } : {}),
       ...(sashaContext !== null ? { sashaContext } : {}),
+      ...(bibleCharacters.length > 0 ? { bibleCharacters } : {}),
       onStepChange: (step) => setCurrentStep(storyId, step),
     })
 

@@ -1,5 +1,6 @@
 import { aiRunner } from '../../ai'
 import { resolvePrompt, type ResolvedPrompt } from '../prompt-resolver'
+import { buildWordsBlock, type TargetWord } from './words-block'
 import type { CriticOutput } from '../schemas'
 import type { Exemplar } from '../load-exemplars'
 
@@ -37,6 +38,7 @@ export async function runWriter(options: {
   sashaContext?: string | null
   exemplars?: Exemplar[]
   chosenFragments?: string[]
+  targetWords?: TargetWord[]
   userAnnotations?: string
   onChunk?: (chunk: string) => void
   onChunkReset?: () => void
@@ -79,8 +81,12 @@ export async function runWriter(options: {
 
   const idiomRuleBlock = '\n\n---\nОБРАЗНЫЕ ВЫРАЖЕНИЯ: вплетай в каждую историю от одного до трёх устойчивых образных выражений — таких как «голова раскалывается», «вертится на языке», «на носу праздник», «глаза на мокром месте», «ушки на макушке», «душа в пятки ушла», «как снег на голову», «кот наплакал». Ребёнок должен постепенно к ним привыкать. Вставляй их естественно, по ходу речи персонажей или рассказчика. Если выражение не ложится органично — НЕ придумывай ради него лишние строчки или сюжетные повороты; лучше меньше, но к месту. Старайся каждый раз брать РАЗНЫЕ выражения, а не повторять одни и те же из истории в историю.\n---\n'
 
+  const wordsBlock = options.targetWords && options.targetWords.length > 0 && !isRevision
+    ? buildWordsBlock(options.targetWords)
+    : ''
+
   const parts: string[] = [
-    `${basePrompt}${universeContextBlock}${styleGuideBlock}${sashaContextBlock}${exemplarsBlock}${fragmentBlock}${endingRuleBlock}${idiomRuleBlock}`,
+    `${basePrompt}${universeContextBlock}${styleGuideBlock}${sashaContextBlock}${exemplarsBlock}${fragmentBlock}${wordsBlock}${endingRuleBlock}${idiomRuleBlock}`,
     '',
     `STORY PLAN:\n${plan}`,
   ]

@@ -11,6 +11,7 @@ import {
 } from './pipeline-persistence'
 import { setPipelineStatus, setCurrentStep, setStepSummary } from './pipeline-state'
 import { defaultPromptVersions, resolvePipelineModels, loadStoryOverrides } from './pipeline-defaults'
+import { loadUniverseContext } from './load-universe-context'
 import { withPipelineTrace } from '@bedtime/observability'
 
 function extractPlotterSummary(planText: string): string {
@@ -37,17 +38,19 @@ export function triggerPlanRedo(storyId: number, seed: string, previousPlan: str
   setPipelineStatus(storyId, 'plan_running')
 
   withPipelineTrace(String(storyId), async () => {
-    const [rows, models] = await Promise.all([
+    const [rows, models, ctx] = await Promise.all([
       db
         .select({ id: annotations.id, selectedText: annotations.selectedText, noteText: annotations.noteText })
         .from(annotations)
         .where(and(eq(annotations.storyId, storyId), eq(annotations.context, 'plan'), isNull(annotations.resolvedAt))),
       loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(universeId, overrides)),
+      universeId != null ? loadUniverseContext(universeId) : Promise.resolve(null),
     ])
 
     const activeRows = rows.filter((r) => r.noteText !== null) as Array<{ id: number; selectedText: string; noteText: string }>
     const userFeedback = formatAnnotationsAsFeedback(activeRows)
     const sashaContext = await synthesizeSashaContext()
+    const bibleCharacters = ctx?.bibleCharacters ?? []
 
     const result = await runPlotterOnly({
       seed,
@@ -59,6 +62,7 @@ export function triggerPlanRedo(storyId: number, seed: string, previousPlan: str
       ...(styleGuide !== undefined ? { styleGuide } : {}),
       ...(sashaContext !== null ? { sashaContext } : {}),
       ...(userFeedback ? { userFeedback } : {}),
+      ...(bibleCharacters.length > 0 ? { bibleCharacters } : {}),
       onStepChange: (step) => setCurrentStep(storyId, step),
     })
 

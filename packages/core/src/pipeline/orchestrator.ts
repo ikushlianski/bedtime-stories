@@ -4,6 +4,9 @@ import { runPlotterQuestions, type PlotterQuestionItem } from './stages/plotter-
 import { generateStoryTitle } from './stages/title-generator'
 import { resolvePrompt, type ResolvedPrompt } from './prompt-resolver'
 import { loadEligibleFragments, extractFragmentMarkers, MAX_FRAGMENTS_PER_STORY } from './load-fragments'
+import { loadReactionPreferences, MIN_REACTIONS } from './load-reaction-preferences'
+import { extractWordMarkers, MAX_WORDS_PER_STORY, type TargetWord } from './stages/words-block'
+import type { CharacterBibleEntry } from './stages/character-bible-block'
 import type { CriticOutput } from './schemas'
 import type { Exemplar } from './load-exemplars'
 import { withPipelineTrace, withPipelineTraceIfNone, addStoryContext } from '@bedtime/observability'
@@ -46,6 +49,7 @@ export interface PlotterOnlyResult {
 
 export interface WriterOnlyResult {
   textV1: string
+  usedWordIds: number[]
   models: PipelineModels
   promptVersions: PipelinePromptVersions
 }
@@ -85,6 +89,7 @@ export async function runPlanPhase(options: {
   userFeedback?: string
   universeId?: number | null
   injectFragments?: boolean
+  bibleCharacters?: CharacterBibleEntry[]
   cwd?: string
   onStepChange?: (step: string) => void
 }): Promise<PlanPhaseResult> {
@@ -114,10 +119,13 @@ export async function runPlanPhase(options: {
   const userFeedbackArg = options.userFeedback ? { userFeedback: options.userFeedback } : {}
   const storyIdArg = { storyId: options.storyId }
 
-  const eligibleFragments = options.injectFragments
-    ? await loadEligibleFragments(options.universeId ?? null)
-    : []
+  const [eligibleFragments, reactionSummary] = await Promise.all([
+    options.injectFragments ? loadEligibleFragments(options.universeId ?? null) : Promise.resolve([]),
+    options.universeId != null ? loadReactionPreferences(options.universeId) : Promise.resolve(null),
+  ])
   const fragmentsArg = eligibleFragments.length > 0 ? { eligibleFragments } : {}
+  const reactionArg = reactionSummary && reactionSummary.sampleSize >= MIN_REACTIONS ? { reactionSummary } : {}
+  const bibleArg = options.bibleCharacters && options.bibleCharacters.length > 0 ? { bibleCharacters: options.bibleCharacters } : {}
 
   notify('Plotter')
   const planRaw = await runPlotter({
@@ -130,6 +138,8 @@ export async function runPlanPhase(options: {
     ...styleGuideArg,
     ...sashaContextArg,
     ...fragmentsArg,
+    ...reactionArg,
+    ...bibleArg,
     ...userFeedbackArg,
     ...storyIdArg,
   })
@@ -242,6 +252,7 @@ export async function runPlotterOnly(options: {
   userFeedback?: string
   universeId?: number | null
   injectFragments?: boolean
+  bibleCharacters?: CharacterBibleEntry[]
   cwd?: string
   onStepChange?: (step: string) => void
 }): Promise<PlotterOnlyResult> {
@@ -263,10 +274,13 @@ export async function runPlotterOnly(options: {
 
   const storyIdArg = { storyId: options.storyId }
 
-  const eligibleFragments = options.injectFragments
-    ? await loadEligibleFragments(options.universeId ?? null)
-    : []
+  const [eligibleFragments, reactionSummary] = await Promise.all([
+    options.injectFragments ? loadEligibleFragments(options.universeId ?? null) : Promise.resolve([]),
+    options.universeId != null ? loadReactionPreferences(options.universeId) : Promise.resolve(null),
+  ])
   const fragmentsArg = eligibleFragments.length > 0 ? { eligibleFragments } : {}
+  const reactionArg = reactionSummary && reactionSummary.sampleSize >= MIN_REACTIONS ? { reactionSummary } : {}
+  const bibleArg = options.bibleCharacters && options.bibleCharacters.length > 0 ? { bibleCharacters: options.bibleCharacters } : {}
 
   notify('Plotter')
   const planRaw = await runPlotter({
@@ -279,6 +293,8 @@ export async function runPlotterOnly(options: {
     ...styleGuideArg,
     ...sashaContextArg,
     ...fragmentsArg,
+    ...reactionArg,
+    ...bibleArg,
     ...userFeedbackArg,
     ...storyIdArg,
   })
@@ -318,6 +334,7 @@ export async function runWriterOnly(options: {
   sashaContext?: string | null
   exemplars?: Exemplar[]
   chosenFragments?: string[]
+  targetWords?: TargetWord[]
   previousText?: string
   userAnnotations?: string
   cwd?: string
@@ -334,6 +351,7 @@ export async function runWriterOnly(options: {
   const sashaContextArg = options.sashaContext !== undefined && options.sashaContext !== null ? { sashaContext: options.sashaContext } : {}
   const exemplarsArg = options.exemplars && options.exemplars.length > 0 ? { exemplars: options.exemplars } : {}
   const chosenFragmentsArg = options.chosenFragments && options.chosenFragments.length > 0 ? { chosenFragments: options.chosenFragments } : {}
+  const targetWordsArg = options.targetWords && options.targetWords.length > 0 ? { targetWords: options.targetWords } : {}
   const previousTextArg = options.previousText !== undefined ? { previousText: options.previousText } : {}
   const userAnnotationsArg = options.userAnnotations ? { userAnnotations: options.userAnnotations } : {}
   const onChunkArg = options.onChunk !== undefined ? { onChunk: options.onChunk } : {}
@@ -360,6 +378,7 @@ export async function runWriterOnly(options: {
     ...sashaContextArg,
     ...exemplarsArg,
     ...chosenFragmentsArg,
+    ...targetWordsArg,
     ...previousTextArg,
     ...userAnnotationsArg,
     ...onChunkArg,
@@ -367,7 +386,11 @@ export async function runWriterOnly(options: {
     ...storyIdArg,
   })
 
-  return { textV1, models, promptVersions: resolvedVersions }
+  const wordMarker = extractWordMarkers(textV1, options.targetWords ?? [])
+  const eligibleWordIds = new Set((options.targetWords ?? []).map((w) => w.id))
+  const usedWordIds = wordMarker.wordIds.filter((id) => eligibleWordIds.has(id)).slice(0, MAX_WORDS_PER_STORY)
+
+  return { textV1: wordMarker.cleanedText, usedWordIds, models, promptVersions: resolvedVersions }
 }
 
 export async function runTextCritique(options: {

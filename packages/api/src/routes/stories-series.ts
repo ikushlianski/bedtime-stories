@@ -9,7 +9,9 @@ import { validate } from '../middleware/validate'
 import { runPlotterSeries } from '@bedtime/core/pipeline/stages/plotter-series'
 import { loadEligibleFragments, recordStoryFragments } from '@bedtime/core/pipeline/load-fragments'
 import { synthesizeSashaContext } from '@bedtime/core/pipeline/feedback-synthesizer'
+import type { CharacterBibleEntry } from '@bedtime/core/pipeline/stages/character-bible-block'
 import { resolvePipelineModels } from './pipeline-defaults'
+import { loadUniverseContext } from './load-universe-context'
 import { withPipelineTrace } from '@bedtime/observability'
 
 const router = Router()
@@ -26,6 +28,7 @@ router.post('/', validate(createSeriesSchema), async (req, res) => {
     let universeSystemPrompt: string | undefined
     let universeContext: string | undefined
     let styleGuide: string | undefined
+    let bibleCharacters: CharacterBibleEntry[] = []
 
     if (groupId !== undefined) {
       const [group] = await db.select().from(storyGroups).where(eq(storyGroups.id, groupId))
@@ -34,6 +37,7 @@ router.post('/', validate(createSeriesSchema), async (req, res) => {
         universeSystemPrompt = group.systemPrompt
         universeContext = group.universeContext ?? undefined
         styleGuide = group.styleGuide ?? undefined
+        bibleCharacters = (await loadUniverseContext(groupId)).bibleCharacters
       }
     }
 
@@ -54,6 +58,7 @@ router.post('/', validate(createSeriesSchema), async (req, res) => {
         ...(styleGuide !== undefined ? { styleGuide } : {}),
         ...(sashaContext !== null ? { sashaContext } : {}),
         ...(eligibleFragments.length > 0 ? { eligibleFragments } : {}),
+        ...(bibleCharacters.length > 0 ? { bibleCharacters } : {}),
       })
 
       return { plans: resolvedPlans, models: resolvedModels, eligibleFragments }

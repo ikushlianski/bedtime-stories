@@ -2,6 +2,7 @@ import { eq, desc, and, isNull, or } from 'drizzle-orm'
 import { runWriterOnly } from '@bedtime/core/pipeline/orchestrator'
 import { loadRandomExemplars } from '@bedtime/core/pipeline/load-exemplars'
 import { loadStoryFragmentTexts } from '@bedtime/core/pipeline/load-fragments'
+import { loadEligibleWords, recordStoryWords } from '@bedtime/core/pipeline/load-words'
 import { db } from '@bedtime/core/db/client'
 import { runSnapshots, stories, annotations } from '@bedtime/core/db/schema'
 import {
@@ -59,10 +60,17 @@ export function triggerTextPhase(
       console.log(`[WRITER] using ${exemplars.length} canonical exemplar(s): ${exemplars.map((e) => `«${e.title || 'untitled'}»`).join(', ')}`)
     }
 
-    const chosenFragments = isRetry ? [] : await loadStoryFragmentTexts(storyId)
+    const [chosenFragments, targetWords] = await Promise.all([
+      isRetry ? Promise.resolve([]) : loadStoryFragmentTexts(storyId),
+      isRetry ? Promise.resolve([]) : loadEligibleWords(universeId),
+    ])
 
     if (chosenFragments.length > 0) {
       console.log(`[WRITER] weaving in ${chosenFragments.length} fragment(s)`)
+    }
+
+    if (targetWords.length > 0) {
+      console.log(`[WRITER] offering ${targetWords.length} target word(s)`)
     }
 
     const result = await runWriterOnly({
@@ -77,6 +85,7 @@ export function triggerTextPhase(
       ...(sashaContext !== undefined && sashaContext !== null ? { sashaContext } : {}),
       ...(exemplars.length > 0 ? { exemplars } : {}),
       ...(chosenFragments.length > 0 ? { chosenFragments } : {}),
+      ...(targetWords.length > 0 ? { targetWords } : {}),
       ...(isRetry ? { previousText: currentText } : {}),
       ...(userAnnotations ? { userAnnotations } : {}),
       onStepChange: (step) => setCurrentStep(storyId, step),
@@ -100,6 +109,7 @@ export function triggerTextPhase(
       }
 
       const versionId = await insertTextVersion(storyId, result.textV1, result.models.writer, 'writer_initial')
+      await recordStoryWords(storyId, result.usedWordIds)
       const isAuto = mode === 'auto'
 
       await db

@@ -2,7 +2,10 @@ import { aiRunner } from '../../ai'
 import { resolvePrompt, type ResolvedPrompt } from '../prompt-resolver'
 import { buildFragmentsBlock, type EligibleFragment } from '../load-fragments'
 import { selectStoryStructure, buildStructureBlock } from './story-structures'
+import { selectStorySetting, buildSettingBlock } from './story-settings'
 import { selectCharacterLens, buildCharacterLensBlock } from './character-lenses'
+import { buildCharacterBibleBlock, type CharacterBibleEntry } from './character-bible-block'
+import { buildReactionPreferenceBlock, type ReactionSummary } from './reaction-preferences'
 import type { CriticOutput } from '../schemas'
 
 const PLOTTER_TEMPERATURE = 0.95
@@ -86,6 +89,8 @@ export async function runPlotter(options: {
   styleGuide?: string
   sashaContext?: string | null
   eligibleFragments?: EligibleFragment[]
+  bibleCharacters?: CharacterBibleEntry[]
+  reactionSummary?: ReactionSummary
   cwd?: string
   storyId?: number
 }): Promise<string> {
@@ -115,10 +120,13 @@ export async function runPlotter(options: {
     : ''
 
   const structureBlock = buildStructureBlock(selectStoryStructure(options.storyId))
+  const settingBlock = buildSettingBlock(selectStorySetting(options.storyId))
   const characterLensBlock = buildCharacterLensBlock(selectCharacterLens(options.storyId))
+  const characterBibleBlock = buildCharacterBibleBlock(options.bibleCharacters ?? [])
+  const reactionBlock = options.reactionSummary ? buildReactionPreferenceBlock(options.reactionSummary) : ''
 
   const parts: string[] = [
-    `${basePrompt}${structureBlock}${characterLensBlock}${universeContextBlock}${styleGuideBlock}${sashaContextBlock}${fragmentsBlock}`,
+    `${basePrompt}${structureBlock}${settingBlock}${characterLensBlock}${characterBibleBlock}${reactionBlock}${universeContextBlock}${styleGuideBlock}${sashaContextBlock}${fragmentsBlock}`,
     '',
     `SEED (real-life situation to base the story on):\n${seed}`,
   ]
