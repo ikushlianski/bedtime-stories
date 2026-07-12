@@ -781,12 +781,9 @@ router.post('/:id/analyze', async (req, res) => {
       return
     }
 
-    if (story.source !== 'legacy') {
-      res.status(422).json({ error: 'Only legacy stories can be analyzed' })
-      return
-    }
+    const storyText = story.textFinal ?? story.textV2 ?? story.textV1
 
-    if (!story.textFinal) {
+    if (!storyText) {
       res.status(422).json({ error: 'Story has no text to analyze' })
       return
     }
@@ -804,7 +801,7 @@ router.post('/:id/analyze', async (req, res) => {
     console.log(`[analyze] story ${storyId} "${story.title}" — running analyzer`)
 
     const output = await runStoryAnalyzer({
-      storyText: story.textFinal,
+      storyText,
       ...(universeContext !== undefined ? { universeContext } : {}),
     })
 
@@ -842,7 +839,7 @@ router.post('/:id/analyze', async (req, res) => {
 
       await Promise.all([
         updateStyleGuide(groupId, output, story.title, parentFeedback),
-        runUniverseFactExtractor({ storyText: story.textFinal, existingCharacters: existingChars })
+        runUniverseFactExtractor({ storyText, existingCharacters: existingChars })
           .then(async (factOutput) => {
             if (factOutput.facts.length === 0) return
 
