@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { deriveIsAuthorizedUser, deriveIdeaFromMessage } from './telegram-utils.js'
+import { deriveIsAuthorizedUser, deriveIdeaFromMessage, parseCommandArgument } from './telegram-utils.js'
 
 describe('deriveIsAuthorizedUser', () => {
   it('returns true when fromId matches allowedId', () => {
@@ -39,5 +39,27 @@ describe('deriveIdeaFromMessage', () => {
 
   it('includes the universeId in output', () => {
     expect(deriveIdeaFromMessage('idea', 42).universeId).toBe(42)
+  })
+})
+
+describe('parseCommandArgument', () => {
+  it('returns the trimmed argument text', () => {
+    expect(parseCommandArgument('  дружба и смелость  ')).toBe('дружба и смелость')
+  })
+
+  it('preserves internal whitespace', () => {
+    expect(parseCommandArgument('облака  и   звёзды')).toBe('облака  и   звёзды')
+  })
+
+  it('returns null for an empty string', () => {
+    expect(parseCommandArgument('')).toBeNull()
+  })
+
+  it('returns null for whitespace-only input', () => {
+    expect(parseCommandArgument('   ')).toBeNull()
+  })
+
+  it('returns null when the argument is undefined', () => {
+    expect(parseCommandArgument(undefined)).toBeNull()
   })
 })

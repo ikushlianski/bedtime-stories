@@ -1,8 +1,8 @@
 import { Bot, Context, InlineKeyboard } from 'grammy'
 import { desc, eq, inArray, isNotNull } from 'drizzle-orm'
 import { db } from '@bedtime/core/db/client.js'
-import { stories, storyGroups, storyReadings } from '@bedtime/core/db/schema.js'
-import { deriveIsAuthorizedUser, deriveIdeaFromMessage } from './telegram-utils.js'
+import { stories, storyGroups, storyReadings, topics, fragments } from '@bedtime/core/db/schema.js'
+import { deriveIsAuthorizedUser, deriveIdeaFromMessage, parseCommandArgument } from './telegram-utils.js'
 import {
   UNREAD_STATUSES,
   READ_STATUSES,
@@ -74,6 +74,30 @@ async function createStoryAndFire(seedText: string): Promise<number | null> {
   )
 
   return storyId
+}
+
+async function addTopic(title: string): Promise<boolean> {
+  const universeId = await resolveDefaultUniverseId()
+
+  if (universeId === null) {
+    return false
+  }
+
+  await db.insert(topics).values({ title, note: null, universeId })
+
+  return true
+}
+
+async function addFragment(text: string): Promise<boolean> {
+  const universeId = await resolveDefaultUniverseId()
+
+  if (universeId === null) {
+    return false
+  }
+
+  await db.insert(fragments).values({ text, universeId })
+
+  return true
 }
 
 function categoryKeyboard(): InlineKeyboard {
@@ -179,8 +203,50 @@ if (bot) {
     await ctx.reply(
       'Привет! 👋\n\n' +
         '• Создать сказку — пришли мне её идею одним сообщением (или нажми /new).\n' +
-        '• Почитать — нажми /stories и выбери список.',
+        '• Почитать — нажми /stories и выбери список.\n' +
+        '• Добавить тему — /topic <текст темы>.\n' +
+        '• Добавить фрагмент — /fragment <текст фрагмента>.',
     )
+  })
+
+  bot.command('topic', async (ctx) => {
+    if (!deriveIsAuthorizedUser(ctx.from?.id, allowedUserId)) return
+
+    const title = parseCommandArgument(ctx.match)
+
+    if (title === null) {
+      await ctx.reply('Пришли так: /topic <текст темы>')
+      return
+    }
+
+    const added = await addTopic(title)
+
+    if (!added) {
+      await ctx.reply('Не получилось добавить тему: сначала добавь вселенную в приложении.')
+      return
+    }
+
+    await ctx.reply(`Тема добавлена: «${title}»`)
+  })
+
+  bot.command('fragment', async (ctx) => {
+    if (!deriveIsAuthorizedUser(ctx.from?.id, allowedUserId)) return
+
+    const text = parseCommandArgument(ctx.match)
+
+    if (text === null) {
+      await ctx.reply('Пришли так: /fragment <текст фрагмента>')
+      return
+    }
+
+    const added = await addFragment(text)
+
+    if (!added) {
+      await ctx.reply('Не получилось добавить фрагмент: сначала добавь вселенную в приложении.')
+      return
+    }
+
+    await ctx.reply(`Фрагмент добавлен: «${text}»`)
   })
 
   bot.command('new', async (ctx) => {

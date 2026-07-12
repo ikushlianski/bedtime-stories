@@ -2,6 +2,12 @@ export function deriveIsAuthorizedUser(fromId: number | undefined, allowedId: nu
   return fromId !== undefined && fromId === allowedId
 }
 
+export function parseCommandArgument(rawMatch: string | undefined): string | null {
+  const trimmed = (rawMatch ?? '').trim()
+
+  return trimmed.length > 0 ? trimmed : null
+}
+
 export function deriveIdeaFromMessage(
   messageText: string,
   universeId: number,
