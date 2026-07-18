@@ -13,7 +13,7 @@ export const SIGNAL_WEIGHTS = {
 } as const
 
 export interface AnnotationSignal {
-  selectedText: string
+  selectedText: string | null
   noteText: string | null
   storyTitle: string
 }
@@ -56,7 +56,8 @@ export interface SynthesizerInput {
 
 function formatAnnotation(a: AnnotationSignal): string {
   const note = a.noteText ? ` → ${a.noteText}` : ''
-  return `  «${a.selectedText}»${note} [из «${a.storyTitle}»]`
+  const subject = a.selectedText ? `«${a.selectedText}»` : 'общий комментарий'
+  return `  ${subject}${note} [из «${a.storyTitle}»]`
 }
 
 export function buildSynthesizerPrompt(input: SynthesizerInput): string {

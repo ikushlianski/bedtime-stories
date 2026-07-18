@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { api, type Story, type Annotation } from '../lib/api'
 import { PageHeader, StatusCallout } from '../components'
+import { StoryChatPanel } from './story-chat-panel'
+import { TextVersionHistory } from '../components/text-version-history'
 
 function useTextReviewStory(id: number) {
   const [story, setStory] = useState<Story | null>(null)
@@ -34,7 +36,7 @@ interface SelectionPopover {
   end: number
 }
 
-function TextAnnotationPanel({ storyId, text, onCritiqueStarted }: { storyId: number; text: string; onCritiqueStarted: () => void }) {
+function TextAnnotationPanel({ storyId, text, onCritiqueStarted, onChatAboutThis }: { storyId: number; text: string; onCritiqueStarted: () => void; onChatAboutThis?: (selectedText: string) => void }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [popover, setPopover] = useState<SelectionPopover | null>(null)
   const [comment, setComment] = useState('')
@@ -165,15 +167,28 @@ function TextAnnotationPanel({ storyId, text, onCritiqueStarted }: { storyId: nu
 
               {saveError && <p className="mt-1 text-xs text-error">{saveError}</p>}
 
-              <div className="mt-2 flex justify-end gap-2">
+              <div className="mt-2 flex justify-between gap-2">
                 <button className="btn btn-ghost btn-xs" onClick={handleDismiss}>Отмена</button>
-                <button
-                  className="btn btn-primary btn-xs"
-                  onClick={() => void handleSave()}
-                  disabled={!comment.trim() || saving}
-                >
-                  {saving ? '...' : 'Сохранить'}
-                </button>
+                <div className="flex gap-2">
+                  {onChatAboutThis && (
+                    <button
+                      className="btn btn-secondary btn-xs"
+                      onClick={() => {
+                        onChatAboutThis(popover.text)
+                        handleDismiss()
+                      }}
+                    >
+                      Обсудить →
+                    </button>
+                  )}
+                  <button
+                    className="btn btn-primary btn-xs"
+                    onClick={() => void handleSave()}
+                    disabled={!comment.trim() || saving}
+                  >
+                    {saving ? '...' : 'Сохранить'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -229,12 +244,14 @@ export function TextReviewPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const storyId = Number(id)
-  const { story, loading, error } = useTextReviewStory(storyId)
+  const { story, loading, error, reload } = useTextReviewStory(storyId)
   const [approving, setApproving] = useState(false)
   const [approveError, setApproveError] = useState<string | null>(null)
   const [redoing, setRedoing] = useState(false)
   const [redoError, setRedoError] = useState<string | null>(null)
   const [redoInstructions, setRedoInstructions] = useState('')
+  const [chatSelectedText, setChatSelectedText] = useState<string | null>(null)
+  const [localText, setLocalText] = useState<string | null>(null)
 
   const handleApprove = async () => {
     setApproving(true)
@@ -279,7 +296,7 @@ export function TextReviewPage() {
     return <StatusCallout tone="warning" title="История не найдена" message="Запрошенная история не существует." />
   }
 
-  const textToReview = story.text_v2 ?? story.text_v1 ?? ''
+  const textToReview = localText ?? story.active_text ?? story.text_v2 ?? story.text_v1 ?? ''
 
   return (
     <div>
@@ -341,10 +358,20 @@ export function TextReviewPage() {
             </p>
           </div>
 
+          <TextVersionHistory
+            storyId={storyId}
+            activeVersionId={story.active_text_version_id}
+            onRestored={() => {
+              setLocalText(null)
+              reload()
+            }}
+          />
+
           <TextAnnotationPanel
             storyId={storyId}
             text={textToReview}
             onCritiqueStarted={handleCritiqueStarted}
+            onChatAboutThis={(text) => setChatSelectedText(text)}
           />
 
           <div className="flex flex-wrap justify-end gap-2 border-t border-base-300 pt-4">
@@ -357,6 +384,28 @@ export function TextReviewPage() {
           </div>
         </div>
       </section>
+
+      {chatSelectedText !== null && (
+        <div className="mt-6">
+          <StoryChatPanel
+            storyId={storyId}
+            context="text"
+            selectedText={chatSelectedText}
+            onPatchApplied={() => {
+              setLocalText(null)
+              setChatSelectedText(null)
+              reload()
+            }}
+            onClose={() => setChatSelectedText(null)}
+          />
+        </div>
+      )}
+
+      {chatSelectedText === null && (
+        <div className="mt-6">
+          <StoryChatPanel storyId={storyId} context="text" />
+        </div>
+      )}
     </div>
   )
 }

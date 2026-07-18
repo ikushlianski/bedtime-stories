@@ -24,6 +24,7 @@ import childProfileRouter from './routes/child-profile'
 import modelsRouter from './routes/models'
 import storiesSwapModelRouter from './routes/stories-swap-model'
 import storiesVfmRouter from './routes/stories-vfm'
+import storyCommentsRouter from './routes/story-comments'
 import adminRouter from './routes/admin'
 import authRouter from './routes/auth.routes'
 import settingsRouter from './routes/settings'
@@ -78,6 +79,7 @@ app.use('/api/child-profile', childProfileRouter)
 app.use('/api/models', modelsRouter)
 app.use('/api/stories/:id/swap-model', storiesSwapModelRouter)
 app.use('/api/stories/:id/value-for-money', storiesVfmRouter)
+app.use('/api/stories/:id/comments', storyCommentsRouter)
 app.use('/api/admin', adminRouter)
 app.use('/api/settings', settingsRouter)
 

@@ -8,7 +8,7 @@ export async function insertTextVersion(
   storyId: number,
   text: string,
   modelId: string | null,
-  stage: 'writer_initial' | 'writer_critic' | 'annotated_rewrite',
+  stage: 'writer_initial' | 'writer_critic' | 'annotated_rewrite' | 'chat_patch',
 ): Promise<number> {
   const countResult = await db
     .select({ count: sql<number>`count(*)::int` })

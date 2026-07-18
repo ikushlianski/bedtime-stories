@@ -11,6 +11,7 @@ const stageLabels: Record<TextVersion['stage'], string> = {
   writer_initial: 'Первый черновик',
   writer_critic: 'После критика',
   annotated_rewrite: 'Переработка',
+  chat_patch: 'Правка из чата',
 }
 
 export function TextVersionHistory({ storyId, activeVersionId, onRestored }: Props) {
@@ -19,8 +20,9 @@ export function TextVersionHistory({ storyId, activeVersionId, onRestored }: Pro
   const [restoring, setRestoring] = useState<number | null>(null)
 
   useEffect(() => {
+    setLoading(true)
     api.stories.listTextVersions(storyId).then(setVersions).finally(() => setLoading(false))
-  }, [storyId])
+  }, [storyId, activeVersionId])
 
   async function handleRestore(versionId: number) {
     setRestoring(versionId)

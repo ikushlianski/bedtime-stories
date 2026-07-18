@@ -18,6 +18,9 @@ import { loadUniverseContext } from './load-universe-context'
 import { loadStoryFragmentTexts } from '@bedtime/core/pipeline/load-fragments'
 import { synthesizeUniverseMemory } from '@bedtime/core/pipeline/synthesize-universe-memory'
 import { notifyStoryReady } from './pipeline-notifications'
+import { resolveChatGate } from '@bedtime/core/pipeline/resolve-chat-gate'
+import { computePatchedText } from '@bedtime/core/pipeline/compute-patched-text'
+import { insertTextVersion } from './pipeline-persistence'
 
 const router = Router()
 
@@ -78,10 +81,10 @@ const approveTextSchema = z.object({
 
 const createAnnotationSchema = z.object({
   type: z.enum(['sasha_reaction', 'my_note', 'sasha_laughed', 'sasha_loved', 'sasha_disliked']),
-  selected_text: z.string().min(1),
+  selected_text: z.string().min(1).optional(),
   note_text: z.string().optional(),
-  position_start: z.number().int().nonnegative(),
-  position_end: z.number().int().nonnegative(),
+  position_start: z.number().int().nonnegative().optional(),
+  position_end: z.number().int().nonnegative().optional(),
   context: z.enum(['plan', 'text']).optional(),
 })
 
@@ -712,15 +715,30 @@ router.post('/:id/annotations', validate(createAnnotationSchema), async (req, re
 
     let textVersionId: number | null = null
 
+    const [storyRow] = await db.select().from(stories).where(eq(stories.id, storyId))
+
+    if (!storyRow) {
+      res.status(404).json({ error: 'Story not found' })
+      return
+    }
+
+    if (!selected_text) {
+      const gate = resolveChatGate({ storyStatus: storyRow.status ?? 'draft', intent: 'mutate' })
+
+      if (!gate.allowed) {
+        res.status(409).json({ error: gate.reason, suggestedEndpoint: gate.suggestedEndpoint })
+        return
+      }
+    }
+
     if (resolvedContext === 'text') {
-      const [storyRow] = await db.select({ activeTextVersionId: stories.activeTextVersionId }).from(stories).where(eq(stories.id, storyId))
-      textVersionId = storyRow?.activeTextVersionId ?? null
+      textVersionId = storyRow.activeTextVersionId ?? null
     }
 
     const newAnnotation: NewAnnotation = {
       storyId,
       type,
-      selectedText: selected_text,
+      selectedText: selected_text ?? null,
       noteText: note_text,
       positionStart: position_start,
       positionEnd: position_end,
@@ -994,17 +1012,24 @@ router.post('/:id/apply-plan-patch', validate(applyPlanPatchSchema), async (req,
       return
     }
 
-    const currentPlan = storyRow.planV1 ?? storyRow.planFinal ?? ''
+    const gate = resolveChatGate({ storyStatus: storyRow.status ?? 'draft', intent: 'mutate' })
 
-    if (!currentPlan.includes(find)) {
+    if (!gate.allowed) {
+      res.status(409).json({ error: gate.reason, suggestedEndpoint: gate.suggestedEndpoint })
+      return
+    }
+
+    const currentPlan = storyRow.planV1 ?? storyRow.planFinal ?? ''
+    const patched = computePatchedText({ currentText: currentPlan, find, replace })
+
+    if (!patched.ok) {
       res.status(422).json({ error: 'Patch target not found in plan — plan may have changed' })
       return
     }
 
-    const newPlan = currentPlan.replace(find, replace)
     const [updated] = await db
       .update(stories)
-      .set({ planV1: newPlan })
+      .set({ planV1: patched.text })
       .where(eq(stories.id, storyId))
       .returning()
 
@@ -1025,6 +1050,84 @@ router.post('/:id/apply-plan-patch', validate(applyPlanPatchSchema), async (req,
     res.json(toSnakeCase(updated as Story))
   } catch (err) {
     console.error('POST /stories/:id/apply-plan-patch failed:', err)
+    res.status(500).json({ error: 'Failed to apply patch' })
+  }
+})
+
+const applyTextPatchSchema = z.object({
+  find: z.string().min(1),
+  replace: z.string().min(1),
+  summary: z.string(),
+})
+
+router.post('/:id/apply-text-patch', validate(applyTextPatchSchema), async (req, res) => {
+  try {
+    const storyId = parseIntParam(req.params['id'])
+
+    if (isNaN(storyId) || storyId <= 0) {
+      res.status(400).json({ error: 'Invalid story id' })
+      return
+    }
+
+    const { find, replace, summary } = req.body as z.infer<typeof applyTextPatchSchema>
+
+    const [storyRow] = await db.select().from(stories).where(eq(stories.id, storyId))
+
+    if (!storyRow) {
+      res.status(404).json({ error: 'Story not found' })
+      return
+    }
+
+    const gate = resolveChatGate({ storyStatus: storyRow.status ?? 'draft', intent: 'mutate' })
+
+    if (!gate.allowed) {
+      res.status(409).json({ error: gate.reason, suggestedEndpoint: gate.suggestedEndpoint })
+      return
+    }
+
+    let currentText = storyRow.textV2 ?? storyRow.textV1 ?? ''
+
+    if (storyRow.activeTextVersionId) {
+      const [version] = await db
+        .select({ text: storyTextVersions.text })
+        .from(storyTextVersions)
+        .where(eq(storyTextVersions.id, storyRow.activeTextVersionId))
+
+      if (version) currentText = version.text
+    }
+
+    const patched = computePatchedText({ currentText, find, replace })
+
+    if (!patched.ok) {
+      res.status(422).json({ error: 'Patch target not found in text — text may have changed' })
+      return
+    }
+
+    const newVersionId = await insertTextVersion(storyId, patched.text, null, 'chat_patch')
+
+    const [updated] = await db
+      .update(stories)
+      .set({ activeTextVersionId: newVersionId })
+      .where(eq(stories.id, storyId))
+      .returning()
+
+    if (summary && storyRow.groupId) {
+      const [universe] = await db.select().from(storyGroups).where(eq(storyGroups.id, storyRow.groupId))
+
+      if (universe) {
+        const existing = universe.styleGuideWorks ?? ''
+        const appended = existing ? `${existing}\n- ${summary}` : `- ${summary}`
+
+        await db
+          .update(storyGroups)
+          .set({ styleGuideWorks: appended })
+          .where(eq(storyGroups.id, storyRow.groupId))
+      }
+    }
+
+    res.json(toSnakeCase(updated as Story))
+  } catch (err) {
+    console.error('POST /stories/:id/apply-text-patch failed:', err)
     res.status(500).json({ error: 'Failed to apply patch' })
   }
 })

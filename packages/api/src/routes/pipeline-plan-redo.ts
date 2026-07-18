@@ -3,6 +3,7 @@ import { runPlotterOnly } from '@bedtime/core/pipeline/orchestrator'
 import { synthesizeSashaContext } from '@bedtime/core/pipeline/feedback-synthesizer'
 import { generatePlanChangeSummary } from '@bedtime/core/pipeline/plan-change-summarizer'
 import { resolveAnnotations } from '@bedtime/core/pipeline/annotation-resolver'
+import { formatCommentsAsFeedback } from '@bedtime/core/pipeline/format-comments-as-feedback'
 import { db } from '@bedtime/core/db/client'
 import { annotations, runSnapshots, stories } from '@bedtime/core/db/schema'
 import {
@@ -27,13 +28,6 @@ function extractPlotterSummary(planText: string): string {
   return `Сюжетник пересмотрел план. Эмоциональная задача: ${taskLine.trim()}`
 }
 
-function formatAnnotationsAsFeedback(items: Array<{ selectedText: string; noteText: string | null }>): string {
-  return items
-    .filter((a) => a.noteText)
-    .map((a) => `К фрагменту «${a.selectedText}»:\n${a.noteText}`)
-    .join('\n\n')
-}
-
 export function triggerPlanRedo(storyId: number, seed: string, previousPlan: string, universeSystemPrompt?: string, universeContext?: string, styleGuide?: string, universeId: number | null = null): void {
   setPipelineStatus(storyId, 'plan_running')
 
@@ -47,8 +41,8 @@ export function triggerPlanRedo(storyId: number, seed: string, previousPlan: str
       universeId != null ? loadUniverseContext(universeId) : Promise.resolve(null),
     ])
 
-    const activeRows = rows.filter((r) => r.noteText !== null) as Array<{ id: number; selectedText: string; noteText: string }>
-    const userFeedback = formatAnnotationsAsFeedback(activeRows)
+    const activeRows = rows.filter((r) => r.noteText !== null) as Array<{ id: number; selectedText: string | null; noteText: string }>
+    const userFeedback = formatCommentsAsFeedback(activeRows)
     const sashaContext = await synthesizeSashaContext()
     const bibleCharacters = ctx?.bibleCharacters ?? []
 

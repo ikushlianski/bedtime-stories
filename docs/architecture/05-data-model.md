@@ -2,7 +2,7 @@
 
 A **universe** is the `story_groups` table (the code and UI call it a universe; the table name is historical). Everything hangs off it: a universe owns its `stories` and its reusable ingredients — `universe_characters`, `topics`, `fragments`, `words`, plus generated `story_ideas` and pending `universe_suggestions`.
 
-Each **story** accumulates review and learning artifacts: free-form `annotations`, at most one `parent_reviews` row and one `child_reactions` row (both unique per story), a history of `story_text_versions`, one `run_snapshots` row per pipeline run, and a `story_readings` log. Topics, fragments, and words attach to stories through the join tables `story_topics`, `story_fragments`, and `story_words` (many-to-many). Only the enumerated core tables are shown here — operational tables (model catalog, model calls, plan questions, swap events, etc.) are omitted to keep the relationships readable.
+Each **story** accumulates review and learning artifacts: free-form `annotations` (`selected_text` is nullable — a whole-story comment with no highlighted span is a valid row, consumed and cleared the same way a highlighted one is), at most one `parent_reviews` row and one `child_reactions` row (both unique per story), a history of `story_text_versions`, one `run_snapshots` row per pipeline run, and a `story_readings` log. Once a story reaches `ready`/`read`/`archived`, feedback instead lands in `story_comments` — a separate, permanent table (never resolved/consumed, unlike `annotations`) so a later universe-memory sync can read every comment ever left on a finished story without racing the regenerate flows that clear `annotations`. Topics, fragments, and words attach to stories through the join tables `story_topics`, `story_fragments`, and `story_words` (many-to-many). Only the enumerated core tables are shown here — operational tables (model catalog, model calls, plan questions, swap events, etc.) are omitted to keep the relationships readable.
 
 ![Data model](img/05-data-model.png)
 
@@ -21,6 +21,8 @@ erDiagram
   stories ||--o{ story_text_versions : "versions"
   stories ||--o{ run_snapshots : "pipeline runs"
   stories ||--o{ story_readings : "read log"
+  stories ||--o{ story_comments : "comments once finished"
+  story_groups ||--o{ story_comments : "attributes to universe"
   stories ||--o{ story_fragments : ""
   fragments ||--o{ story_fragments : ""
   stories ||--o{ story_words : ""
@@ -79,9 +81,16 @@ erDiagram
   annotations {
     serial id PK
     int story_id FK
-    text selected_text
+    text selected_text "nullable — null means whole-story comment"
     text note_text
     text context "plan or text"
+  }
+  story_comments {
+    serial id PK
+    int story_id FK
+    int universe_id FK "nullable, denormalized from story.group_id"
+    text comment_text
+    text selected_text "nullable"
   }
   parent_reviews {
     serial id PK
@@ -99,7 +108,7 @@ erDiagram
     serial id PK
     int story_id FK
     int version_number
-    text stage "writer_initial writer_critic annotated_rewrite"
+    text stage "writer_initial writer_critic annotated_rewrite chat_patch"
   }
   run_snapshots {
     serial id PK

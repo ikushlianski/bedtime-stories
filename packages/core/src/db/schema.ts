@@ -170,7 +170,7 @@ export const annotations = pgTable('annotations', {
   type: text('type')
     .$type<'sasha_reaction' | 'my_note' | 'sasha_laughed' | 'sasha_loved' | 'sasha_disliked'>()
     .notNull(),
-  selectedText: text('selected_text').notNull(),
+  selectedText: text('selected_text'),
   noteText: text('note_text'),
   positionStart: integer('position_start'),
   positionEnd: integer('position_end'),
@@ -242,6 +242,16 @@ export const planConversations = pgTable('plan_conversations', {
   storyId: integer('story_id').references(() => stories.id),
   role: text('role').$type<'user' | 'assistant'>().notNull(),
   content: text('content').notNull(),
+  context: text('context').$type<'plan' | 'text'>().notNull().default('plan'),
+  createdAt: timestamp('created_at').defaultNow(),
+})
+
+export const storyComments = pgTable('story_comments', {
+  id: serial('id').primaryKey(),
+  storyId: integer('story_id').references(() => stories.id).notNull(),
+  universeId: integer('universe_id').references(() => storyGroups.id),
+  commentText: text('comment_text').notNull(),
+  selectedText: text('selected_text'),
   createdAt: timestamp('created_at').defaultNow(),
 })
 
@@ -357,7 +367,7 @@ export const storyTextVersions = pgTable('story_text_versions', {
   versionNumber: integer('version_number').notNull(),
   text: text('text').notNull(),
   modelId: text('model_id'),
-  stage: text('stage').$type<'writer_initial' | 'writer_critic' | 'annotated_rewrite'>().notNull(),
+  stage: text('stage').$type<'writer_initial' | 'writer_critic' | 'annotated_rewrite' | 'chat_patch'>().notNull(),
   createdAt: timestamp('created_at').defaultNow(),
 })
 

@@ -12,7 +12,7 @@ const AnnotationResolutionsSchema = z.object({
 
 export interface AnnotationInput {
   id: number
-  selectedText: string
+  selectedText: string | null
   noteText: string
 }
 
@@ -28,7 +28,9 @@ export async function resolveAnnotations(options: {
   if (annotations.length === 0) return new Map()
 
   const annotationBlock = annotations
-    .map((a) => `ID ${a.id}: к фрагменту «${a.selectedText}» — ${a.noteText}`)
+    .map((a) => a.selectedText
+      ? `ID ${a.id}: к фрагменту «${a.selectedText}» — ${a.noteText}`
+      : `ID ${a.id}: общий комментарий — ${a.noteText}`)
     .join('\n')
 
   const prompt = [

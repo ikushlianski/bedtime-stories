@@ -15,7 +15,7 @@ const parentAnnotationInputSchema = z.object({
     'sasha_loved',
     'sasha_disliked',
   ]),
-  selectedText: z.string(),
+  selectedText: z.string().nullable(),
   noteText: z.string().nullable(),
 })
 
@@ -59,23 +59,25 @@ function formatReviewLines(review: ParentFeedbackInput['review']): string[] {
 function formatAnnotationLine(
   annotation: ParentFeedbackInput['annotations'][number],
 ): string | null {
-  const quote = `«${annotation.selectedText}»`
+  const quote = annotation.selectedText ? `«${annotation.selectedText}»` : null
   const note = annotation.noteText?.trim() ?? ''
   const suffix = note ? ` — ${note}` : ''
 
   switch (annotation.type) {
     case 'sasha_disliked':
-      return `Родителю не понравилось: ${quote}${suffix}`
+      return `Родителю не понравилось: ${quote ?? 'история в целом'}${suffix}`
     case 'sasha_loved':
-      return `Ребёнку очень понравилось: ${quote}${suffix}`
+      return `Ребёнку очень понравилось: ${quote ?? 'история в целом'}${suffix}`
     case 'sasha_laughed':
-      return `Ребёнок засмеялся здесь: ${quote}${suffix}`
+      return `Ребёнок засмеялся здесь: ${quote ?? 'история в целом'}${suffix}`
     case 'sasha_reaction':
-      return `Реакция ребёнка: ${quote}${suffix}`
+      return `Реакция ребёнка: ${quote ?? 'история в целом'}${suffix}`
     case 'my_note':
       if (!note) return null
 
-      return `Заметка родителя к фрагменту ${quote}: ${note}`
+      return quote
+        ? `Заметка родителя к фрагменту ${quote}: ${note}`
+        : `Общая заметка родителя: ${note}`
     default:
       return null
   }

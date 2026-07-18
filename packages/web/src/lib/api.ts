@@ -145,7 +145,7 @@ export interface TextVersion {
   id: number
   version_number: number
   model_id: string | null
-  stage: 'writer_initial' | 'writer_critic' | 'annotated_rewrite'
+  stage: 'writer_initial' | 'writer_critic' | 'annotated_rewrite' | 'chat_patch'
   created_at: string
   preview?: string
   text?: string
@@ -307,12 +307,21 @@ export interface Annotation {
   id: number
   storyId: number
   type: AnnotationType
-  selectedText: string
+  selectedText: string | null
   noteText: string | null
   positionStart: number | null
   positionEnd: number | null
   resolvedAt: string | null
   resolvedSummary: string | null
+  createdAt: string
+}
+
+export interface StoryComment {
+  id: number
+  storyId: number
+  universeId: number | null
+  commentText: string
+  selectedText: string | null
   createdAt: string
 }
 
@@ -330,8 +339,11 @@ export interface ConversationMessage {
   storyId: number
   role: 'user' | 'assistant'
   content: string
+  context: 'plan' | 'text'
   createdAt: string
 }
+
+export type ChatContext = 'plan' | 'text'
 
 export type StageOverride = { model?: string; fallback?: string }
 export type PerStageOverrides = Record<string, StageOverride>
@@ -400,10 +412,10 @@ export interface CreateSeriesResult {
 
 export interface CreateAnnotationInput {
   type: AnnotationType
-  selectedText: string
+  selectedText?: string
   noteText?: string
-  positionStart: number
-  positionEnd: number
+  positionStart?: number
+  positionEnd?: number
   context?: 'plan' | 'text'
 }
 
@@ -543,6 +555,12 @@ export const api = {
         body: JSON.stringify(data),
       }),
 
+    applyTextPatch: (id: number, data: { find: string; replace: string; summary: string }) =>
+      request<Story>(`/api/stories/${id}/apply-text-patch`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
     reorder: (orders: Array<{ id: number; sort_order: number }>) =>
       request<{ ok: boolean }>('/api/stories/reorder', {
         method: 'POST',
@@ -595,6 +613,16 @@ export const api = {
       request<{ started: boolean; storyId: number }>(`/api/stories/${storyId}/redo-plan`, { method: 'POST' }),
   },
 
+  comments: {
+    create: (storyId: number, data: { commentText: string; selectedText?: string }) =>
+      request<StoryComment>(`/api/stories/${storyId}/comments`, {
+        method: 'POST',
+        body: JSON.stringify({ comment_text: data.commentText, selected_text: data.selectedText }),
+      }),
+
+    list: (storyId: number) => request<StoryComment[]>(`/api/stories/${storyId}/comments`),
+  },
+
   pipeline: {
     run: (storyId: number, seed: string, model?: string) =>
       request<{ started: boolean; storyId: number; phase: 'plan' | 'questions' }>('/api/pipeline/run', {
@@ -617,12 +645,20 @@ export const api = {
         body: JSON.stringify({ answers }),
       }),
 
-    conversations: (storyId: number) => request<ConversationMessage[]>(`/api/pipeline/conversations/${storyId}`),
+    conversations: (storyId: number, context: ChatContext = 'plan') =>
+      request<ConversationMessage[]>(`/api/pipeline/conversations/${storyId}?context=${context}`),
 
-    sendConversationMessage: (storyId: number, message: string, selectedText?: string) =>
-      request<{ userMessage: ConversationMessage; assistantMessage: ConversationMessage; patch?: string; patchSummary?: string }>(
+    sendConversationMessage: (storyId: number, message: string, selectedText?: string, context: ChatContext = 'plan') =>
+      request<{
+        userMessage: ConversationMessage
+        assistantMessage?: ConversationMessage
+        patch?: string
+        patchSummary?: string
+        banked?: boolean
+        annotation?: Annotation
+      }>(
         `/api/pipeline/conversations/${storyId}`,
-        { method: 'POST', body: JSON.stringify({ message, selectedText }) },
+        { method: 'POST', body: JSON.stringify({ message, selectedText, context }) },
       ),
   },
 

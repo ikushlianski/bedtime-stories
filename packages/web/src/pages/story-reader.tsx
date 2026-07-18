@@ -16,6 +16,7 @@ import {
   totalReactions,
 } from './story-reader-annotations'
 import { findTextOffset } from './find-text-offset'
+import { StoryChatPanel } from './story-chat-panel'
 
 interface SelectionState {
   text: string
@@ -625,6 +626,12 @@ setStoryTags((story.tags as string[] | null) ?? [])
         </div>
       )}
 
+      {(currentStatus ?? story.status) === 'proofreading' && textToDisplay && (
+        <div className="mt-4">
+          <StoryChatPanel storyId={storyId} context="text" />
+        </div>
+      )}
+
       {annotations.length > 0 && (
         <section className="mt-8">
           <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
@@ -726,6 +733,8 @@ setStoryTags((story.tags as string[] | null) ?? [])
               <ChildReactionForm storyId={storyId} />
             </div>
           </div>
+
+          <StoryChatPanel storyId={storyId} context="read" />
         </section>
       )}
     </div>

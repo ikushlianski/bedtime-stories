@@ -1,12 +1,14 @@
 import { Router } from 'express'
-import { eq, asc } from 'drizzle-orm'
+import { eq, and, asc } from 'drizzle-orm'
 import { z } from 'zod'
 import { validate } from '../middleware/validate'
 import { db } from '@bedtime/core/db/client'
-import { planQuestions, planConversations, stories, storyGroups } from '@bedtime/core/db/schema'
+import { planQuestions, planConversations, stories, storyGroups, storyTextVersions, annotations } from '@bedtime/core/db/schema'
 import { loadUniverseContext } from './load-universe-context'
 import { aiRunner } from '@bedtime/core/ai'
 import { triggerPlanPhaseFromAnswers } from './pipeline-plan-trigger'
+import { resolveChatGate } from '@bedtime/core/pipeline/resolve-chat-gate'
+import { parsePatchBlock } from '@bedtime/core/pipeline/parse-patch-block'
 
 const router = Router()
 
@@ -155,6 +157,23 @@ router.post('/questions/:storyId/retry-plan', async (req, res) => {
   }
 })
 
+async function resolveSourceText(storyRow: typeof stories.$inferSelect, context: 'plan' | 'text'): Promise<string> {
+  if (context === 'plan') {
+    return storyRow.planV1 ?? storyRow.planFinal ?? ''
+  }
+
+  if (storyRow.activeTextVersionId) {
+    const [version] = await db
+      .select({ text: storyTextVersions.text })
+      .from(storyTextVersions)
+      .where(eq(storyTextVersions.id, storyRow.activeTextVersionId))
+
+    if (version) return version.text
+  }
+
+  return storyRow.textV2 ?? storyRow.textV1 ?? ''
+}
+
 router.get('/conversations/:storyId', async (req, res) => {
   try {
     const storyIdRaw = parseStoryId(req.params['storyId'])
@@ -164,10 +183,12 @@ router.get('/conversations/:storyId', async (req, res) => {
       return
     }
 
+    const context = (req.query['context'] as 'plan' | 'text' | undefined) ?? 'plan'
+
     const messages = await db
       .select()
       .from(planConversations)
-      .where(eq(planConversations.storyId, storyIdRaw))
+      .where(and(eq(planConversations.storyId, storyIdRaw), eq(planConversations.context, context)))
       .orderBy(asc(planConversations.createdAt))
 
     res.json(messages)
@@ -180,6 +201,7 @@ router.get('/conversations/:storyId', async (req, res) => {
 const sendMessageSchema = z.object({
   message: z.string().min(1),
   selectedText: z.string().optional(),
+  context: z.enum(['plan', 'text']).optional(),
 })
 
 router.post('/conversations/:storyId', validate(sendMessageSchema), async (req, res) => {
@@ -191,7 +213,8 @@ router.post('/conversations/:storyId', validate(sendMessageSchema), async (req, 
       return
     }
 
-    const { message, selectedText } = req.body as z.infer<typeof sendMessageSchema>
+    const { message, selectedText, context } = req.body as z.infer<typeof sendMessageSchema>
+    const resolvedContext = context ?? 'plan'
 
     const [storyRow] = await db.select().from(stories).where(eq(stories.id, storyIdRaw))
 
@@ -200,9 +223,16 @@ router.post('/conversations/:storyId', validate(sendMessageSchema), async (req, 
       return
     }
 
+    const gate = resolveChatGate({ storyStatus: storyRow.status ?? 'draft', intent: 'mutate' })
+
+    if (!gate.allowed) {
+      res.status(409).json({ error: gate.reason, suggestedEndpoint: gate.suggestedEndpoint })
+      return
+    }
+
     const [userMessage] = await db
       .insert(planConversations)
-      .values({ storyId: storyIdRaw, role: 'user', content: message })
+      .values({ storyId: storyIdRaw, role: 'user', content: message, context: resolvedContext })
       .returning()
 
     if (!userMessage) {
@@ -210,39 +240,56 @@ router.post('/conversations/:storyId', validate(sendMessageSchema), async (req, 
       return
     }
 
+    const trimmedSelection = selectedText?.trim()
+
+    if (!trimmedSelection) {
+      const [bankedAnnotation] = await db
+        .insert(annotations)
+        .values({
+          storyId: storyIdRaw,
+          type: 'my_note',
+          selectedText: null,
+          noteText: message,
+          context: resolvedContext,
+        })
+        .returning()
+
+      res.json({ userMessage, banked: true, annotation: bankedAnnotation })
+      return
+    }
+
     const priorMessages = await db
       .select()
       .from(planConversations)
-      .where(eq(planConversations.storyId, storyIdRaw))
+      .where(and(eq(planConversations.storyId, storyIdRaw), eq(planConversations.context, resolvedContext)))
       .orderBy(asc(planConversations.createdAt))
 
-    const currentPlan = storyRow.planV1 ?? storyRow.planFinal ?? ''
+    const currentText = await resolveSourceText(storyRow, resolvedContext)
+    const subjectLabel = resolvedContext === 'plan' ? 'bedtime story plan' : 'bedtime story text'
 
     const conversationContext = priorMessages
       .map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
       .join('\n\n')
 
-    const selectionBlock = selectedText
-      ? [
-          ``,
-          `The user is focusing on this specific passage from the plan:`,
-          `"""`,
-          selectedText,
-          `"""`,
-          ``,
-          `If you arrive at a concrete replacement for this passage, output it using this exact format at the end of your response:`,
-          `<<<PATCH>>>`,
-          `[replacement text]`,
-          `<<<END PATCH>>>`,
-          `<<<SUMMARY>>>`,
-          `[1-2 sentence summary of what changed and why, for future story generation memory]`,
-          `<<<END SUMMARY>>>`,
-          `Only include a PATCH block when you have a clear, agreed improvement. Skip it if you are still exploring options.`,
-        ].join('\n')
-      : ''
+    const selectionBlock = [
+      ``,
+      `The user is focusing on this specific passage from the ${resolvedContext === 'plan' ? 'plan' : 'text'}:`,
+      `"""`,
+      trimmedSelection,
+      `"""`,
+      ``,
+      `If you arrive at a concrete replacement for this passage, output it using this exact format at the end of your response:`,
+      `<<<PATCH>>>`,
+      `[replacement text]`,
+      `<<<END PATCH>>>`,
+      `<<<SUMMARY>>>`,
+      `[1-2 sentence summary of what changed and why, for future story generation memory]`,
+      `<<<END SUMMARY>>>`,
+      `Only include a PATCH block when you have a clear, agreed improvement. Skip it if you are still exploring options.`,
+    ].join('\n')
 
     const prompt = [
-      `You are helping refine a bedtime story plan. Here is the current plan:\n${currentPlan}`,
+      `You are helping refine a ${subjectLabel}. Here is the current ${resolvedContext}:\n${currentText}`,
       `Discuss and suggest improvements conversationally. Be concise and direct.`,
       selectionBlock,
       ``,
@@ -259,7 +306,7 @@ router.post('/conversations/:storyId', validate(sendMessageSchema), async (req, 
 
     const [assistantMessage] = await db
       .insert(planConversations)
-      .values({ storyId: storyIdRaw, role: 'assistant', content: aiResponse })
+      .values({ storyId: storyIdRaw, role: 'assistant', content: aiResponse, context: resolvedContext })
       .returning()
 
     if (!assistantMessage) {
@@ -267,12 +314,9 @@ router.post('/conversations/:storyId', validate(sendMessageSchema), async (req, 
       return
     }
 
-    const patchMatch = aiResponse.match(/<<<PATCH>>>([\s\S]*?)<<<END PATCH>>>/)
-    const summaryMatch = aiResponse.match(/<<<SUMMARY>>>([\s\S]*?)<<<END SUMMARY>>>/)
-    const patch = patchMatch?.[1]?.trim()
-    const patchSummary = summaryMatch?.[1]?.trim()
+    const parsedPatch = parsePatchBlock(aiResponse)
 
-    res.json({ userMessage, assistantMessage, patch, patchSummary })
+    res.json({ userMessage, assistantMessage, patch: parsedPatch?.patch, patchSummary: parsedPatch?.summary })
   } catch (err) {
     console.error('POST /pipeline/conversations/:storyId failed:', err)
     res.status(500).json({ error: 'Failed to send conversation message' })

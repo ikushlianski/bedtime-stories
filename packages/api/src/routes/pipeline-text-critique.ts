@@ -1,5 +1,6 @@
 import { eq, and, desc, isNull, or } from 'drizzle-orm'
 import { runTextCritique, runAnnotatedRewrite } from '@bedtime/core/pipeline/orchestrator'
+import { formatCommentsAsFeedback } from '@bedtime/core/pipeline/format-comments-as-feedback'
 import { db } from '@bedtime/core/db/client'
 import { annotations, runSnapshots, stories } from '@bedtime/core/db/schema'
 import { buildTextCritiqueStoriesUpdate, buildTextCritiqueSnapshotUpdate, buildAnnotatedRewriteStoriesUpdate, buildAnnotatedRewriteSnapshotUpdate, insertTextVersion } from './pipeline-persistence'
@@ -11,13 +12,6 @@ function shortenDescription(desc: string): string {
   const match = desc.match(/^(.{20,120}[.!?])(?:\s|$)/)
   if (match?.[1]) return match[1]
   return desc.length > 100 ? desc.slice(0, 100) + '…' : desc
-}
-
-function formatAnnotationsAsFeedback(items: Array<{ selectedText: string; noteText: string | null }>): string {
-  return items
-    .filter((a) => a.noteText)
-    .map((a, i) => `${i + 1}. On the passage "${a.selectedText}":\n   ${a.noteText}`)
-    .join('\n\n')
 }
 
 export function triggerTextCritique(
@@ -52,13 +46,13 @@ export function triggerTextCritique(
 
     if (withNotes.length > 0) {
       withNotes.forEach((r, i) => {
-        console.log(`  [${i + 1}] «${r.selectedText}» → ${r.noteText}`)
+        console.log(`  [${i + 1}] ${r.selectedText ? `«${r.selectedText}»` : '(общий комментарий)'} → ${r.noteText}`)
       })
     } else {
       console.log('  (no annotations with notes — running critic without editor feedback)')
     }
 
-    const userAnnotations = formatAnnotationsAsFeedback(rows)
+    const userAnnotations = formatCommentsAsFeedback(rows)
 
     if (userAnnotations) {
       console.log(`[TEXT-CRITIQUE] story=${storyId} — passing annotations to WriterCritic:\n${userAnnotations}\n`)
@@ -166,7 +160,7 @@ export function triggerTextRewrite(
 
     if (withNotes.length > 0) {
       withNotes.forEach((r, i) => {
-        console.log(`  [${i + 1}] «${r.selectedText}» → ${r.noteText}`)
+        console.log(`  [${i + 1}] ${r.selectedText ? `«${r.selectedText}»` : '(общий комментарий)'} → ${r.noteText}`)
       })
     }
 
@@ -174,7 +168,7 @@ export function triggerTextRewrite(
     const instructionBlock = trimmedInstructions
       ? `Общие указания к переработке (примени ко всему тексту):\n${trimmedInstructions}`
       : ''
-    const userAnnotations = [instructionBlock, formatAnnotationsAsFeedback(rows)].filter(Boolean).join('\n\n')
+    const userAnnotations = [instructionBlock, formatCommentsAsFeedback(rows)].filter(Boolean).join('\n\n')
 
     const result = await runAnnotatedRewrite({
       currentText,

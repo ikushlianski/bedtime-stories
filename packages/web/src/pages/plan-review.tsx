@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { api, type Story } from '../lib/api'
 import { PageHeader, StatusCallout } from '../components'
 import PlanAnnotator from '../components/plan-annotator'
-import { PlanConversationPanel } from './plan-conversation-panel'
+import { StoryChatPanel } from './story-chat-panel'
 
 function usePlanReviewStory(id: number) {
   const [story, setStory] = useState<Story | null>(null)
@@ -132,8 +132,9 @@ export function PlanReviewPage() {
 
       {chatSelectedText !== null && (
         <div className="mt-6">
-          <PlanConversationPanel
+          <StoryChatPanel
             storyId={storyId}
+            context="plan"
             selectedText={chatSelectedText}
             onPatchApplied={(newText) => {
               setLocalPlanText(newText)
@@ -146,7 +147,7 @@ export function PlanReviewPage() {
 
       {chatSelectedText === null && (
         <div className="mt-6">
-          <PlanConversationPanel storyId={storyId} />
+          <StoryChatPanel storyId={storyId} context="plan" />
         </div>
       )}
     </div>
