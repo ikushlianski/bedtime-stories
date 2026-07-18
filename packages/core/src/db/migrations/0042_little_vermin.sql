@@ -1,0 +1,1 @@
+ALTER TABLE "story_groups" ADD COLUMN "style_guide_synced_at" timestamp;

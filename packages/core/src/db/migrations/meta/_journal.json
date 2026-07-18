@@ -295,6 +295,13 @@
       "when": 1784392121647,
       "tag": "0041_lush_madame_web",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1784393707712,
+      "tag": "0042_little_vermin",
+      "breakpoints": true
     }
   ]
 }
