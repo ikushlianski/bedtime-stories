@@ -29,6 +29,50 @@ describe('createStorySchema', () => {
     })
   })
 
+  describe('structureKey and lensKey', () => {
+    it('accepts a known structureKey and lensKey', () => {
+      const result = createStorySchema.safeParse({
+        seed: 'A hero learns patience',
+        structureKey: 'snowball',
+        lensKey: 'gosha-errs',
+      })
+
+      expect(result.success).toBe(true)
+    })
+
+    it('accepts a seed without structureKey or lensKey (auto rotation)', () => {
+      const result = createStorySchema.safeParse({ seed: 'A hero learns patience' })
+
+      expect(result.success).toBe(true)
+    })
+
+    it('rejects an unknown structureKey with a clear error', () => {
+      const result = createStorySchema.safeParse({
+        seed: 'A hero learns patience',
+        structureKey: 'not-a-real-structure',
+      })
+
+      expect(result.success).toBe(false)
+
+      if (!result.success) {
+        expect(result.error.issues[0]?.message).toBe('Unknown structureKey')
+      }
+    })
+
+    it('rejects an unknown lensKey with a clear error', () => {
+      const result = createStorySchema.safeParse({
+        seed: 'A hero learns patience',
+        lensKey: 'not-a-real-lens',
+      })
+
+      expect(result.success).toBe(false)
+
+      if (!result.success) {
+        expect(result.error.issues[0]?.message).toBe('Unknown lensKey')
+      }
+    })
+  })
+
   describe('textFinal input', () => {
     it('accepts textFinal with a title', () => {
       const result = createStorySchema.safeParse({
@@ -173,6 +217,34 @@ describe('resolveCreateStoryMode', () => {
       }
 
       expect(resolved.perStageOverrides).toBeUndefined()
+    })
+  })
+
+  describe('structureKey and lensKey', () => {
+    it('forwards an explicit structureKey and lensKey into agent mode', () => {
+      const resolved = resolveCreateStoryMode({
+        seed: 'hero learns patience',
+        structureKey: 'snowball',
+        lensKey: 'gosha-errs',
+      })
+
+      if (resolved.mode !== 'agent') {
+        throw new Error('expected agent mode')
+      }
+
+      expect(resolved.structureKey).toBe('snowball')
+      expect(resolved.lensKey).toBe('gosha-errs')
+    })
+
+    it('omits structureKey and lensKey from agent mode when not provided', () => {
+      const resolved = resolveCreateStoryMode({ seed: 'hero learns patience' })
+
+      if (resolved.mode !== 'agent') {
+        throw new Error('expected agent mode')
+      }
+
+      expect(resolved.structureKey).toBeUndefined()
+      expect(resolved.lensKey).toBeUndefined()
     })
   })
 })

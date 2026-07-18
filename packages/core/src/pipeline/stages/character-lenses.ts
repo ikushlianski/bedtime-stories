@@ -1,45 +1,54 @@
 export interface CharacterLens {
+  key: string
   title: string
   guidance: string
 }
 
 export const CHARACTER_LENSES: CharacterLens[] = [
   {
+    key: 'gosha-initiates',
     title: 'ГОША ЗАТЕВАЕТ',
     guidance:
       'В этот раз двигатель истории — сам Гоша: он что-то задумал, начал, потянул за собой других. Остальные реагируют на его затею.',
   },
   {
+    key: 'gosha-on-the-side',
     title: 'ГОША В СТОРОНЕ',
     guidance:
       'В этот раз главное происходит не с Гошей, а с кем-то рядом. Гоша — наблюдатель или помощник; центр тяжести смещён на другого персонажа, у которого своя история.',
   },
   {
+    key: 'quirky-character-leads',
     title: 'ЧУДАК ВЕДЁТ',
     guidance:
       'В центре — второстепенный, чудаковатый персонаж с ярким характером (не Гоша). Именно его причуда запускает и держит историю; Гоша подыгрывает.',
   },
   {
+    key: 'two-equals',
     title: 'ДВОЕ НА РАВНЫХ',
     guidance:
       'История держится на паре персонажей примерно равного веса, которые тянут в разные стороны. Ни один не «главный герой» — важна их динамика и перепалка.',
   },
   {
+    key: 'gosha-errs',
     title: 'ГОША ОШИБАЕТСЯ',
     guidance:
       'В этот раз Гоша уверенно делает не то — и это не сразу очевидно. Кто-то другой оказывается прав, и Гоша это переживает через события, а не через нотацию.',
   },
   {
+    key: 'youngest-leads',
     title: 'МЛАДШИЙ ВЕДЁТ',
     guidance:
       'Инициатива у кого-то младше, слабее или тише, чем Гоша. Тот, от кого меньше всего ждёшь, оказывается тем, кто решает или подмечает главное.',
   },
   {
+    key: 'object-or-animal',
     title: 'ПРЕДМЕТ ИЛИ ЗВЕРЬ',
     guidance:
       'Заметную «роль» играет не человек, а предмет, животное или явление, вокруг которого крутятся люди. Характеры раскрываются через то, как они с ним обходятся.',
   },
   {
+    key: 'new-face',
     title: 'НОВОЕ ЛИЦО',
     guidance:
       'Появляется персонаж, которого раньше в историях этой вселенной не было (но который органично вписывается в её мир и место действия). Он приносит свежую манеру и взгляд.',
@@ -53,6 +62,10 @@ export function selectCharacterLens(storyId?: number): CharacterLens {
       : Math.floor(Math.random() * CHARACTER_LENSES.length)
 
   return CHARACTER_LENSES[index] as CharacterLens
+}
+
+export function getCharacterLensByKey(key: string): CharacterLens | undefined {
+  return CHARACTER_LENSES.find((lens) => lens.key === key)
 }
 
 export function buildCharacterLensBlock(lens: CharacterLens): string {

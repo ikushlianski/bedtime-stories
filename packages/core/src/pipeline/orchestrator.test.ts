@@ -6,6 +6,8 @@ import * as writerStage from './stages/writer'
 import * as writerCriticStage from './stages/writer-critic'
 import * as loadMemorableMomentsModule from './load-memorable-moments'
 import type { MemorableMomentRow } from './stages/memorable-moments'
+import { selectStoryStructure } from './stages/story-structures'
+import { selectCharacterLens } from './stages/character-lenses'
 
 vi.mock('@bedtime/observability', () => ({
   withPipelineTrace: vi.fn((_id: string, fn: (trace: unknown) => Promise<unknown>) => fn({})),
@@ -229,6 +231,57 @@ describe('memorable moments propagation', () => {
 
     const callArgs = vi.mocked(writerStage.runWriter).mock.calls[0]?.[0]
     expect(callArgs?.memorableMoments).toBeUndefined()
+  })
+})
+
+describe('story structure/lens propagation', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('passes the storyId-resolved structure and lens into runPlotter', async () => {
+    vi.mocked(plotterStage.runPlotter).mockResolvedValue('plan-v1')
+
+    await runPlanPhase({
+      seed: 'seed',
+      storyId: 5,
+      models: baseModels,
+      promptVersions: baseVersions,
+    })
+
+    const callArgs = vi.mocked(plotterStage.runPlotter).mock.calls[0]?.[0]
+    expect(callArgs?.structure).toEqual(selectStoryStructure(5))
+    expect(callArgs?.characterLens).toEqual(selectCharacterLens(5))
+  })
+
+  it('passes the storyId-resolved structure and lens into runWriter', async () => {
+    vi.mocked(writerStage.runWriter).mockResolvedValue('text-v1')
+
+    await runTextPhase({
+      seed: 'seed',
+      planFinal: 'approved-plan',
+      storyId: 5,
+      models: baseModels,
+      promptVersions: baseVersions,
+    })
+
+    const callArgs = vi.mocked(writerStage.runWriter).mock.calls[0]?.[0]
+    expect(callArgs?.structure).toEqual(selectStoryStructure(5))
+    expect(callArgs?.characterLens).toEqual(selectCharacterLens(5))
+  })
+
+  it('resolves the plotter and writer to the exact same structure and lens for a given storyId', async () => {
+    vi.mocked(plotterStage.runPlotter).mockResolvedValue('plan-v1')
+    vi.mocked(writerStage.runWriter).mockResolvedValue('text-v1')
+
+    await runPlanPhase({ seed: 'seed', storyId: 11, models: baseModels, promptVersions: baseVersions })
+    await runTextPhase({ seed: 'seed', planFinal: 'approved-plan', storyId: 11, models: baseModels, promptVersions: baseVersions })
+
+    const plotterArgs = vi.mocked(plotterStage.runPlotter).mock.calls[0]?.[0]
+    const writerArgs = vi.mocked(writerStage.runWriter).mock.calls[0]?.[0]
+
+    expect(plotterArgs?.structure).toEqual(writerArgs?.structure)
+    expect(plotterArgs?.characterLens).toEqual(writerArgs?.characterLens)
   })
 })
 

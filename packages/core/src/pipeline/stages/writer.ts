@@ -2,6 +2,8 @@ import { aiRunner } from '../../ai'
 import { resolvePrompt, type ResolvedPrompt } from '../prompt-resolver'
 import { buildWordsBlock, type TargetWord } from './words-block'
 import { buildMemorableMomentsBlock, type MemorableMomentRow } from './memorable-moments'
+import { selectStoryStructure, buildStructureBlock, type StoryStructure } from './story-structures'
+import { selectCharacterLens, buildCharacterLensBlock, type CharacterLens } from './character-lenses'
 import type { CriticOutput } from '../schemas'
 import type { Exemplar } from '../load-exemplars'
 
@@ -38,6 +40,8 @@ export async function runWriter(options: {
   styleGuide?: string
   sashaContext?: string | null
   memorableMoments?: MemorableMomentRow[]
+  structure?: StoryStructure
+  characterLens?: CharacterLens
   exemplars?: Exemplar[]
   chosenFragments?: string[]
   targetWords?: TargetWord[]
@@ -71,6 +75,9 @@ export async function runWriter(options: {
 
   const memorableMomentsBlock = buildMemorableMomentsBlock(options.memorableMoments ?? [])
 
+  const structureBlock = buildStructureBlock(options.structure ?? selectStoryStructure(options.storyId))
+  const characterLensBlock = buildCharacterLensBlock(options.characterLens ?? selectCharacterLens(options.storyId))
+
   const exemplarsBlock = options.exemplars && options.exemplars.length > 0
     ? `\n\n---\nКАНОНИЧЕСКИЕ ПРИМЕРЫ (эталонные истории — следуй тону, ритму, юмору и структуре; не копируй сюжет):\n${options.exemplars
         .map((ex, i) => `[ПРИМЕР ${i + 1}: «${ex.title || 'без названия'}»]\n${ex.textFinal}`)
@@ -90,7 +97,7 @@ export async function runWriter(options: {
     : ''
 
   const parts: string[] = [
-    `${basePrompt}${universeContextBlock}${styleGuideBlock}${sashaContextBlock}${memorableMomentsBlock}${exemplarsBlock}${fragmentBlock}${wordsBlock}${endingRuleBlock}${idiomRuleBlock}`,
+    `${basePrompt}${universeContextBlock}${styleGuideBlock}${sashaContextBlock}${memorableMomentsBlock}${structureBlock}${characterLensBlock}${exemplarsBlock}${fragmentBlock}${wordsBlock}${endingRuleBlock}${idiomRuleBlock}`,
     '',
     `STORY PLAN:\n${plan}`,
   ]

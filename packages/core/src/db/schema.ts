@@ -89,6 +89,8 @@ export const stories = pgTable('stories', {
   readyAt: timestamp('ready_at'),
   agentOverrides: jsonb('agent_overrides').default({}),
   activeTextVersionId: integer('active_text_version_id'),
+  structureKey: text('structure_key'),
+  lensKey: text('lens_key'),
 })
 
 export const fragments = pgTable('fragments', {

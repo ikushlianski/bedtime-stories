@@ -5,6 +5,8 @@ import {
   type CreateStoryFormState,
 } from './create-story-form'
 import FormField from './form-field'
+import { STORY_STRUCTURES } from '@bedtime/core/pipeline/stages/story-structures'
+import { CHARACTER_LENSES } from '@bedtime/core/pipeline/stages/character-lenses'
 
 interface CreateStoryModalProps {
   open: boolean
@@ -16,6 +18,10 @@ interface CreateStoryModalProps {
 }
 
 const LAST_UNIVERSE_KEY = 'create-story-last-universe-id'
+
+function toDisplayLabel(title: string): string {
+  return title.charAt(0) + title.slice(1).toLowerCase()
+}
 
 function loadLastUniverseId(): number | null {
   try {
@@ -41,6 +47,8 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
   const [form, setForm] = useState<CreateStoryFormState>({
     seed: initialSeed,
     groupId: initialGroupId ?? loadLastUniverseId(),
+    structureKey: null,
+    lensKey: null,
   })
   const [submitting, setSubmitting] = useState(false)
   const [creatingSeries, setCreatingSeries] = useState(false)
@@ -55,6 +63,8 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
       setForm({
         seed: initialSeed,
         groupId: initialGroupId ?? loadLastUniverseId(),
+        structureKey: null,
+        lensKey: null,
       })
       setError(null)
       setShowCreateUniverse(false)
@@ -87,7 +97,7 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
 
     try {
       await onSubmit(validation.input)
-      setForm({ seed: '', groupId: null })
+      setForm({ seed: '', groupId: null, structureKey: null, lensKey: null })
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Не удалось создать историю')
     } finally {
@@ -136,7 +146,7 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
     try {
       const result = await api.stories.createSeries({ seed: form.seed.trim(), groupId: form.groupId })
 
-      setForm({ seed: '', groupId: null })
+      setForm({ seed: '', groupId: null, structureKey: null, lensKey: null })
       onSeriesCreated?.(result.stories.length)
       onClose()
     } catch (seriesError) {
@@ -238,6 +248,48 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
               autoFocus
             />
           </FormField>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <FormField
+              label="Структура сюжета"
+              hint="По умолчанию — авто-ротация структур. Действует только для «Создать историю», не для «Создать серию»."
+            >
+              <select
+                className="select select-bordered w-full bg-base-200"
+                value={form.structureKey ?? ''}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, structureKey: event.target.value || null }))
+                }
+              >
+                <option value="">Авто</option>
+                {STORY_STRUCTURES.map((structure) => (
+                  <option key={structure.key} value={structure.key} title={structure.description}>
+                    {toDisplayLabel(structure.title)}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+
+            <FormField
+              label="Ракурс на персонажей"
+              hint="По умолчанию — авто-ротация ракурсов. Действует только для «Создать историю», не для «Создать серию»."
+            >
+              <select
+                className="select select-bordered w-full bg-base-200"
+                value={form.lensKey ?? ''}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, lensKey: event.target.value || null }))
+                }
+              >
+                <option value="">Авто</option>
+                {CHARACTER_LENSES.map((lens) => (
+                  <option key={lens.key} value={lens.key} title={lens.guidance}>
+                    {toDisplayLabel(lens.title)}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+          </div>
 
         </div>
 

@@ -6,6 +6,7 @@ import { resolvePrompt, type ResolvedPrompt } from './prompt-resolver'
 import { loadEligibleFragments, extractFragmentMarkers, MAX_FRAGMENTS_PER_STORY } from './load-fragments'
 import { loadReactionPreferences, MIN_REACTIONS } from './load-reaction-preferences'
 import { loadMemorableMoments } from './load-memorable-moments'
+import { resolveStoryStructureChoice } from './resolve-story-structure-choice'
 import { extractWordMarkers, MAX_WORDS_PER_STORY, type TargetWord } from './stages/words-block'
 import type { CharacterBibleEntry } from './stages/character-bible-block'
 import type { CriticOutput } from './schemas'
@@ -113,10 +114,11 @@ export async function runPlanPhase(options: {
   const userFeedbackArg = options.userFeedback ? { userFeedback: options.userFeedback } : {}
   const storyIdArg = { storyId: options.storyId }
 
-  const [eligibleFragments, reactionSummary, memorableMoments] = await Promise.all([
+  const [eligibleFragments, reactionSummary, memorableMoments, structureChoice] = await Promise.all([
     options.injectFragments ? loadEligibleFragments(options.universeId ?? null) : Promise.resolve([]),
     options.universeId != null ? loadReactionPreferences(options.universeId) : Promise.resolve(null),
     loadMemorableMoments(options.universeId ?? null, options.storyId),
+    resolveStoryStructureChoice(options.storyId),
   ])
   const fragmentsArg = eligibleFragments.length > 0 ? { eligibleFragments } : {}
   const reactionArg = reactionSummary && reactionSummary.sampleSize >= MIN_REACTIONS ? { reactionSummary } : {}
@@ -128,6 +130,8 @@ export async function runPlanPhase(options: {
     seed,
     model: models.plotter,
     resolvedPrompt: plotterPrompt,
+    structure: structureChoice.structure,
+    characterLens: structureChoice.lens,
     ...cwdArg,
     ...universeArg,
     ...universeContextArg,
@@ -215,7 +219,10 @@ export async function runTextPhase(options: {
   notify('Writer')
   const storyIdArg = { storyId: options.storyId }
 
-  const memorableMoments = await loadMemorableMoments(options.universeId ?? null, options.storyId)
+  const [memorableMoments, structureChoice] = await Promise.all([
+    loadMemorableMoments(options.universeId ?? null, options.storyId),
+    resolveStoryStructureChoice(options.storyId),
+  ])
   const memorableMomentsArg = memorableMoments.length > 0 ? { memorableMoments } : {}
 
   notify('Writer')
@@ -223,6 +230,8 @@ export async function runTextPhase(options: {
     plan: planFinal,
     model: models.writer,
     resolvedPrompt: writerPrompt,
+    structure: structureChoice.structure,
+    characterLens: structureChoice.lens,
     ...cwdArg,
     ...universeArg,
     ...universeContextArg,
@@ -276,10 +285,11 @@ export async function runPlotterOnly(options: {
 
   const storyIdArg = { storyId: options.storyId }
 
-  const [eligibleFragments, reactionSummary, memorableMoments] = await Promise.all([
+  const [eligibleFragments, reactionSummary, memorableMoments, structureChoice] = await Promise.all([
     options.injectFragments ? loadEligibleFragments(options.universeId ?? null) : Promise.resolve([]),
     options.universeId != null ? loadReactionPreferences(options.universeId) : Promise.resolve(null),
     loadMemorableMoments(options.universeId ?? null, options.storyId),
+    resolveStoryStructureChoice(options.storyId),
   ])
   const fragmentsArg = eligibleFragments.length > 0 ? { eligibleFragments } : {}
   const reactionArg = reactionSummary && reactionSummary.sampleSize >= MIN_REACTIONS ? { reactionSummary } : {}
@@ -291,6 +301,8 @@ export async function runPlotterOnly(options: {
     seed,
     model: models.plotter,
     resolvedPrompt: plotterPrompt,
+    structure: structureChoice.structure,
+    characterLens: structureChoice.lens,
     ...cwdArg,
     ...universeArg,
     ...universeContextArg,
@@ -372,7 +384,10 @@ export async function runWriterOnly(options: {
 
   const storyIdArg = { storyId: options.storyId }
 
-  const memorableMoments = await loadMemorableMoments(options.universeId ?? null, options.storyId)
+  const [memorableMoments, structureChoice] = await Promise.all([
+    loadMemorableMoments(options.universeId ?? null, options.storyId),
+    resolveStoryStructureChoice(options.storyId),
+  ])
   const memorableMomentsArg = memorableMoments.length > 0 ? { memorableMoments } : {}
 
   notify('Writer')
@@ -380,6 +395,8 @@ export async function runWriterOnly(options: {
     plan: planFinal,
     model: models.writer,
     resolvedPrompt: writerPrompt,
+    structure: structureChoice.structure,
+    characterLens: structureChoice.lens,
     ...cwdArg,
     ...universeArg,
     ...universeContextArg,
@@ -440,12 +457,16 @@ export async function runAnnotatedRewrite(options: {
 
   const storyIdArg = { storyId: options.storyId }
 
+  const structureChoice = await resolveStoryStructureChoice(options.storyId)
+
   const textV2 = await runWriter({
     plan: planFinal,
     previousText: options.currentText,
     ...(options.userAnnotations ? { userAnnotations: options.userAnnotations } : {}),
     model: models.writer,
     resolvedPrompt: writerPrompt,
+    structure: structureChoice.structure,
+    characterLens: structureChoice.lens,
     ...cwdArg,
     ...universeArg,
     ...universeContextArg,

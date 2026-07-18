@@ -64,6 +64,8 @@ function toSnakeCase(row: Story) {
     updated_at: row.updatedAt ?? null,
     ready_at: row.readyAt ?? null,
     active_text_version_id: row.activeTextVersionId ?? null,
+    structure_key: row.structureKey ?? null,
+    lens_key: row.lensKey ?? null,
   }
 }
 
@@ -133,6 +135,8 @@ router.post('/', validate(createStorySchema), async (req, res) => {
       mode: resolved.pipelineMode ?? 'manual',
       ...(resolved.groupId !== undefined ? { groupId: resolved.groupId } : {}),
       ...(resolved.perStageOverrides !== undefined ? { agentOverrides: resolved.perStageOverrides } : {}),
+      ...(resolved.structureKey !== undefined ? { structureKey: resolved.structureKey } : {}),
+      ...(resolved.lensKey !== undefined ? { lensKey: resolved.lensKey } : {}),
     }
     const [story] = await db.insert(stories).values(newStory).returning()
 

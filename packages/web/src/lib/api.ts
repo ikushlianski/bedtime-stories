@@ -139,6 +139,8 @@ export interface Story {
   active_text_version_id?: number | null
   active_text?: string | null
   used_fragment_texts?: string[] | null
+  structure_key?: string | null
+  lens_key?: string | null
 }
 
 export interface TextVersion {
@@ -350,7 +352,14 @@ export type StageOverride = { model?: string; fallback?: string }
 export type PerStageOverrides = Record<string, StageOverride>
 
 export type CreateStoryInput =
-  | { seed: string; groupId?: number; pipelineMode?: 'auto' | 'manual'; perStageOverrides?: PerStageOverrides }
+  | {
+      seed: string
+      groupId?: number
+      pipelineMode?: 'auto' | 'manual'
+      perStageOverrides?: PerStageOverrides
+      structureKey?: string
+      lensKey?: string
+    }
   | { title?: string; textFinal: string; groupId?: number; source?: 'user' | 'legacy'; addToReadingList?: boolean }
 
 export interface ModelCatalogEntry {

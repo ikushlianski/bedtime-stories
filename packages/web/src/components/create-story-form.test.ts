@@ -39,4 +39,32 @@ describe('validateCreateStoryForm', () => {
 
     expect(result.valid).toBe(false)
   })
+
+  it('omits structureKey and lensKey when left on Auto', () => {
+    const result = validateCreateStoryForm(formWith({ seed: 'valid seed', groupId: 1 }))
+
+    if (!result.valid) {
+      throw new Error('expected valid result')
+    }
+
+    expect(result.input).not.toHaveProperty('structureKey')
+    expect(result.input).not.toHaveProperty('lensKey')
+  })
+
+  it('forwards an explicit structureKey and lensKey when chosen', () => {
+    const result = validateCreateStoryForm(
+      formWith({ seed: 'valid seed', groupId: 1, structureKey: 'snowball', lensKey: 'gosha-errs' }),
+    )
+
+    expect(result).toEqual({
+      valid: true,
+      input: {
+        seed: 'valid seed',
+        pipelineMode: 'auto',
+        groupId: 1,
+        structureKey: 'snowball',
+        lensKey: 'gosha-errs',
+      },
+    })
+  })
 })

@@ -302,6 +302,13 @@
       "when": 1784393707712,
       "tag": "0042_little_vermin",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1784402807644,
+      "tag": "0043_rare_changeling",
+      "breakpoints": true
     }
   ]
 }

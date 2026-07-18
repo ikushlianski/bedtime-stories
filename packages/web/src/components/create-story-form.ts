@@ -3,11 +3,15 @@ import type { CreateStoryInput } from '../lib/api'
 export interface CreateStoryFormState {
   seed: string
   groupId: number | null
+  structureKey: string | null
+  lensKey: string | null
 }
 
 export const INITIAL_CREATE_STORY_FORM: CreateStoryFormState = {
   seed: '',
   groupId: null,
+  structureKey: null,
+  lensKey: null,
 }
 
 export type CreateStoryFormValidation =
@@ -35,6 +39,8 @@ export function validateCreateStoryForm(state: CreateStoryFormState): CreateStor
       seed,
       pipelineMode: 'auto',
       groupId: state.groupId,
+      ...(state.structureKey ? { structureKey: state.structureKey } : {}),
+      ...(state.lensKey ? { lensKey: state.lensKey } : {}),
     },
   }
 }

@@ -1,9 +1,9 @@
 import { aiRunner } from '../../ai'
 import { resolvePrompt, type ResolvedPrompt } from '../prompt-resolver'
 import { buildFragmentsBlock, type EligibleFragment } from '../load-fragments'
-import { selectStoryStructure, buildStructureBlock } from './story-structures'
+import { selectStoryStructure, buildStructureBlock, type StoryStructure } from './story-structures'
 import { selectStorySetting, buildSettingBlock } from './story-settings'
-import { selectCharacterLens, buildCharacterLensBlock } from './character-lenses'
+import { selectCharacterLens, buildCharacterLensBlock, type CharacterLens } from './character-lenses'
 import { buildCharacterBibleBlock, type CharacterBibleEntry } from './character-bible-block'
 import { buildReactionPreferenceBlock, type ReactionSummary } from './reaction-preferences'
 import { buildMemorableMomentsBlock, type MemorableMomentRow } from './memorable-moments'
@@ -93,6 +93,8 @@ export async function runPlotter(options: {
   bibleCharacters?: CharacterBibleEntry[]
   reactionSummary?: ReactionSummary
   memorableMoments?: MemorableMomentRow[]
+  structure?: StoryStructure
+  characterLens?: CharacterLens
   cwd?: string
   storyId?: number
 }): Promise<string> {
@@ -121,9 +123,9 @@ export async function runPlotter(options: {
     ? buildFragmentsBlock(options.eligibleFragments)
     : ''
 
-  const structureBlock = buildStructureBlock(selectStoryStructure(options.storyId))
+  const structureBlock = buildStructureBlock(options.structure ?? selectStoryStructure(options.storyId))
   const settingBlock = buildSettingBlock(selectStorySetting(options.storyId))
-  const characterLensBlock = buildCharacterLensBlock(selectCharacterLens(options.storyId))
+  const characterLensBlock = buildCharacterLensBlock(options.characterLens ?? selectCharacterLens(options.storyId))
   const characterBibleBlock = buildCharacterBibleBlock(options.bibleCharacters ?? [])
   const reactionBlock = options.reactionSummary ? buildReactionPreferenceBlock(options.reactionSummary) : ''
   const memorableMomentsBlock = buildMemorableMomentsBlock(options.memorableMoments ?? [])

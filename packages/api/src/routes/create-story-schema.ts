@@ -1,5 +1,7 @@
 import { z } from 'zod'
 import { PIPELINE_STAGES, PipelineStage } from '@bedtime/core/pipeline/pipeline-stages'
+import { getStoryStructureByKey } from '@bedtime/core/pipeline/stages/story-structures'
+import { getCharacterLensByKey } from '@bedtime/core/pipeline/stages/character-lenses'
 
 const stageOverrideSchema = z.object({
   model: z.string().min(1),
@@ -28,6 +30,8 @@ export const createStorySchema = z
     source: z.enum(['user', 'legacy']).optional(),
     addToReadingList: z.boolean().optional(),
     perStageOverrides: perStageOverridesSchema.optional(),
+    structureKey: z.string().min(1).optional(),
+    lensKey: z.string().min(1).optional(),
   })
   .refine(
     (value) => {
@@ -41,13 +45,30 @@ export const createStorySchema = z
         'Provide either seed (for pipeline generation) or textFinal (for user-authored story), not both',
     },
   )
+  .refine(
+    (value) => value.structureKey === undefined || getStoryStructureByKey(value.structureKey) !== undefined,
+    { message: 'Unknown structureKey', path: ['structureKey'] },
+  )
+  .refine(
+    (value) => value.lensKey === undefined || getCharacterLensByKey(value.lensKey) !== undefined,
+    { message: 'Unknown lensKey', path: ['lensKey'] },
+  )
 
 export type CreateStoryInput = z.infer<typeof createStorySchema>
 
 export type PerStageOverrides = z.infer<typeof perStageOverridesSchema>
 
 export type CreateStoryMode =
-  | { mode: 'agent'; seed: string; title: string; groupId?: number; pipelineMode?: 'auto' | 'manual'; perStageOverrides?: PerStageOverrides }
+  | {
+      mode: 'agent'
+      seed: string
+      title: string
+      groupId?: number
+      pipelineMode?: 'auto' | 'manual'
+      perStageOverrides?: PerStageOverrides
+      structureKey?: string
+      lensKey?: string
+    }
   | { mode: 'user'; title: string; textFinal: string; groupId?: number }
   | { mode: 'legacy'; title: string; textFinal: string; groupId?: number; addToReadingList?: boolean }
 
@@ -90,6 +111,14 @@ export function resolveCreateStoryMode(input: CreateStoryInput): CreateStoryMode
 
   if (input.perStageOverrides !== undefined && Object.keys(input.perStageOverrides).length > 0) {
     result.perStageOverrides = input.perStageOverrides
+  }
+
+  if (input.structureKey !== undefined) {
+    result.structureKey = input.structureKey
+  }
+
+  if (input.lensKey !== undefined) {
+    result.lensKey = input.lensKey
   }
 
   return result
