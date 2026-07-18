@@ -16,29 +16,54 @@ interface PlanAnnotatorProps {
   onChatAboutThis?: (selectedText: string) => void
 }
 
-function RedoPlanButton({ storyId, disabled }: { storyId: number; disabled: boolean }) {
+function ModelOverrideInput({ model, onChange }: { model: string; onChange: (value: string) => void }) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <details className="text-xs text-base-content/60" onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}>
+      <summary className="cursor-pointer select-none">Другая модель (необязательно)</summary>
+      {open && (
+        <input
+          type="text"
+          className="input input-bordered input-xs mt-2 w-full max-w-xs"
+          placeholder="например, anthropic/claude-sonnet-4"
+          value={model}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      )}
+    </details>
+  )
+}
+
+function RedoPlanButton({ storyId, disabled, reason, model }: { storyId: number; disabled: boolean; reason: string; model: string }) {
   const navigate = useNavigate()
   const [redoing, setRedoing] = useState(false)
+  const [redoError, setRedoError] = useState<string | null>(null)
 
   const handleRedo = async () => {
     setRedoing(true)
+    setRedoError(null)
 
     try {
-      await api.annotations.redoPlan(storyId)
+      await api.stories.redoPlan(storyId, reason, model)
       navigate(`/stories/${storyId}/pipeline`)
-    } catch {
+    } catch (err) {
+      setRedoError(err instanceof Error ? err.message : 'Не удалось запустить доработку')
       setRedoing(false)
     }
   }
 
   return (
-    <button
-      className="btn btn-sm btn-outline"
-      onClick={() => void handleRedo()}
-      disabled={disabled || redoing}
-    >
-      {redoing ? 'Запускаем...' : 'Переделать с учётом комментариев'}
-    </button>
+    <div className="flex flex-col items-end gap-1">
+      {redoError && <p className="text-xs text-error">{redoError}</p>}
+      <button
+        className="btn btn-sm btn-outline"
+        onClick={() => void handleRedo()}
+        disabled={disabled || redoing}
+      >
+        {redoing ? 'Запускаем...' : 'Переделать с учётом комментариев'}
+      </button>
+    </div>
   )
 }
 
@@ -83,6 +108,8 @@ function PlanAnnotator({ storyId, planText, onChatAboutThis }: PlanAnnotatorProp
   const [saving, setSaving] = useState(false)
   const [allAnnotations, setAllAnnotations] = useState<Annotation[]>([])
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [redoReason, setRedoReason] = useState('')
+  const [redoModel, setRedoModel] = useState('')
 
   useEffect(() => {
     api.annotations.list(storyId, 'plan').then(setAllAnnotations).catch(() => undefined)
@@ -151,11 +178,21 @@ function PlanAnnotator({ storyId, planText, onChatAboutThis }: PlanAnnotatorProp
 
   return (
     <div className="space-y-4">
-      {activeAnnotations.length > 0 && (
-        <div className="flex justify-end">
-          <RedoPlanButton storyId={storyId} disabled={false} />
+      <div className="rounded-box border border-primary/20 bg-primary/5 p-4">
+        <label className="mb-2 block text-sm font-medium text-base-content">Что изменить в плане?</label>
+        <textarea
+          className="textarea textarea-bordered min-h-20 w-full bg-base-100 text-sm"
+          placeholder="Необязательно: общие указания к переработке плана — их получит Сюжетник при следующем прогоне."
+          value={redoReason}
+          onChange={(e) => setRedoReason(e.target.value)}
+        />
+        <div className="mt-2">
+          <ModelOverrideInput model={redoModel} onChange={setRedoModel} />
         </div>
-      )}
+        <div className="mt-3 flex justify-end">
+          <RedoPlanButton storyId={storyId} disabled={false} reason={redoReason} model={redoModel} />
+        </div>
+      </div>
 
       <div className="relative" ref={containerRef} onMouseUp={handleMouseUp}>
         <div className="select-text cursor-text leading-relaxed text-base-content">
@@ -226,25 +263,19 @@ function PlanAnnotator({ storyId, planText, onChatAboutThis }: PlanAnnotatorProp
       </div>
 
       {activeAnnotations.length > 0 && (
-        <div className="space-y-4">
-          <section>
-            <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
-              Заметки к плану
-            </h3>
-            <ul className="space-y-3">
-              {activeAnnotations.map((a) => (
-                <li key={a.id} className="rounded-box border border-base-300 bg-base-200/50 p-4">
-                  <p className="mb-1 text-xs italic text-base-content/50">&ldquo;{a.selectedText}&rdquo;</p>
-                  <p className="text-sm text-base-content">{a.noteText}</p>
-                </li>
-              ))}
-            </ul>
-          </section>
-
-          <div className="flex justify-end">
-            <RedoPlanButton storyId={storyId} disabled={false} />
-          </div>
-        </div>
+        <section>
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">
+            Заметки к плану
+          </h3>
+          <ul className="space-y-3">
+            {activeAnnotations.map((a) => (
+              <li key={a.id} className="rounded-box border border-base-300 bg-base-200/50 p-4">
+                {a.selectedText && <p className="mb-1 text-xs italic text-base-content/50">&ldquo;{a.selectedText}&rdquo;</p>}
+                <p className="text-sm text-base-content">{a.noteText}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       <ResolvedAnnotations annotations={resolvedAnnotations} />

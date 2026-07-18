@@ -37,4 +37,27 @@ describe('buildStoryCommentRecord', () => {
 
     expect(record.universeId).toBeNull()
   })
+
+  it('defaults source to chat when not specified', () => {
+    const record = buildStoryCommentRecord({
+      storyId: 1,
+      groupId: null,
+      commentText: 'заметка',
+      selectedText: null,
+    })
+
+    expect(record.source).toBe('chat')
+  })
+
+  it('tags a revision reason distinctly from a regular chat comment', () => {
+    const record = buildStoryCommentRecord({
+      storyId: 1,
+      groupId: null,
+      commentText: 'сделай текст короче',
+      selectedText: null,
+      source: 'revision_reason',
+    })
+
+    expect(record.source).toBe('revision_reason')
+  })
 })

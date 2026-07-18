@@ -1,6 +1,6 @@
 import { Router, type Request } from 'express'
 import { z } from 'zod'
-import { eq, asc } from 'drizzle-orm'
+import { eq, and, asc } from 'drizzle-orm'
 import { db } from '@bedtime/core/db/client'
 import { stories, storyComments } from '@bedtime/core/db/schema'
 import { resolveChatGate } from '@bedtime/core/pipeline/resolve-chat-gate'
@@ -46,6 +46,7 @@ router.post('/', validate(createCommentSchema), async (req: Request<StoryParams>
       groupId: storyRow.groupId ?? null,
       commentText: comment_text,
       selectedText: selected_text ?? null,
+      source: 'chat',
     })
 
     const [created] = await db
@@ -55,6 +56,7 @@ router.post('/', validate(createCommentSchema), async (req: Request<StoryParams>
         universeId: insertPayload.universeId,
         commentText: insertPayload.commentText,
         selectedText: insertPayload.selectedText,
+        source: insertPayload.source,
       })
       .returning()
 
@@ -77,7 +79,7 @@ router.get('/', async (req: Request<StoryParams>, res) => {
     const result = await db
       .select()
       .from(storyComments)
-      .where(eq(storyComments.storyId, storyId))
+      .where(and(eq(storyComments.storyId, storyId), eq(storyComments.source, 'chat')))
       .orderBy(asc(storyComments.createdAt))
 
     res.json(result)

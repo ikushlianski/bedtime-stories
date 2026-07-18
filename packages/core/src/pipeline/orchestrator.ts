@@ -54,13 +54,6 @@ export interface WriterOnlyResult {
   promptVersions: PipelinePromptVersions
 }
 
-export interface TextCritiqueResult {
-  textV2: string
-  writerCriticOutput: CriticOutput
-  models: PipelineModels
-  promptVersions: PipelinePromptVersions
-}
-
 export interface AnnotatedRewriteResult {
   textV2: string
   models: PipelineModels
@@ -391,64 +384,6 @@ export async function runWriterOnly(options: {
   const usedWordIds = wordMarker.wordIds.filter((id) => eligibleWordIds.has(id)).slice(0, MAX_WORDS_PER_STORY)
 
   return { textV1: wordMarker.cleanedText, usedWordIds, models, promptVersions: resolvedVersions }
-}
-
-export async function runTextCritique(options: {
-  textV1: string
-  planFinal: string
-  storyId: number
-  models: PipelineModels
-  promptVersions: PipelinePromptVersions
-  universeSystemPrompt?: string
-  universeContext?: string
-  styleGuide?: string
-  sashaContext?: string | null
-  userAnnotations?: string
-  cwd?: string
-  onStepChange?: (step: string) => void
-  onChunk?: (chunk: string) => void
-  onChunkReset?: () => void
-}): Promise<TextCritiqueResult> {
-  const { textV1, planFinal, models } = options
-  const notify = options.onStepChange ?? (() => undefined)
-  const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
-  const universeArg = options.universeSystemPrompt !== undefined ? { universeSystemPrompt: options.universeSystemPrompt } : {}
-  const universeContextArg = options.universeContext !== undefined ? { universeContext: options.universeContext } : {}
-  const styleGuideArg = options.styleGuide !== undefined ? { styleGuide: options.styleGuide } : {}
-  const sashaContextArg = options.sashaContext !== undefined && options.sashaContext !== null ? { sashaContext: options.sashaContext } : {}
-  const userAnnotationsArg = options.userAnnotations ? { userAnnotations: options.userAnnotations } : {}
-  const onChunkArg = options.onChunk !== undefined ? { onChunk: options.onChunk } : {}
-  const onChunkResetArg = options.onChunkReset !== undefined ? { onChunkReset: options.onChunkReset } : {}
-
-  const writerPrompt: ResolvedPrompt = await resolvePrompt('writer', WRITER_SYSTEM_PROMPT_DEFAULT, options.promptVersions.writer)
-
-  const resolvedVersions: PipelinePromptVersions = {
-    ...options.promptVersions,
-    writer: writerPrompt.version,
-  }
-
-  const storyIdArg = { storyId: options.storyId }
-
-  notify('Writer')
-  const textV2 = await runWriter({
-    plan: planFinal,
-    previousText: textV1,
-    model: models.writer,
-    resolvedPrompt: writerPrompt,
-    ...cwdArg,
-    ...universeArg,
-    ...universeContextArg,
-    ...styleGuideArg,
-    ...sashaContextArg,
-    ...userAnnotationsArg,
-    ...onChunkArg,
-    ...onChunkResetArg,
-    ...storyIdArg,
-  })
-
-  const writerCriticOutput: CriticOutput = { issues: [], improvement_needed: false }
-
-  return { textV2, writerCriticOutput, models, promptVersions: resolvedVersions }
 }
 
 export async function runAnnotatedRewrite(options: {

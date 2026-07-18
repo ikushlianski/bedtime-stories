@@ -1,9 +1,8 @@
-import { eq, and, isNull } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { runPlotterOnly } from '@bedtime/core/pipeline/orchestrator'
 import { synthesizeSashaContext } from '@bedtime/core/pipeline/feedback-synthesizer'
 import { generatePlanChangeSummary } from '@bedtime/core/pipeline/plan-change-summarizer'
 import { resolveAnnotations } from '@bedtime/core/pipeline/annotation-resolver'
-import { formatCommentsAsFeedback } from '@bedtime/core/pipeline/format-comments-as-feedback'
 import { db } from '@bedtime/core/db/client'
 import { annotations, runSnapshots, stories } from '@bedtime/core/db/schema'
 import {
@@ -13,6 +12,7 @@ import {
 import { setPipelineStatus, setCurrentStep, setStepSummary } from './pipeline-state'
 import { defaultPromptVersions, resolvePipelineModels, loadStoryOverrides } from './pipeline-defaults'
 import { loadUniverseContext } from './load-universe-context'
+import { gatherRedoFeedback } from './gather-redo-feedback'
 import { withPipelineTrace } from '@bedtime/observability'
 
 function extractPlotterSummary(planText: string): string {
@@ -28,21 +28,32 @@ function extractPlotterSummary(planText: string): string {
   return `Сюжетник пересмотрел план. Эмоциональная задача: ${taskLine.trim()}`
 }
 
-export function triggerPlanRedo(storyId: number, seed: string, previousPlan: string, universeSystemPrompt?: string, universeContext?: string, styleGuide?: string, universeId: number | null = null): void {
+export function triggerPlanRedo(
+  storyId: number,
+  seed: string,
+  previousPlan: string,
+  universeSystemPrompt?: string,
+  universeContext?: string,
+  styleGuide?: string,
+  universeId: number | null = null,
+  reason?: string,
+  modelOverride?: string,
+): void {
   setPipelineStatus(storyId, 'plan_running')
 
   withPipelineTrace(String(storyId), async () => {
-    const [rows, models, ctx] = await Promise.all([
-      db
-        .select({ id: annotations.id, selectedText: annotations.selectedText, noteText: annotations.noteText })
-        .from(annotations)
-        .where(and(eq(annotations.storyId, storyId), eq(annotations.context, 'plan'), isNull(annotations.resolvedAt))),
+    const [feedback, models, ctx] = await Promise.all([
+      gatherRedoFeedback({ storyId, context: 'plan', reason, universeId }),
       loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(universeId, overrides)),
       universeId != null ? loadUniverseContext(universeId) : Promise.resolve(null),
     ])
 
-    const activeRows = rows.filter((r) => r.noteText !== null) as Array<{ id: number; selectedText: string | null; noteText: string }>
-    const userFeedback = formatCommentsAsFeedback(activeRows)
+    if (modelOverride) {
+      models.plotter = modelOverride
+    }
+
+    const activeRows = feedback.annotationRows.filter((r) => r.noteText !== null) as Array<{ id: number; selectedText: string | null; noteText: string }>
+    const userFeedback = feedback.userFeedback
     const sashaContext = await synthesizeSashaContext()
     const bibleCharacters = ctx?.bibleCharacters ?? []
 

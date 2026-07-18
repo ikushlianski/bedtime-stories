@@ -1,0 +1,1 @@
+ALTER TABLE "story_comments" ADD COLUMN "source" text DEFAULT 'chat' NOT NULL;

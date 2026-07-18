@@ -1,5 +1,5 @@
 import { eq, sql } from 'drizzle-orm'
-import type { PlanPhaseResult, TextPhaseResult, PlotterOnlyResult, WriterOnlyResult, TextCritiqueResult, AnnotatedRewriteResult } from '@bedtime/core/pipeline/orchestrator'
+import type { PlanPhaseResult, TextPhaseResult, PlotterOnlyResult, WriterOnlyResult, AnnotatedRewriteResult } from '@bedtime/core/pipeline/orchestrator'
 import type { NewRunSnapshot } from '@bedtime/core/db/types'
 import { db } from '@bedtime/core/db/client'
 import { storyTextVersions } from '@bedtime/core/db/schema'
@@ -151,29 +151,6 @@ export function buildWriterOnlyStoriesUpdate(result: WriterOnlyResult): WriterOn
     textV1: result.textV1,
     writerModel: result.models.writer,
     writerPromptVersion: result.promptVersions.writer,
-  }
-}
-
-export interface TextCritiqueStoriesUpdate {
-  textV2: string
-  writerCriticModel: string
-  writerCriticPromptVersion: number
-}
-
-export function buildTextCritiqueStoriesUpdate(result: TextCritiqueResult): TextCritiqueStoriesUpdate {
-  return {
-    textV2: result.textV2,
-    writerCriticModel: result.models.writerCritic,
-    writerCriticPromptVersion: result.promptVersions.writerCritic,
-  }
-}
-
-export function buildTextCritiqueSnapshotUpdate(result: TextCritiqueResult): Partial<NewRunSnapshot> {
-  return {
-    writerCriticModel: result.models.writerCritic,
-    writerCriticPromptVersion: result.promptVersions.writerCritic,
-    textV2: result.textV2,
-    writerCriticOutput: result.writerCriticOutput,
   }
 }
 

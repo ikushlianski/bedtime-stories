@@ -281,6 +281,13 @@
       "when": 1784370194127,
       "tag": "0039_aspiring_colossus",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1784381880255,
+      "tag": "0040_needy_wrecker",
+      "breakpoints": true
     }
   ]
 }

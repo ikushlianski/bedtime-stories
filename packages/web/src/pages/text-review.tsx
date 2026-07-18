@@ -36,15 +36,13 @@ interface SelectionPopover {
   end: number
 }
 
-function TextAnnotationPanel({ storyId, text, onCritiqueStarted, onChatAboutThis }: { storyId: number; text: string; onCritiqueStarted: () => void; onChatAboutThis?: (selectedText: string) => void }) {
+function TextAnnotationPanel({ storyId, text, onChatAboutThis }: { storyId: number; text: string; onChatAboutThis?: (selectedText: string) => void }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [popover, setPopover] = useState<SelectionPopover | null>(null)
   const [comment, setComment] = useState('')
   const [saving, setSaving] = useState(false)
   const [annotations, setAnnotations] = useState<Annotation[]>([])
   const [saveError, setSaveError] = useState<string | null>(null)
-  const [critiquing, setCritiquing] = useState(false)
-  const [critiqueError, setCritiqueError] = useState<string | null>(null)
 
   useEffect(() => {
     api.annotations.list(storyId, 'text').then(setAnnotations).catch(() => undefined)
@@ -106,35 +104,10 @@ function TextAnnotationPanel({ storyId, text, onCritiqueStarted, onChatAboutThis
     }
   }
 
-  const handleCritique = async () => {
-    setCritiquing(true)
-    setCritiqueError(null)
-
-    try {
-      await api.stories.critiqueText(storyId)
-      onCritiqueStarted()
-    } catch (err) {
-      setCritiqueError(err instanceof Error ? err.message : 'Не удалось запустить критика')
-      setCritiquing(false)
-    }
-  }
-
   const hasAnnotations = annotations.length > 0
 
   return (
     <div className="space-y-4">
-      {hasAnnotations && (
-        <div className="flex justify-end">
-          <button
-            className="btn btn-sm btn-outline"
-            onClick={() => void handleCritique()}
-            disabled={critiquing}
-          >
-            {critiquing ? 'Запускаем...' : 'Запустить критика с учётом комментариев'}
-          </button>
-        </div>
-      )}
-
       <div className="relative" ref={containerRef} onMouseUp={handleMouseUp}>
         <div className="select-text cursor-text leading-relaxed text-base-content">
           {text.split('\n').map((line, i) => (
@@ -196,45 +169,17 @@ function TextAnnotationPanel({ storyId, text, onCritiqueStarted, onChatAboutThis
       </div>
 
       {hasAnnotations && (
-        <div className="space-y-4">
-          <section>
-            <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">Заметки к тексту</h3>
-            <ul className="space-y-3">
-              {annotations.map((a) => (
-                <li key={a.id} className="rounded-box border border-base-300 bg-base-200/50 p-4">
-                  <p className="mb-1 text-xs italic text-base-content/50">&ldquo;{a.selectedText}&rdquo;</p>
-                  <p className="text-sm text-base-content">{a.noteText}</p>
-                </li>
-              ))}
-            </ul>
-          </section>
-
-          {critiqueError && (
-            <StatusCallout tone="error" title="Ошибка запуска критика" message={critiqueError} />
-          )}
-
-          <div className="flex justify-end">
-            <button
-              className="btn btn-outline"
-              onClick={() => void handleCritique()}
-              disabled={critiquing}
-            >
-              {critiquing ? 'Запускаем...' : 'Запустить критика с учётом комментариев'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {!hasAnnotations && (
-        <div className="flex justify-end">
-          <button
-            className="btn btn-outline"
-            onClick={() => void handleCritique()}
-            disabled={critiquing}
-          >
-            {critiquing ? 'Запускаем...' : 'Запустить критика'}
-          </button>
-        </div>
+        <section>
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-base-content/60">Заметки к тексту</h3>
+          <ul className="space-y-3">
+            {annotations.map((a) => (
+              <li key={a.id} className="rounded-box border border-base-300 bg-base-200/50 p-4">
+                {a.selectedText && <p className="mb-1 text-xs italic text-base-content/50">&ldquo;{a.selectedText}&rdquo;</p>}
+                <p className="text-sm text-base-content">{a.noteText}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
     </div>
   )
@@ -249,7 +194,9 @@ export function TextReviewPage() {
   const [approveError, setApproveError] = useState<string | null>(null)
   const [redoing, setRedoing] = useState(false)
   const [redoError, setRedoError] = useState<string | null>(null)
-  const [redoInstructions, setRedoInstructions] = useState('')
+  const [redoReason, setRedoReason] = useState('')
+  const [redoModel, setRedoModel] = useState('')
+  const [showModelInput, setShowModelInput] = useState(false)
   const [chatSelectedText, setChatSelectedText] = useState<string | null>(null)
   const [localText, setLocalText] = useState<string | null>(null)
 
@@ -272,17 +219,13 @@ export function TextReviewPage() {
     setRedoError(null)
 
     try {
-      await api.stories.redoText(storyId, redoInstructions)
+      await api.stories.redoText(storyId, redoReason, redoModel)
       navigate(`/stories/${storyId}/pipeline`)
     } catch (redoErr) {
       setRedoError(redoErr instanceof Error ? redoErr.message : 'Не удалось запустить доработку')
       setRedoing(false)
     }
   }
-
-  const handleCritiqueStarted = useCallback(() => {
-    navigate(`/stories/${storyId}/pipeline`)
-  }, [navigate, storyId])
 
   if (loading) {
     return <StatusCallout title="Загрузка" message="Получаем данные для проверки текста." />
@@ -350,12 +293,28 @@ export function TextReviewPage() {
             <textarea
               className="textarea textarea-bordered min-h-24 w-full bg-base-100 text-sm"
               placeholder="Например: вплети в историю строчки этой песни… (можно вставить целиком). Эти указания получит писатель при следующем прогоне."
-              value={redoInstructions}
-              onChange={(e) => setRedoInstructions(e.target.value)}
+              value={redoReason}
+              onChange={(e) => setRedoReason(e.target.value)}
             />
             <p className="mt-1 text-xs text-base-content/50">
               Нажми «Отправить на доработку», чтобы переписать текст с учётом этих указаний.
             </p>
+
+            <details
+              className="mt-2 text-xs text-base-content/60"
+              onToggle={(e) => setShowModelInput((e.target as HTMLDetailsElement).open)}
+            >
+              <summary className="cursor-pointer select-none">Другая модель (необязательно)</summary>
+              {showModelInput && (
+                <input
+                  type="text"
+                  className="input input-bordered input-xs mt-2 w-full max-w-xs"
+                  placeholder="например, anthropic/claude-sonnet-4"
+                  value={redoModel}
+                  onChange={(e) => setRedoModel(e.target.value)}
+                />
+              )}
+            </details>
           </div>
 
           <TextVersionHistory
@@ -370,7 +329,6 @@ export function TextReviewPage() {
           <TextAnnotationPanel
             storyId={storyId}
             text={textToReview}
-            onCritiqueStarted={handleCritiqueStarted}
             onChatAboutThis={(text) => setChatSelectedText(text)}
           />
 

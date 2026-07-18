@@ -322,6 +322,7 @@ export interface StoryComment {
   universeId: number | null
   commentText: string
   selectedText: string | null
+  source: 'chat' | 'revision_reason'
   createdAt: string
 }
 
@@ -491,19 +492,28 @@ export const api = {
         body: JSON.stringify({ status }),
       }),
 
-    redoText: (id: number, instructions?: string) =>
+    redoText: (id: number, reason?: string, model?: string) =>
       request<{ started: boolean; storyId: number }>(`/api/stories/${id}/redo-text`, {
         method: 'POST',
-        ...(instructions && instructions.trim() ? { body: JSON.stringify({ instructions: instructions.trim() }) } : {}),
+        body: JSON.stringify({
+          ...(reason && reason.trim() ? { reason: reason.trim() } : {}),
+          ...(model && model.trim() ? { model: model.trim() } : {}),
+        }),
+      }),
+
+    redoPlan: (id: number, reason?: string, model?: string) =>
+      request<{ started: boolean; storyId: number }>(`/api/stories/${id}/redo-plan`, {
+        method: 'POST',
+        body: JSON.stringify({
+          ...(reason && reason.trim() ? { reason: reason.trim() } : {}),
+          ...(model && model.trim() ? { model: model.trim() } : {}),
+        }),
       }),
 
     delete: (id: number) =>
       requestEmpty(`/api/stories/${id}`, {
         method: 'DELETE',
       }),
-
-    critiqueText: (id: number) =>
-      request<{ started: boolean; storyId: number }>(`/api/stories/${id}/critique-text`, { method: 'POST' }),
 
     analyze: (id: number) =>
       request<{ storyAnalysis: string; reactionsExtracted: number; styleGuideUpdated: boolean }>(
@@ -608,9 +618,6 @@ export const api = {
 
     list: (storyId: number, context?: 'plan' | 'text') =>
       request<Annotation[]>(`/api/stories/${storyId}/annotations${context ? `?context=${context}` : ''}`),
-
-    redoPlan: (storyId: number) =>
-      request<{ started: boolean; storyId: number }>(`/api/stories/${storyId}/redo-plan`, { method: 'POST' }),
   },
 
   comments: {

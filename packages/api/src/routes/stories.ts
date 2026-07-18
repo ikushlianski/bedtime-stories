@@ -8,7 +8,7 @@ import type { Story, NewStory, NewAnnotation, ParentReview, ChildReaction } from
 import { validate } from '../middleware/validate'
 import { triggerTextPhase, getPipelineStatus } from './pipeline'
 import { triggerPlanRedo } from './pipeline-plan-redo'
-import { triggerTextCritique, triggerTextRewrite } from './pipeline-text-critique'
+import { triggerTextRewrite } from './pipeline-text-rewrite'
 import { decideApprovePlan } from './approve-plan-decision'
 import textVersionsRouter from './text-versions'
 import { createStorySchema, resolveCreateStoryMode } from './create-story-schema'
@@ -493,7 +493,12 @@ router.post('/:id/approve-plan', validate(approvePlanSchema), async (req, res) =
   }
 })
 
-router.post('/:id/redo-plan', async (req, res) => {
+const redoPlanSchema = z.object({
+  reason: z.string().optional(),
+  model: z.string().optional(),
+})
+
+router.post('/:id/redo-plan', validate(redoPlanSchema), async (req, res) => {
   try {
     const storyId = parseIntParam(req.params['id'])
 
@@ -509,11 +514,13 @@ router.post('/:id/redo-plan', async (req, res) => {
       return
     }
 
+    const { reason, model } = req.body as z.infer<typeof redoPlanSchema>
+
     const { universeSystemPrompt, universeContext, styleGuide } = existing.groupId != null
       ? await loadUniverseContext(existing.groupId)
       : { universeSystemPrompt: undefined, universeContext: undefined, styleGuide: undefined }
 
-    triggerPlanRedo(storyId, existing.seed, existing.planFinal ?? '', universeSystemPrompt, universeContext, styleGuide, existing.groupId ?? null)
+    triggerPlanRedo(storyId, existing.seed, existing.planFinal ?? '', universeSystemPrompt, universeContext, styleGuide, existing.groupId ?? null, reason, model)
 
     res.json({ started: true, storyId })
   } catch (err) {
@@ -522,7 +529,12 @@ router.post('/:id/redo-plan', async (req, res) => {
   }
 })
 
-router.post('/:id/redo-text', async (req, res) => {
+const redoTextSchema = z.object({
+  reason: z.string().optional(),
+  model: z.string().optional(),
+})
+
+router.post('/:id/redo-text', validate(redoTextSchema), async (req, res) => {
   try {
     const storyId = parseIntParam(req.params['id'])
 
@@ -555,8 +567,8 @@ router.post('/:id/redo-text', async (req, res) => {
       : { universeSystemPrompt: undefined, universeContext: undefined, styleGuide: undefined }
     let sashaContext: string | null = null
 
-    const rawInstructions = (req.body as { instructions?: unknown } | undefined)?.instructions
-    const instructions = typeof rawInstructions === 'string' ? rawInstructions.trim() : ''
+    const { reason, model } = req.body as z.infer<typeof redoTextSchema>
+    const trimmedReason = reason?.trim() ?? ''
 
     const annotationRows = await db
       .select({ noteText: annotations.noteText })
@@ -565,7 +577,7 @@ router.post('/:id/redo-text', async (req, res) => {
 
     const hasNotes = annotationRows.some((r) => r.noteText)
 
-    if (!hasNotes && !instructions) {
+    if (!hasNotes && !trimmedReason) {
       res.status(409).json({ error: 'Напиши, что изменить, или добавь заметки к тексту перед доработкой' })
       return
     }
@@ -581,64 +593,12 @@ router.post('/:id/redo-text', async (req, res) => {
       sashaContext = snapshot.sashaContext
     }
 
-    triggerTextRewrite(storyId, currentText, existing.planFinal, universeSystemPrompt, universeContext, styleGuide, sashaContext, existing.groupId ?? null, existing.activeTextVersionId ?? null, instructions || undefined)
+    triggerTextRewrite(storyId, currentText, existing.planFinal, universeSystemPrompt, universeContext, styleGuide, sashaContext, existing.groupId ?? null, existing.activeTextVersionId ?? null, trimmedReason || undefined, model)
 
     res.json({ started: true, storyId })
   } catch (err) {
     console.error('POST /stories/:id/redo-text failed:', err)
     res.status(500).json({ error: 'Failed to start text redo' })
-  }
-})
-
-router.post('/:id/critique-text', async (req, res) => {
-  try {
-    const storyId = parseIntParam(req.params['id'])
-
-    if (isNaN(storyId)) {
-      res.status(400).json({ error: 'Invalid story id' })
-      return
-    }
-
-    const [existing] = await db.select().from(stories).where(eq(stories.id, storyId))
-
-    if (!existing) {
-      res.status(404).json({ error: 'Story not found' })
-      return
-    }
-
-    if (!existing.textV1) {
-      res.status(409).json({ error: 'Text v1 has not been generated yet' })
-      return
-    }
-
-    if (!existing.planFinal) {
-      res.status(409).json({ error: 'Plan has not been approved yet' })
-      return
-    }
-
-    const { universeSystemPrompt, universeContext, styleGuide } = existing.groupId != null
-      ? await loadUniverseContext(existing.groupId)
-      : { universeSystemPrompt: undefined, universeContext: undefined, styleGuide: undefined }
-    let sashaContext: string | null = null
-
-    const [snapshot] = await db
-      .select()
-      .from(runSnapshots)
-      .where(eq(runSnapshots.storyId, storyId))
-      .orderBy(desc(runSnapshots.createdAt))
-      .limit(1)
-
-    if (snapshot?.sashaContext) {
-      sashaContext = snapshot.sashaContext
-    }
-
-    const textToReview = existing.textV2 ?? existing.textV1
-    triggerTextCritique(storyId, textToReview, existing.planFinal, universeSystemPrompt, universeContext, styleGuide, sashaContext, existing.groupId ?? null, existing.activeTextVersionId ?? null)
-
-    res.json({ started: true, storyId })
-  } catch (err) {
-    console.error('POST /stories/:id/critique-text failed:', err)
-    res.status(500).json({ error: 'Failed to start text critique' })
   }
 })
 

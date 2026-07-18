@@ -252,6 +252,7 @@ export const storyComments = pgTable('story_comments', {
   universeId: integer('universe_id').references(() => storyGroups.id),
   commentText: text('comment_text').notNull(),
   selectedText: text('selected_text'),
+  source: text('source').$type<'chat' | 'revision_reason'>().notNull().default('chat'),
   createdAt: timestamp('created_at').defaultNow(),
 })
 
