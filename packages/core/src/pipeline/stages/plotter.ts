@@ -6,6 +6,7 @@ import { selectStorySetting, buildSettingBlock } from './story-settings'
 import { selectCharacterLens, buildCharacterLensBlock } from './character-lenses'
 import { buildCharacterBibleBlock, type CharacterBibleEntry } from './character-bible-block'
 import { buildReactionPreferenceBlock, type ReactionSummary } from './reaction-preferences'
+import { buildMemorableMomentsBlock, type MemorableMomentRow } from './memorable-moments'
 import type { CriticOutput } from '../schemas'
 
 const PLOTTER_TEMPERATURE = 0.95
@@ -91,6 +92,7 @@ export async function runPlotter(options: {
   eligibleFragments?: EligibleFragment[]
   bibleCharacters?: CharacterBibleEntry[]
   reactionSummary?: ReactionSummary
+  memorableMoments?: MemorableMomentRow[]
   cwd?: string
   storyId?: number
 }): Promise<string> {
@@ -124,9 +126,10 @@ export async function runPlotter(options: {
   const characterLensBlock = buildCharacterLensBlock(selectCharacterLens(options.storyId))
   const characterBibleBlock = buildCharacterBibleBlock(options.bibleCharacters ?? [])
   const reactionBlock = options.reactionSummary ? buildReactionPreferenceBlock(options.reactionSummary) : ''
+  const memorableMomentsBlock = buildMemorableMomentsBlock(options.memorableMoments ?? [])
 
   const parts: string[] = [
-    `${basePrompt}${structureBlock}${settingBlock}${characterLensBlock}${characterBibleBlock}${reactionBlock}${universeContextBlock}${styleGuideBlock}${sashaContextBlock}${fragmentsBlock}`,
+    `${basePrompt}${structureBlock}${settingBlock}${characterLensBlock}${characterBibleBlock}${reactionBlock}${memorableMomentsBlock}${universeContextBlock}${styleGuideBlock}${sashaContextBlock}${fragmentsBlock}`,
     '',
     `SEED (real-life situation to base the story on):\n${seed}`,
   ]

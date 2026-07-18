@@ -1,6 +1,7 @@
 import { aiRunner } from '../../ai'
 import { resolvePrompt, type ResolvedPrompt } from '../prompt-resolver'
 import { buildWordsBlock, type TargetWord } from './words-block'
+import { buildMemorableMomentsBlock, type MemorableMomentRow } from './memorable-moments'
 import type { CriticOutput } from '../schemas'
 import type { Exemplar } from '../load-exemplars'
 
@@ -36,6 +37,7 @@ export async function runWriter(options: {
   universeContext?: string
   styleGuide?: string
   sashaContext?: string | null
+  memorableMoments?: MemorableMomentRow[]
   exemplars?: Exemplar[]
   chosenFragments?: string[]
   targetWords?: TargetWord[]
@@ -67,6 +69,8 @@ export async function runWriter(options: {
     ? `\n\n---\nКОНТЕКСТ САШИ (используй для вдохновения, не копируй буквально):\n${options.sashaContext}\n---\n`
     : ''
 
+  const memorableMomentsBlock = buildMemorableMomentsBlock(options.memorableMoments ?? [])
+
   const exemplarsBlock = options.exemplars && options.exemplars.length > 0
     ? `\n\n---\nКАНОНИЧЕСКИЕ ПРИМЕРЫ (эталонные истории — следуй тону, ритму, юмору и структуре; не копируй сюжет):\n${options.exemplars
         .map((ex, i) => `[ПРИМЕР ${i + 1}: «${ex.title || 'без названия'}»]\n${ex.textFinal}`)
@@ -86,7 +90,7 @@ export async function runWriter(options: {
     : ''
 
   const parts: string[] = [
-    `${basePrompt}${universeContextBlock}${styleGuideBlock}${sashaContextBlock}${exemplarsBlock}${fragmentBlock}${wordsBlock}${endingRuleBlock}${idiomRuleBlock}`,
+    `${basePrompt}${universeContextBlock}${styleGuideBlock}${sashaContextBlock}${memorableMomentsBlock}${exemplarsBlock}${fragmentBlock}${wordsBlock}${endingRuleBlock}${idiomRuleBlock}`,
     '',
     `STORY PLAN:\n${plan}`,
   ]

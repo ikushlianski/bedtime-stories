@@ -105,6 +105,7 @@ export async function runTextPhaseDurable(params: TextPhaseParams): Promise<void
       ...(targetWords.length > 0 ? { targetWords } : {}),
       ...(isRetry ? { previousText: currentText } : {}),
       ...(userAnnotations ? { userAnnotations } : {}),
+      universeId,
       onStepChange: (step) => setCurrentStep(storyId, step),
       onChunk: (chunk) => emitPipelineEvent(storyId, { type: 'chunk', text: chunk }),
       onChunkReset: () => emitPipelineEvent(storyId, { type: 'chunk_reset' }),

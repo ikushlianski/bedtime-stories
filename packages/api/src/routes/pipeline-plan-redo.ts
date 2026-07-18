@@ -68,6 +68,7 @@ export function triggerPlanRedo(
       ...(sashaContext !== null ? { sashaContext } : {}),
       ...(userFeedback ? { userFeedback } : {}),
       ...(bibleCharacters.length > 0 ? { bibleCharacters } : {}),
+      universeId,
       onStepChange: (step) => setCurrentStep(storyId, step),
     })
 

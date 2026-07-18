@@ -64,6 +64,7 @@ export function triggerTextRedoWithAnnotations(
       ...(universeContext !== undefined ? { universeContext } : {}),
       ...(styleGuide !== undefined ? { styleGuide } : {}),
       ...(sashaContext !== null && sashaContext !== undefined ? { sashaContext } : {}),
+      universeId,
       onStepChange: (step) => setCurrentStep(storyId, step),
     })
 

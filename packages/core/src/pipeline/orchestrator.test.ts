@@ -4,6 +4,8 @@ import * as plotterStage from './stages/plotter'
 import * as plotCriticStage from './stages/plot-critic'
 import * as writerStage from './stages/writer'
 import * as writerCriticStage from './stages/writer-critic'
+import * as loadMemorableMomentsModule from './load-memorable-moments'
+import type { MemorableMomentRow } from './stages/memorable-moments'
 
 vi.mock('@bedtime/observability', () => ({
   withPipelineTrace: vi.fn((_id: string, fn: (trace: unknown) => Promise<unknown>) => fn({})),
@@ -50,6 +52,14 @@ vi.mock('./stages/writer-critic')
 vi.mock('./prompt-resolver', () => ({
   resolvePrompt: vi.fn().mockResolvedValue({ text: 'mocked prompt', version: 1 }),
 }))
+vi.mock('./load-memorable-moments', async () => {
+  const actual = await vi.importActual<typeof import('./load-memorable-moments')>('./load-memorable-moments')
+  return { ...actual, loadMemorableMoments: vi.fn().mockResolvedValue([]) }
+})
+vi.mock('./load-reaction-preferences', async () => {
+  const actual = await vi.importActual<typeof import('./load-reaction-preferences')>('./load-reaction-preferences')
+  return { ...actual, loadReactionPreferences: vi.fn().mockResolvedValue(null) }
+})
 
 const baseModels = {
   plotter: 'claude-sonnet-4-6',
@@ -137,6 +147,88 @@ describe('runTextPhase', () => {
 
     expect(plotterStage.runPlotter).not.toHaveBeenCalled()
     expect(plotCriticStage.runPlotCritic).not.toHaveBeenCalled()
+  })
+})
+
+describe('memorable moments propagation', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(loadMemorableMomentsModule.loadMemorableMoments).mockResolvedValue([])
+  })
+
+  const moment: MemorableMomentRow = {
+    type: 'sasha_loved',
+    selectedText: 'Гоша нашёл говорящую рыбку под мостом',
+    noteText: null,
+    storyTitle: 'Рыбка под мостом',
+  }
+
+  it('passes a qualifying memorable moment from the loader into runPlotter', async () => {
+    vi.mocked(loadMemorableMomentsModule.loadMemorableMoments).mockResolvedValue([moment])
+    vi.mocked(plotterStage.runPlotter).mockResolvedValue('plan-v1')
+
+    await runPlanPhase({
+      seed: 'seed',
+      storyId: 1,
+      models: baseModels,
+      promptVersions: baseVersions,
+      universeId: 42,
+    })
+
+    expect(loadMemorableMomentsModule.loadMemorableMoments).toHaveBeenCalledWith(42, 1)
+    const callArgs = vi.mocked(plotterStage.runPlotter).mock.calls[0]?.[0]
+    expect(callArgs?.memorableMoments).toEqual([moment])
+  })
+
+  it('omits memorableMoments from the runPlotter call when the loader finds nothing', async () => {
+    vi.mocked(loadMemorableMomentsModule.loadMemorableMoments).mockResolvedValue([])
+    vi.mocked(plotterStage.runPlotter).mockResolvedValue('plan-v1')
+
+    await runPlanPhase({
+      seed: 'seed',
+      storyId: 1,
+      models: baseModels,
+      promptVersions: baseVersions,
+      universeId: 42,
+    })
+
+    const callArgs = vi.mocked(plotterStage.runPlotter).mock.calls[0]?.[0]
+    expect(callArgs?.memorableMoments).toBeUndefined()
+  })
+
+  it('passes a qualifying memorable moment from the loader into runWriter', async () => {
+    vi.mocked(loadMemorableMomentsModule.loadMemorableMoments).mockResolvedValue([moment])
+    vi.mocked(writerStage.runWriter).mockResolvedValue('text-v1')
+
+    await runTextPhase({
+      seed: 'seed',
+      planFinal: 'approved-plan',
+      storyId: 1,
+      models: baseModels,
+      promptVersions: baseVersions,
+      universeId: 42,
+    })
+
+    expect(loadMemorableMomentsModule.loadMemorableMoments).toHaveBeenCalledWith(42, 1)
+    const callArgs = vi.mocked(writerStage.runWriter).mock.calls[0]?.[0]
+    expect(callArgs?.memorableMoments).toEqual([moment])
+  })
+
+  it('omits memorableMoments from the runWriter call when the loader finds nothing', async () => {
+    vi.mocked(loadMemorableMomentsModule.loadMemorableMoments).mockResolvedValue([])
+    vi.mocked(writerStage.runWriter).mockResolvedValue('text-v1')
+
+    await runTextPhase({
+      seed: 'seed',
+      planFinal: 'approved-plan',
+      storyId: 1,
+      models: baseModels,
+      promptVersions: baseVersions,
+      universeId: 42,
+    })
+
+    const callArgs = vi.mocked(writerStage.runWriter).mock.calls[0]?.[0]
+    expect(callArgs?.memorableMoments).toBeUndefined()
   })
 })
 

@@ -5,6 +5,7 @@ import { generateStoryTitle } from './stages/title-generator'
 import { resolvePrompt, type ResolvedPrompt } from './prompt-resolver'
 import { loadEligibleFragments, extractFragmentMarkers, MAX_FRAGMENTS_PER_STORY } from './load-fragments'
 import { loadReactionPreferences, MIN_REACTIONS } from './load-reaction-preferences'
+import { loadMemorableMoments } from './load-memorable-moments'
 import { extractWordMarkers, MAX_WORDS_PER_STORY, type TargetWord } from './stages/words-block'
 import type { CharacterBibleEntry } from './stages/character-bible-block'
 import type { CriticOutput } from './schemas'
@@ -112,13 +113,15 @@ export async function runPlanPhase(options: {
   const userFeedbackArg = options.userFeedback ? { userFeedback: options.userFeedback } : {}
   const storyIdArg = { storyId: options.storyId }
 
-  const [eligibleFragments, reactionSummary] = await Promise.all([
+  const [eligibleFragments, reactionSummary, memorableMoments] = await Promise.all([
     options.injectFragments ? loadEligibleFragments(options.universeId ?? null) : Promise.resolve([]),
     options.universeId != null ? loadReactionPreferences(options.universeId) : Promise.resolve(null),
+    loadMemorableMoments(options.universeId ?? null, options.storyId),
   ])
   const fragmentsArg = eligibleFragments.length > 0 ? { eligibleFragments } : {}
   const reactionArg = reactionSummary && reactionSummary.sampleSize >= MIN_REACTIONS ? { reactionSummary } : {}
   const bibleArg = options.bibleCharacters && options.bibleCharacters.length > 0 ? { bibleCharacters: options.bibleCharacters } : {}
+  const memorableMomentsArg = memorableMoments.length > 0 ? { memorableMoments } : {}
 
   notify('Plotter')
   const planRaw = await runPlotter({
@@ -133,6 +136,7 @@ export async function runPlanPhase(options: {
     ...fragmentsArg,
     ...reactionArg,
     ...bibleArg,
+    ...memorableMomentsArg,
     ...userFeedbackArg,
     ...storyIdArg,
   })
@@ -174,6 +178,7 @@ export async function runTextPhase(options: {
   styleGuide?: string
   sashaContext?: string | null
   exemplars?: Exemplar[]
+  universeId?: number | null
   cwd?: string
   onStepChange?: (step: string) => void
 }): Promise<TextPhaseResult> {
@@ -210,6 +215,9 @@ export async function runTextPhase(options: {
   notify('Writer')
   const storyIdArg = { storyId: options.storyId }
 
+  const memorableMoments = await loadMemorableMoments(options.universeId ?? null, options.storyId)
+  const memorableMomentsArg = memorableMoments.length > 0 ? { memorableMoments } : {}
+
   notify('Writer')
   const textV1 = await runWriter({
     plan: planFinal,
@@ -221,6 +229,7 @@ export async function runTextPhase(options: {
     ...styleGuideArg,
     ...sashaContextArg,
     ...exemplarsArg,
+    ...memorableMomentsArg,
     ...storyIdArg,
   })
 
@@ -267,13 +276,15 @@ export async function runPlotterOnly(options: {
 
   const storyIdArg = { storyId: options.storyId }
 
-  const [eligibleFragments, reactionSummary] = await Promise.all([
+  const [eligibleFragments, reactionSummary, memorableMoments] = await Promise.all([
     options.injectFragments ? loadEligibleFragments(options.universeId ?? null) : Promise.resolve([]),
     options.universeId != null ? loadReactionPreferences(options.universeId) : Promise.resolve(null),
+    loadMemorableMoments(options.universeId ?? null, options.storyId),
   ])
   const fragmentsArg = eligibleFragments.length > 0 ? { eligibleFragments } : {}
   const reactionArg = reactionSummary && reactionSummary.sampleSize >= MIN_REACTIONS ? { reactionSummary } : {}
   const bibleArg = options.bibleCharacters && options.bibleCharacters.length > 0 ? { bibleCharacters: options.bibleCharacters } : {}
+  const memorableMomentsArg = memorableMoments.length > 0 ? { memorableMoments } : {}
 
   notify('Plotter')
   const planRaw = await runPlotter({
@@ -288,6 +299,7 @@ export async function runPlotterOnly(options: {
     ...fragmentsArg,
     ...reactionArg,
     ...bibleArg,
+    ...memorableMomentsArg,
     ...userFeedbackArg,
     ...storyIdArg,
   })
@@ -330,6 +342,7 @@ export async function runWriterOnly(options: {
   targetWords?: TargetWord[]
   previousText?: string
   userAnnotations?: string
+  universeId?: number | null
   cwd?: string
   onStepChange?: (step: string) => void
   onChunk?: (chunk: string) => void
@@ -359,6 +372,9 @@ export async function runWriterOnly(options: {
 
   const storyIdArg = { storyId: options.storyId }
 
+  const memorableMoments = await loadMemorableMoments(options.universeId ?? null, options.storyId)
+  const memorableMomentsArg = memorableMoments.length > 0 ? { memorableMoments } : {}
+
   notify('Writer')
   const textV1 = await runWriter({
     plan: planFinal,
@@ -374,6 +390,7 @@ export async function runWriterOnly(options: {
     ...targetWordsArg,
     ...previousTextArg,
     ...userAnnotationsArg,
+    ...memorableMomentsArg,
     ...onChunkArg,
     ...onChunkResetArg,
     ...storyIdArg,
