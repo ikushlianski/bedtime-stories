@@ -16,7 +16,7 @@ import { analyzeStoryAndLearn } from './story-analysis'
 import { dispatchAnalysis } from './pipeline-dispatch'
 import { loadUniverseContext } from './load-universe-context'
 import { loadStoryFragmentTexts } from '@bedtime/core/pipeline/load-fragments'
-import { synthesizeUniverseMemory } from '@bedtime/core/pipeline/synthesize-universe-memory'
+import { syncUniverseMemory } from '@bedtime/core/pipeline/synthesize-universe-memory'
 import { notifyStoryReady } from './pipeline-notifications'
 import { resolveChatGate } from '@bedtime/core/pipeline/resolve-chat-gate'
 import { computePatchedText } from '@bedtime/core/pipeline/compute-patched-text'
@@ -286,20 +286,9 @@ router.post('/:id/readings', async (req, res) => {
 
       if (story.groupId) {
         const universeId = story.groupId
-        void synthesizeUniverseMemory(universeId)
-          .then((memory) => {
-            if (!memory) return
-            return db
-              .update(storyGroups)
-              .set({
-                styleGuideWorks: memory.works,
-                styleGuideDoesntWork: memory.doesntWork,
-                styleGuideTechniques: memory.techniques,
-                styleGuideMinimize: memory.minimize,
-              })
-              .where(eq(storyGroups.id, universeId))
-          })
-          .catch((err) => console.error('[auto-synthesize] failed for universe', universeId, err))
+        void syncUniverseMemory(universeId).catch((err) =>
+          console.error('[auto-synthesize] failed for universe', universeId, err),
+        )
       }
     }
 

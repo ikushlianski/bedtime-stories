@@ -7,7 +7,7 @@ import type { StoryGroup, NewStoryGroup } from '@bedtime/core/db/types'
 import { validate } from '../middleware/validate'
 import { getPendingSuggestionsCount } from './universe-suggestions'
 import { getPendingIdeasCount } from './story-ideas'
-import { synthesizeUniverseMemory } from '@bedtime/core/pipeline/synthesize-universe-memory'
+import { syncUniverseMemory } from '@bedtime/core/pipeline/synthesize-universe-memory'
 
 const router = Router()
 
@@ -323,23 +323,14 @@ router.post('/:id/synthesize-memory', async (req, res) => {
       return
     }
 
-    const memory = await synthesizeUniverseMemory(id)
+    const result = await syncUniverseMemory(id)
 
-    if (!memory) {
-      res.status(422).json({ error: 'Not enough data to synthesize memory' })
+    if (!result.updated) {
+      res.status(422).json({ error: 'Not enough new data to synthesize memory' })
       return
     }
 
-    const [updated] = await db
-      .update(storyGroups)
-      .set({
-        styleGuideWorks: memory.works,
-        styleGuideDoesntWork: memory.doesntWork,
-        styleGuideTechniques: memory.techniques,
-        styleGuideMinimize: memory.minimize,
-      })
-      .where(eq(storyGroups.id, id))
-      .returning()
+    const [updated] = await db.select().from(storyGroups).where(eq(storyGroups.id, id))
 
     res.json(await toPublic(updated as StoryGroup))
   } catch (err) {

@@ -76,6 +76,9 @@ jobs:
             catalogSyncSecret:
               value: ${{ secrets.PROD_CATALOG_SYNC_SECRET }}
               secret: true
+            universeMemorySyncSecret:
+              value: ${{ secrets.PROD_UNIVERSE_MEMORY_SYNC_SECRET }}
+              secret: true
         env:
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PROD_PULUMI_CONFIG_PASSPHRASE }}
 
@@ -151,6 +154,7 @@ jobs:
             --set-env-vars="TELEGRAM_WEBHOOK_URL=https://bedtime-agent.ilya.online/api/telegram/webhook" \
             --set-env-vars="CATALOG_SYNC_SECRET=${{ secrets.PROD_CATALOG_SYNC_SECRET }}" \
             --set-env-vars="CATALOG_SYNC_MODE=gcp" \
+            --set-env-vars="UNIVERSE_MEMORY_SYNC_SECRET=${{ secrets.PROD_UNIVERSE_MEMORY_SYNC_SECRET }}" \
             --set-env-vars="BACKFILL_SECRET=${{ secrets.PROD_BACKFILL_SECRET }}" \
             --set-env-vars="PIPELINE_QUEUE=projects/bedtime-prod/locations/us-central1/queues/bedtime-pipeline" \
             --set-env-vars="PIPELINE_WORKER_URL=https://bedtime-agent.ilya.online" \

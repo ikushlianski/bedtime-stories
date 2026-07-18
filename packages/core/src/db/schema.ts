@@ -19,6 +19,7 @@ export const storyGroups = pgTable('story_groups', {
   styleGuideDoesntWork: text('style_guide_doesnt_work'),
   styleGuideTechniques: text('style_guide_techniques'),
   styleGuideMinimize: text('style_guide_minimize'),
+  styleGuideSyncedAt: timestamp('style_guide_synced_at'),
   agentOverrides: jsonb('agent_overrides').default({}),
   createdAt: timestamp('created_at').defaultNow(),
 })

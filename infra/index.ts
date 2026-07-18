@@ -210,6 +210,38 @@ new gcp.cloudscheduler.Job(
   { dependsOn: enabledApis },
 )
 
+const universeMemorySyncSecret = config.requireSecret('universeMemorySyncSecret')
+
+new gcp.cloudscheduler.Job(
+  'universe-memory-sync',
+  {
+    project: project.projectId,
+    region,
+    name: 'universe-memory-sync',
+    description: 'Nightly universe memory (style guide) sync from accumulated feedback',
+    schedule: '0 4 * * *',
+    timeZone: 'UTC',
+    attemptDeadline: '300s',
+    retryConfig: {
+      retryCount: 3,
+      maxRetryDuration: '3600s',
+      minBackoffDuration: '60s',
+      maxBackoffDuration: '600s',
+      maxDoublings: 3,
+    },
+    httpTarget: {
+      uri: 'https://bedtime-agent.ilya.online/api/internal/universe-memory-sync',
+      httpMethod: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Universe-Memory-Sync-Secret': universeMemorySyncSecret,
+      },
+      body: Buffer.from('{}').toString('base64'),
+    },
+  },
+  { dependsOn: enabledApis },
+)
+
 export const projectId = project.projectId
 export const apiUrl = apiService.statuses[0].url
 export const registryUrl = pulumi.interpolate`${region}-docker.pkg.dev/${project.projectId}/${registry.repositoryId}`
