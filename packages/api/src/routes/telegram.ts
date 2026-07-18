@@ -3,6 +3,7 @@ import { desc, eq, inArray, isNotNull } from 'drizzle-orm'
 import { db } from '@bedtime/core/db/client.js'
 import { stories, storyGroups, storyReadings, topics, fragments } from '@bedtime/core/db/schema.js'
 import { deriveIsAuthorizedUser, deriveIdeaFromMessage, parseCommandArgument } from './telegram-utils.js'
+import { setPendingUniverseChoice, consumePendingUniverseChoice } from './telegram-pending-action.js'
 import {
   UNREAD_STATUSES,
   READ_STATUSES,
@@ -23,6 +24,7 @@ const allowedUserId = Number(process.env['TELEGRAM_ALLOWED_USER_ID'] ?? '0')
 const CATEGORY_UNREAD = 'cat:unread'
 const CATEGORY_READ = 'cat:read'
 const STORIES_MENU = 'stories:menu'
+const NEW_PICK_PREFIX = 'newpick:'
 const LIST_LIMIT = 30
 
 async function resolveDefaultUniverseId(): Promise<number | null> {
@@ -42,13 +44,7 @@ async function resolveDefaultUniverseId(): Promise<number | null> {
   return first?.id ?? null
 }
 
-async function createStoryAndFire(seedText: string): Promise<number | null> {
-  const universeId = await resolveDefaultUniverseId()
-
-  if (universeId === null) {
-    return null
-  }
-
+async function insertAndDispatchStory(seedText: string, universeId: number): Promise<number> {
   const [universe] = await db.select().from(storyGroups).where(eq(storyGroups.id, universeId))
 
   const [newStory] = await db
@@ -76,6 +72,20 @@ async function createStoryAndFire(seedText: string): Promise<number | null> {
   })
 
   return storyId
+}
+
+async function createStoryAndFire(seedText: string): Promise<number | null> {
+  const universeId = await resolveDefaultUniverseId()
+
+  if (universeId === null) {
+    return null
+  }
+
+  return insertAndDispatchStory(seedText, universeId)
+}
+
+async function createStoryForUniverse(seedText: string, universeId: number): Promise<number> {
+  return insertAndDispatchStory(seedText, universeId)
 }
 
 async function addTopic(title: string): Promise<boolean> {
@@ -111,6 +121,23 @@ function categoryKeyboard(): InlineKeyboard {
 
 async function sendCategoryMenu(ctx: Context): Promise<void> {
   await ctx.reply('Какие сказки показать?', { reply_markup: categoryKeyboard() })
+}
+
+async function sendUniversePicker(ctx: Context): Promise<void> {
+  const universes = await db.select({ id: storyGroups.id, name: storyGroups.name }).from(storyGroups).orderBy(storyGroups.id)
+
+  if (universes.length === 0) {
+    await ctx.reply('Не получилось начать: сначала добавь вселенную в приложении.')
+    return
+  }
+
+  const kb = new InlineKeyboard()
+
+  for (const universe of universes) {
+    kb.text(universe.name.slice(0, 60), `${NEW_PICK_PREFIX}${universe.id}`).row()
+  }
+
+  await ctx.reply('В какой вселенной новая сказка?', { reply_markup: kb })
 }
 
 async function sendStoriesByCategory(ctx: Context, category: 'unread' | 'read'): Promise<void> {
@@ -254,7 +281,7 @@ if (bot) {
   bot.command('new', async (ctx) => {
     if (!deriveIsAuthorizedUser(ctx.from?.id, allowedUserId)) return
 
-    await ctx.reply('Опиши идею новой сказки одним сообщением 👇')
+    await sendUniversePicker(ctx)
   })
 
   bot.command('stories', async (ctx) => {
@@ -305,12 +332,34 @@ if (bot) {
     await showStory(ctx, storyId)
   })
 
+  bot.callbackQuery(new RegExp(`^${NEW_PICK_PREFIX}\\d+$`), async (ctx) => {
+    if (!deriveIsAuthorizedUser(ctx.from?.id, allowedUserId)) {
+      await ctx.answerCallbackQuery()
+      return
+    }
+
+    const universeId = Number.parseInt(ctx.callbackQuery.data.slice(NEW_PICK_PREFIX.length), 10)
+
+    await setPendingUniverseChoice(ctx.chat!.id, universeId)
+    await ctx.answerCallbackQuery()
+    await ctx.reply('Опиши идею новой сказки одним сообщением 👇')
+  })
+
   bot.on('message:text', async (ctx) => {
     if (!deriveIsAuthorizedUser(ctx.from?.id, allowedUserId)) return
 
     const text = ctx.message.text.trim()
 
     if (text.length === 0) return
+
+    const pendingUniverseId = await consumePendingUniverseChoice(ctx.chat.id)
+
+    if (pendingUniverseId !== null) {
+      const storyId = await createStoryForUniverse(text, pendingUniverseId)
+
+      await ctx.reply(`Генерирую сказку №${storyId} ✨ Пришлю, когда будет готова.`)
+      return
+    }
 
     const maybeId = parseStoryIdMessage(text)
 
