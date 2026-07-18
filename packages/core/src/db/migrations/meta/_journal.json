@@ -288,6 +288,13 @@
       "when": 1784381880255,
       "tag": "0040_needy_wrecker",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1784392232960,
+      "tag": "0041_universe_memory_synced_at",
+      "breakpoints": true
     }
   ]
 }
