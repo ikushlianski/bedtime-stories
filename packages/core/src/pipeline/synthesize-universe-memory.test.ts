@@ -178,6 +178,34 @@ describe('syncUniverseMemory', () => {
     expect(mockedDb.update).toHaveBeenCalled()
   })
 
+  it('advances the cursor to a snapshot taken before the LLM call, not after it resolves', async () => {
+    mockedDb.where
+      .mockReturnValueOnce([baseGroup]) // group fetch (terminal)
+      .mockReturnValueOnce(mockedDb) // stories fetch (intermediate, chains to orderBy/limit)
+      .mockReturnValueOnce([{ type: 'sasha_loved', selectedText: 'dragon scene', noteText: null, storyId: 10 }]) // annotations delta
+      .mockReturnValueOnce([]) // feedback delta
+      .mockReturnValueOnce([]) // parentReviews delta
+      .mockReturnValueOnce([]) // childReactions delta
+      .mockReturnValueOnce(undefined) // final update where
+    mockedDb.limit.mockReturnValueOnce(baseStoryRows)
+
+    const beforeCall = Date.now()
+    const llmDelayMs = 60
+
+    vi.mocked(aiRunner.runText).mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, llmDelayMs))
+      return JSON.stringify({ works: 'a', doesntWork: 'b', techniques: 'c', minimize: 'd' })
+    })
+
+    await syncUniverseMemory(1)
+
+    const setArgs = mockedDb.set.mock.calls[0]?.[0] as { styleGuideSyncedAt: Date }
+    const persistedCursorMs = setArgs.styleGuideSyncedAt.getTime()
+
+    expect(persistedCursorMs).toBeGreaterThanOrEqual(beforeCall)
+    expect(persistedCursorMs).toBeLessThan(beforeCall + llmDelayMs)
+  })
+
   it('returns { updated: false } and never calls the LLM when the cursor is set and there are no rows newer than it', async () => {
     const syncedGroup = { ...baseGroup, styleGuideSyncedAt: new Date('2026-07-17T00:00:00Z') }
 

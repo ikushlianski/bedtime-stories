@@ -55,6 +55,8 @@ export async function syncUniverseMemory(universeId: number): Promise<SyncUniver
   const storyIds = universeStories.map((s) => s.id)
   const storyTitleById = new Map(universeStories.map((s) => [s.id, s.title]))
 
+  const nextCursor = new Date()
+
   const [deltaAnnotations, deltaFeedback, deltaParentReviews, deltaChildReactions] = await Promise.all([
     db
       .select({
@@ -170,7 +172,7 @@ export async function syncUniverseMemory(universeId: number): Promise<SyncUniver
       styleGuideTechniques: memory.techniques || null,
       styleGuideMinimize: memory.minimize || null,
       styleGuide: compiled || null,
-      styleGuideSyncedAt: new Date(),
+      styleGuideSyncedAt: nextCursor,
     })
     .where(eq(storyGroups.id, universeId))
 
