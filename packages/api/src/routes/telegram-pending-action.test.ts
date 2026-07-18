@@ -1,4 +1,9 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
+
+vi.mock('@bedtime/core/db/client.js', () => ({
+  db: {},
+}))
+
 import { buildPendingActionUpsert, isPendingActionExpired, PENDING_ACTION_TTL_MS } from './telegram-pending-action'
 
 describe('buildPendingActionUpsert', () => {
