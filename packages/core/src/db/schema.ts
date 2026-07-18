@@ -37,6 +37,12 @@ export const universeCharacters = pgTable('universe_characters', {
   updatedAt: timestamp('updated_at').defaultNow(),
 })
 
+export const telegramPendingActions = pgTable('telegram_pending_actions', {
+  chatId: bigint('chat_id', { mode: 'number' }).primaryKey(),
+  universeId: integer('universe_id').references(() => storyGroups.id).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
 export const universeSuggestions = pgTable('universe_suggestions', {
   id: serial('id').primaryKey(),
   universeId: integer('universe_id').references(() => storyGroups.id).notNull(),
