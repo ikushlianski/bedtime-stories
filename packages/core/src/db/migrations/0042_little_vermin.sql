@@ -1,1 +1,1 @@
-ALTER TABLE "story_groups" ADD COLUMN "style_guide_synced_at" timestamp;
+ALTER TABLE "story_groups" ADD COLUMN IF NOT EXISTS "style_guide_synced_at" timestamp;

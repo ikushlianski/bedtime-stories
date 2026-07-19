@@ -1,1 +1,1 @@
-ALTER TABLE "story_comments" ADD COLUMN "source" text DEFAULT 'chat' NOT NULL;
+ALTER TABLE "story_comments" ADD COLUMN IF NOT EXISTS "source" text DEFAULT 'chat' NOT NULL;
