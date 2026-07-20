@@ -5,6 +5,7 @@ import { runStoryAnalyzer } from '@bedtime/core/pipeline/stages/story-analyzer'
 import { updateStyleGuide } from '@bedtime/core/pipeline/style-guide-updater'
 import { formatParentFeedback } from '@bedtime/core/pipeline/derivers/format-parent-feedback'
 import { runUniverseFactExtractor } from '@bedtime/core/pipeline/stages/universe-fact-extractor'
+import { embedStory } from '@bedtime/core/pipeline/embed-story'
 
 export interface AnalyzeResult {
   storyAnalysis: string
@@ -25,6 +26,10 @@ export async function analyzeStoryAndLearn(storyId: number): Promise<AnalyzeResu
   if (!storyText) {
     throw new Error(`Story ${storyId} has no text to analyze`)
   }
+
+  embedStory(storyId).catch((err) => {
+    console.error(`[analyze] story ${storyId} — embedding failed:`, err)
+  })
 
   let universeContext: string | undefined
 

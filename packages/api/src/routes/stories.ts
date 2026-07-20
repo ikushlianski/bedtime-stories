@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { eq, desc, and, sql } from 'drizzle-orm'
 import { db } from '@bedtime/core/db/client'
-import { stories, annotations, feedback, runSnapshots, storyGroups, planQuestions, planConversations, parentReviews, childReactions, storyReadings, modelCalls, storyTextVersions } from '@bedtime/core/db/schema'
+import { stories, annotations, feedback, runSnapshots, storyGroups, planQuestions, planConversations, parentReviews, childReactions, storyReadings, modelCalls, storyTextVersions, storyEmbeddings } from '@bedtime/core/db/schema'
 import { deriveStoryCostBreakdown } from '@bedtime/core/cost/aggregations/derive-story-cost-breakdown'
 import type { Story, NewStory, NewAnnotation, ParentReview, ChildReaction } from '@bedtime/core/db/types'
 import { validate } from '../middleware/validate'
@@ -1109,6 +1109,7 @@ router.delete('/:id', async (req, res) => {
     await db.delete(storyReadings).where(eq(storyReadings.storyId, storyId))
     await db.delete(modelCalls).where(eq(modelCalls.storyId, storyId))
     await db.delete(storyTextVersions).where(eq(storyTextVersions.storyId, storyId))
+    await db.delete(storyEmbeddings).where(eq(storyEmbeddings.storyId, storyId))
     await db.delete(stories).where(eq(stories.id, storyId))
 
     res.status(204).send()

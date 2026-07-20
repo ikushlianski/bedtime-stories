@@ -1,3 +1,5 @@
+import { toToolWireFormat, type ToolCall, type ToolDefinition } from './tool-types.js'
+
 const BASE_URL = 'https://openrouter.ai/api/v1'
 
 export interface OpenRouterUsage {
@@ -6,16 +8,28 @@ export interface OpenRouterUsage {
   costUsd: number
 }
 
+export type ChatMessage =
+  | { role: 'system' | 'user'; content: string }
+  | { role: 'assistant'; content: string | null; tool_calls?: ToolCall[] }
+  | { role: 'tool'; content: string; tool_call_id: string }
+
 export interface ChatRequest {
   model: string
-  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>
+  messages: ChatMessage[]
   stream?: boolean
   temperature?: number
   response_format?: unknown
+  tools?: ToolDefinition[]
 }
 
 export interface ChatNonStreamResult {
   text: string
+  usage: OpenRouterUsage
+  toolCalls?: ToolCall[]
+}
+
+export interface EmbedResult {
+  embeddings: number[][]
   usage: OpenRouterUsage
 }
 
@@ -56,7 +70,12 @@ export class OpenRouterClient {
   }
 
   async chatNonStream(req: ChatRequest): Promise<ChatNonStreamResult> {
-    const body = { ...req, stream: false }
+    const { tools, ...rest } = req
+    const body = {
+      ...rest,
+      stream: false,
+      ...(tools !== undefined && tools.length > 0 ? { tools: tools.map(toToolWireFormat) } : {}),
+    }
     const res = await fetch(`${BASE_URL}/chat/completions`, {
       method: 'POST',
       headers: authHeaders(this.apiKey),
@@ -68,18 +87,47 @@ export class OpenRouterClient {
     }
 
     const json = (await res.json()) as {
-      choices?: Array<{ message?: { content?: string } }>
+      choices?: Array<{ message?: { content?: string; tool_calls?: ToolCall[] } }>
       usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number }
     }
 
     const text = json.choices?.[0]?.message?.content ?? ''
+    const toolCalls = json.choices?.[0]?.message?.tool_calls
     const usage: OpenRouterUsage = {
       promptTokens: json.usage?.prompt_tokens ?? 0,
       completionTokens: json.usage?.completion_tokens ?? 0,
       costUsd: json.usage?.cost ?? 0,
     }
 
-    return { text, usage }
+    return { text, usage, ...(toolCalls !== undefined && toolCalls.length > 0 ? { toolCalls } : {}) }
+  }
+
+  async embed(input: string[], model = 'openai/text-embedding-3-small'): Promise<EmbedResult> {
+    const res = await fetch(`${BASE_URL}/embeddings`, {
+      method: 'POST',
+      headers: authHeaders(this.apiKey),
+      body: JSON.stringify({ model, input }),
+    })
+
+    if (!res.ok) {
+      throw new OpenRouterHttpError(res.status, await res.text())
+    }
+
+    const json = (await res.json()) as {
+      data?: Array<{ embedding: number[]; index: number }>
+      usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number }
+    }
+
+    const sorted = [...(json.data ?? [])].sort((a, b) => a.index - b.index)
+    const embeddings = sorted.map((d) => d.embedding)
+
+    const usage: OpenRouterUsage = {
+      promptTokens: json.usage?.prompt_tokens ?? 0,
+      completionTokens: json.usage?.completion_tokens ?? 0,
+      costUsd: json.usage?.cost ?? 0,
+    }
+
+    return { embeddings, usage }
   }
 
   async *chatStream(req: ChatRequest): AsyncIterable<ChatStreamEvent> {

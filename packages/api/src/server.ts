@@ -32,6 +32,7 @@ import internalCatalogSyncRouter from './routes/internal-catalog-sync'
 import internalBackfillRouter from './routes/internal-backfill'
 import internalWorkerRouter from './routes/internal-worker'
 import internalUniverseMemorySyncRouter from './routes/internal-universe-memory-sync'
+import internalEmbedStoryBackfillRouter from './routes/internal-embed-story-backfill'
 import { requireAuth } from './middleware/auth.middleware'
 import { bot } from './routes/telegram'
 import { webhookCallback } from 'grammy'
@@ -54,6 +55,7 @@ app.use('/api/internal/catalog-sync', internalCatalogSyncRouter)
 app.use('/api/internal/backfill', internalBackfillRouter)
 app.use('/api/internal/worker', internalWorkerRouter)
 app.use('/api/internal/universe-memory-sync', internalUniverseMemorySyncRouter)
+app.use('/api/internal/embed-story-backfill', internalEmbedStoryBackfillRouter)
 
 const useTelegramPolling = !process.env['TELEGRAM_WEBHOOK_URL'] && process.env['TELEGRAM_ENABLE_POLLING'] === 'true'
 

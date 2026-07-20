@@ -1,4 +1,4 @@
-import { bigint, boolean, integer, jsonb, numeric, pgTable, serial, text, timestamp, unique } from 'drizzle-orm/pg-core'
+import { bigint, boolean, integer, jsonb, numeric, pgTable, serial, text, timestamp, unique, vector } from 'drizzle-orm/pg-core'
 
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
@@ -379,6 +379,17 @@ export const storyTextVersions = pgTable('story_text_versions', {
   modelId: text('model_id'),
   stage: text('stage').$type<'writer_initial' | 'writer_critic' | 'annotated_rewrite' | 'chat_patch'>().notNull(),
   createdAt: timestamp('created_at').defaultNow(),
+})
+
+export const storyEmbeddings = pgTable('story_embeddings', {
+  id: serial('id').primaryKey(),
+  storyId: integer('story_id').references(() => stories.id).notNull().unique(),
+  universeId: integer('universe_id').references(() => storyGroups.id),
+  embedding: vector('embedding', { dimensions: 1536 }).notNull(),
+  contentHash: text('content_hash').notNull(),
+  embeddingModel: text('embedding_model').notNull().default('openai/text-embedding-3-small'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
 })
 
 export const appSettings = pgTable('app_settings', {

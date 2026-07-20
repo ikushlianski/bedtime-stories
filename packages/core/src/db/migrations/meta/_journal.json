@@ -309,6 +309,13 @@
       "when": 1784402807644,
       "tag": "0043_rare_changeling",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1784585462170,
+      "tag": "0044_story_embeddings",
+      "breakpoints": true
     }
   ]
 }

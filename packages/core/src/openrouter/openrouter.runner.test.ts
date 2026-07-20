@@ -118,6 +118,191 @@ describe('OpenRouterRunner.runText', () => {
   })
 })
 
+describe('OpenRouterRunner.runText with tools', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  const tool = {
+    name: 'search_past_stories',
+    description: 'search',
+    parameters: { type: 'object' as const, properties: { query: { type: 'string' } }, required: ['query'] },
+  }
+
+  it('executes a requested tool call, feeds the result back, and returns the final text once the model stops calling tools', async () => {
+    const recorder = makeRecorder()
+    const chatNonStream = vi
+      .fn()
+      .mockResolvedValueOnce({
+        text: '',
+        usage: { promptTokens: 10, completionTokens: 5, costUsd: 0.001 },
+        toolCalls: [{ id: 'call_1', function: { name: 'search_past_stories', arguments: '{"query":"a"}' } }],
+      })
+      .mockResolvedValueOnce({
+        text: 'final outline text',
+        usage: { promptTokens: 20, completionTokens: 8, costUsd: 0.002 },
+      })
+
+    const client = {
+      chatStream: vi.fn(),
+      chatNonStream,
+      listModels: vi.fn(),
+    } as unknown as OpenRouterClient
+
+    const runner = new OpenRouterRunner(client, recorder)
+    const executeTool = vi.fn(async () => 'tool result text')
+
+    const result = await runner.runText({
+      model: 'm/plotter',
+      prompt: 'plan a story',
+      tools: [tool],
+      executeTool,
+      storyId: 1,
+    })
+
+    expect(result).toBe('final outline text')
+    expect(executeTool).toHaveBeenCalledWith('search_past_stories', '{"query":"a"}')
+    expect(recorder.calls).toHaveLength(2)
+    expect(recorder.calls[0]).toMatchObject({ attempt: 1, success: true, tokensIn: 10 })
+    expect(recorder.calls[1]).toMatchObject({ attempt: 2, success: true, tokensIn: 20 })
+
+    const secondCallMessages = chatNonStream.mock.calls[1]?.[0]?.messages as Array<{ role: string }>
+    expect(secondCallMessages.some((m) => m.role === 'tool')).toBe(true)
+  })
+
+  it('completes normally when the model never calls the tool', async () => {
+    const recorder = makeRecorder()
+    const chatNonStream = vi.fn().mockResolvedValueOnce({
+      text: 'outline without any callback',
+      usage: { promptTokens: 10, completionTokens: 5, costUsd: 0.001 },
+    })
+
+    const client = {
+      chatStream: vi.fn(),
+      chatNonStream,
+      listModels: vi.fn(),
+    } as unknown as OpenRouterClient
+
+    const runner = new OpenRouterRunner(client, recorder)
+    const executeTool = vi.fn()
+
+    const result = await runner.runText({
+      model: 'm/plotter',
+      prompt: 'plan a story',
+      tools: [tool],
+      executeTool,
+    })
+
+    expect(result).toBe('outline without any callback')
+    expect(executeTool).not.toHaveBeenCalled()
+    expect(recorder.calls).toHaveLength(1)
+  })
+
+  it('stops after MAX_TOOL_ITERATIONS even when the model keeps requesting the tool every turn, recording every iteration', async () => {
+    const recorder = makeRecorder()
+    const chatNonStream = vi.fn().mockResolvedValue({
+      text: 'still thinking',
+      usage: { promptTokens: 5, completionTokens: 2, costUsd: 0.0001 },
+      toolCalls: [{ id: 'call_x', function: { name: 'search_past_stories', arguments: '{"query":"x"}' } }],
+    })
+
+    const client = {
+      chatStream: vi.fn(),
+      chatNonStream,
+      listModels: vi.fn(),
+    } as unknown as OpenRouterClient
+
+    const runner = new OpenRouterRunner(client, recorder)
+    const executeTool = vi.fn(async () => 'result')
+
+    const result = await runner.runText({
+      model: 'm/plotter',
+      prompt: 'plan a story',
+      tools: [tool],
+      executeTool,
+    })
+
+    expect(result).toBe('still thinking')
+    expect(chatNonStream).toHaveBeenCalledTimes(3)
+    expect(recorder.calls).toHaveLength(3)
+  })
+
+  it('executes at most MAX_TOOL_CALLS_PER_ITERATION tool calls when a single response requests more', async () => {
+    const recorder = makeRecorder()
+    const manyCalls = Array.from({ length: 6 }, (_, i) => ({
+      id: `call_${i}`,
+      function: { name: 'search_past_stories', arguments: '{"query":"x"}' },
+    }))
+
+    const chatNonStream = vi
+      .fn()
+      .mockResolvedValueOnce({
+        text: '',
+        usage: { promptTokens: 5, completionTokens: 2, costUsd: 0.0001 },
+        toolCalls: manyCalls,
+      })
+      .mockResolvedValueOnce({
+        text: 'done',
+        usage: { promptTokens: 5, completionTokens: 2, costUsd: 0.0001 },
+      })
+
+    const client = {
+      chatStream: vi.fn(),
+      chatNonStream,
+      listModels: vi.fn(),
+    } as unknown as OpenRouterClient
+
+    const runner = new OpenRouterRunner(client, recorder)
+    const executeTool = vi.fn(async () => 'result')
+
+    await runner.runText({
+      model: 'm/plotter',
+      prompt: 'plan a story',
+      tools: [tool],
+      executeTool,
+    })
+
+    expect(executeTool).toHaveBeenCalledTimes(3)
+  })
+
+  it('feeds a structured error back to the model instead of throwing when executeTool rejects', async () => {
+    const recorder = makeRecorder()
+    const chatNonStream = vi
+      .fn()
+      .mockResolvedValueOnce({
+        text: '',
+        usage: { promptTokens: 5, completionTokens: 2, costUsd: 0.0001 },
+        toolCalls: [{ id: 'call_1', function: { name: 'search_past_stories', arguments: '{"query":"x"}' } }],
+      })
+      .mockResolvedValueOnce({
+        text: 'proceeded without the callback',
+        usage: { promptTokens: 5, completionTokens: 2, costUsd: 0.0001 },
+      })
+
+    const client = {
+      chatStream: vi.fn(),
+      chatNonStream,
+      listModels: vi.fn(),
+    } as unknown as OpenRouterClient
+
+    const runner = new OpenRouterRunner(client, recorder)
+    const executeTool = vi.fn(async () => {
+      throw new Error('retrieval failed')
+    })
+
+    const result = await runner.runText({
+      model: 'm/plotter',
+      prompt: 'plan a story',
+      tools: [tool],
+      executeTool,
+    })
+
+    expect(result).toBe('proceeded without the callback')
+
+    const secondCallMessages = chatNonStream.mock.calls[1]?.[0]?.messages as Array<{ role: string; content?: string }>
+    const toolMessage = secondCallMessages.find((m) => m.role === 'tool')
+    expect(toolMessage?.content).toContain('tool_execution_failed')
+  })
+})
+
 describe('OpenRouterRunner.runStructured', () => {
   beforeEach(() => vi.clearAllMocks())
 

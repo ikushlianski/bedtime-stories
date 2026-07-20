@@ -5,11 +5,16 @@ import { db } from '../db/client.js'
 import { modelCatalog } from '../db/schema.js'
 import { env } from '../env.js'
 import type { AiRunner, RunStructuredOptions, RunTextOptions } from '../ai/runner.interface.js'
-import { OpenRouterClient, OpenRouterHttpError, type OpenRouterUsage } from './openrouter.client.js'
+import { OpenRouterClient, OpenRouterHttpError, type ChatMessage, type OpenRouterUsage } from './openrouter.client.js'
 import { parseJsonWithSchema } from './json-extract.js'
 import { deriveStructuredRequestPayload } from './derive-structured-request-payload.js'
 import { costRecorder, type CostRecorder } from '../cost/cost-recorder.js'
 import { langfuse, getActiveTraceId } from '@bedtime/observability'
+import {
+  clampToolIterations,
+  deriveToolLoopMessages,
+  MAX_TOOL_CALLS_PER_ITERATION,
+} from './derive-tool-loop-messages.js'
 
 const SYSTEM_PROMPT =
   'You are an AI assistant following the instructions in the user message exactly. Do not introduce yourself, do not explain what you are about to do, and do not add trailing commentary. Produce only the output the user asked for.'
@@ -98,6 +103,10 @@ export class OpenRouterRunner implements AiRunner {
   ) {}
 
   async runText(options: RunTextOptions): Promise<string> {
+    if (options.tools !== undefined && options.tools.length > 0 && options.executeTool !== undefined) {
+      return this.runTextWithTools(options, options.tools, options.executeTool)
+    }
+
     const label = options.label ?? 'runText'
     const stage = options.stage ?? deriveStage(options.label, undefined)
     const candidates = options.fallback !== undefined ? [options.model, options.fallback] : [options.model]
@@ -205,6 +214,134 @@ export class OpenRouterRunner implements AiRunner {
     generation.end({ level: 'ERROR', statusMessage: 'no candidates available' })
 
     throw lastErr ?? new AiExecutionError('no candidates available')
+  }
+
+  private async runTextWithTools(
+    options: RunTextOptions,
+    tools: NonNullable<RunTextOptions['tools']>,
+    executeTool: NonNullable<RunTextOptions['executeTool']>,
+  ): Promise<string> {
+    const label = options.label ?? 'runText'
+    const stage = options.stage ?? deriveStage(options.label, undefined)
+    const model = options.model
+    const maxIterations = clampToolIterations(options.maxToolIterations)
+
+    const generation = langfuse.generation({
+      name: label,
+      model,
+      input: options.prompt,
+      metadata: { stage },
+      traceId: getActiveTraceId() ?? null,
+    })
+
+    let messages: ChatMessage[] = [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: options.prompt },
+    ]
+
+    let toolCallCount = 0
+
+    for (let iteration = 1; iteration <= maxIterations; iteration++) {
+      const startedAt = Date.now()
+
+      let response
+      try {
+        response = await this.client.chatNonStream({
+          model,
+          messages,
+          tools,
+          ...(options.temperature !== undefined ? { temperature: options.temperature } : {}),
+        })
+      } catch (err) {
+        const latencyMs = Date.now() - startedAt
+
+        await this.recorder.record({
+          storyId: options.storyId ?? null,
+          stage,
+          modelId: model,
+          attempt: iteration,
+          fallbackUsed: false,
+          tokensIn: 0,
+          tokensOut: 0,
+          usd: 0,
+          latencyMs,
+          success: false,
+        })
+
+        console.error(`[ai] ${label} tool-loop iteration=${iteration} failed:`, err)
+        generation.end({ level: 'ERROR', statusMessage: String(err) })
+        throw err
+      }
+
+      const latencyMs = Date.now() - startedAt
+
+      await this.recorder.record({
+        storyId: options.storyId ?? null,
+        stage,
+        modelId: model,
+        attempt: iteration,
+        fallbackUsed: false,
+        tokensIn: response.usage.promptTokens,
+        tokensOut: response.usage.completionTokens,
+        usd: response.usage.costUsd,
+        latencyMs,
+        success: true,
+      })
+
+      const toolCalls = response.toolCalls ?? []
+
+      if (toolCalls.length === 0 || iteration === maxIterations) {
+        options.onChunk?.(response.text)
+
+        generation.end({
+          output: response.text,
+          usage: {
+            input: response.usage.promptTokens,
+            output: response.usage.completionTokens,
+            unit: 'TOKENS',
+          },
+          metadata: { stage, toolCallCount, cappedAtMaxIterations: toolCalls.length > 0 && iteration === maxIterations },
+        })
+
+        return response.text
+      }
+
+      const boundedCalls = toolCalls.slice(0, MAX_TOOL_CALLS_PER_ITERATION)
+      toolCallCount += boundedCalls.length
+
+      console.log(`[ai] ${label} tool-loop iteration=${iteration} toolCalls=${boundedCalls.length}`)
+
+      const results = await Promise.all(
+        boundedCalls.map(async (call) => {
+          try {
+            const raw = await executeTool(call.function.name, call.function.arguments)
+            const content = typeof raw === 'string' ? raw : JSON.stringify(raw)
+            return { tool_call_id: call.id, result: content }
+          } catch (err) {
+            console.error(`[ai] ${label} tool execution failed for ${call.function.name}:`, err)
+            return {
+              tool_call_id: call.id,
+              result: JSON.stringify({
+                error: 'tool_execution_failed',
+                message: err instanceof Error ? err.message : String(err),
+              }),
+            }
+          }
+        }),
+      )
+
+      const assistantMessage: ChatMessage = {
+        role: 'assistant',
+        content: response.text.length > 0 ? response.text : null,
+        tool_calls: boundedCalls,
+      }
+
+      messages = deriveToolLoopMessages(messages, assistantMessage, results)
+    }
+
+    generation.end({ level: 'ERROR', statusMessage: 'tool loop exhausted without a final iteration' })
+
+    throw new AiExecutionError('tool loop exhausted without a final iteration')
   }
 
   async runStructured<T>(options: RunStructuredOptions<T>): Promise<T> {
