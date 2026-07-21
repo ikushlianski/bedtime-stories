@@ -5,8 +5,8 @@ import { stories, storyEmbeddings } from '../db/schema.js'
 import { env } from '../env.js'
 import { OpenRouterClient } from '../openrouter/openrouter.client.js'
 
-export const EMBEDDING_MODEL = 'openai/text-embedding-3-small'
-export const EMBEDDING_DIMENSIONS = 1536
+export const EMBEDDING_MODEL = 'baai/bge-m3'
+export const EMBEDDING_DIMENSIONS = 1024
 const EMBED_CHUNK_SIZE = 50
 
 export interface EmbeddingInput {

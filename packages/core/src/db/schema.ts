@@ -385,9 +385,9 @@ export const storyEmbeddings = pgTable('story_embeddings', {
   id: serial('id').primaryKey(),
   storyId: integer('story_id').references(() => stories.id).notNull().unique(),
   universeId: integer('universe_id').references(() => storyGroups.id),
-  embedding: vector('embedding', { dimensions: 1536 }).notNull(),
+  embedding: vector('embedding', { dimensions: 1024 }).notNull(),
   contentHash: text('content_hash').notNull(),
-  embeddingModel: text('embedding_model').notNull().default('openai/text-embedding-3-small'),
+  embeddingModel: text('embedding_model').notNull().default('baai/bge-m3'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 })

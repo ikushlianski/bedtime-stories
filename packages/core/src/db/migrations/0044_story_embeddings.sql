@@ -4,9 +4,9 @@ CREATE TABLE IF NOT EXISTS "story_embeddings" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"story_id" integer NOT NULL,
 	"universe_id" integer,
-	"embedding" vector(1536) NOT NULL,
+	"embedding" vector(1024) NOT NULL,
 	"content_hash" text NOT NULL,
-	"embedding_model" text DEFAULT 'openai/text-embedding-3-small' NOT NULL,
+	"embedding_model" text DEFAULT 'baai/bge-m3' NOT NULL,
 	"created_at" timestamp DEFAULT now(),
 	"updated_at" timestamp DEFAULT now(),
 	CONSTRAINT "story_embeddings_story_id_unique" UNIQUE("story_id")

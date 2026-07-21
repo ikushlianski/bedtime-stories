@@ -33,7 +33,7 @@ flowchart TD
     A["analyzeStoryAndLearn(storyId)"]
   end
   A -->|"fire-and-forget, own catch"| B["embedStory(storyId)"]
-  B --> C["OpenRouter /embeddings<br/>openai/text-embedding-3-small"]
+  B --> C["OpenRouter /embeddings<br/>baai/bge-m3"]
   C --> D[("story_embeddings<br/>upsert on story_id")]
 
   subgraph Backfill["One-off backfill (new)"]
@@ -55,13 +55,13 @@ flowchart TD
 ## Data model
 
 `story_embeddings` — one row per story, no chunking (a full story fits comfortably within
-`text-embedding-3-small`'s input limit):
+`baai/bge-m3`'s input limit):
 
 - `story_id` — unique FK to `stories.id`. No `onDelete: 'cascade'` (this schema uses no cascading FK
   anywhere) — `DELETE /stories/:id` explicitly deletes the row first, the same way it already deletes
   from `annotations`, `feedback`, `story_text_versions`, etc.
 - `universe_id` — FK to `story_groups.id`, nullable (mirrors `stories.group_id`).
-- `embedding` — `vector(1536)`, drizzle-orm's native pgvector column type.
+- `embedding` — `vector(1024)`, drizzle-orm's native pgvector column type.
 - `content_hash` — SHA-256 of the embedded text, used purely for idempotency (skip re-embedding
   unchanged text).
 - `embedding_model` — recorded per row so a future model change is visible in the data itself.
@@ -113,3 +113,36 @@ trusted, same-author story text, not third-party input.
   cannot run longer than that regardless of model behavior.
 - **A universe has no embedded stories yet**: not a failure — `searchPastStories` returns an
   explicit empty-with-note result, and the plotter proceeds normally.
+
+## Retrieval quality
+
+`npm run eval:retrieval` (`packages/core/src/scripts/eval-search-past-stories.ts`) runs a fixed set
+of ~10 real Russian test queries against the live embedded universe-1 corpus, each with a curated
+expected story (or small acceptable set). For each query it embeds the query text with the current
+`EMBEDDING_MODEL`, ranks the corpus with the same pgvector cosine-distance query
+`searchPastStories` uses, and computes recall@5 via `deriveRecallAtK`
+(`packages/core/src/pipeline/eval-recall.ts`). It prints a human-readable per-query pass/fail report
+plus an overall recall figure and exits non-zero if overall recall falls below 80%.
+
+This is a manually-triggered developer script, not a CI-gated test — the CI `test` job has no
+`DATABASE_URL` or `OPENROUTER_API_KEY` available to it, matching the existing precedent of
+`internal-backfill.ts` being a manually-triggered, credential-requiring tool rather than a scheduled
+or CI-gated job.
+
+## Investigated, not changed
+
+Alongside the `baai/bge-m3` model swap, four other standard RAG techniques were evaluated directly
+against the real universe-1 corpus and explicitly found to need no change:
+
+- **Chunking** — whole-story embeddings already surface the right story for realistic thematic
+  queries at this corpus's story length (800-1200 words); one embedding per story remains correct.
+- **Re-ranking** — the plotter's tool already returns full story text for the top candidates, so the
+  same model call that decides whether to use a callback already reads and judges relevance itself;
+  a dedicated reranking pass would double cost/latency for no demonstrated precision gap.
+- **Hybrid keyword/character-name search** — embeddings already pick up character-name co-occurrence
+  well; a first narrow test suggested a gap, but a corrected, larger-sample test did not.
+- **Multi-query/query expansion** — no evidence of a single-query-phrasing recall problem in the real
+  tests run.
+
+See `.planning/unassigned/story-retrieval-rag-upgrade/architecture.md`'s "Investigation summary" for
+the full evidence behind each conclusion.

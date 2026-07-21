@@ -1672,7 +1672,7 @@
         },
         "embedding": {
           "name": "embedding",
-          "type": "vector(1536)",
+          "type": "vector(1024)",
           "primaryKey": false,
           "notNull": true
         },
@@ -1687,7 +1687,7 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
-          "default": "'openai/text-embedding-3-small'"
+          "default": "'baai/bge-m3'"
         },
         "created_at": {
           "name": "created_at",

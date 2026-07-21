@@ -6,7 +6,7 @@ flowchart TD
     A["analyzeStoryAndLearn(storyId)"]
   end
   A -->|"fire-and-forget, own catch"| B["embedStory(storyId)"]
-  B --> C["OpenRouter /embeddings<br/>openai/text-embedding-3-small"]
+  B --> C["OpenRouter /embeddings<br/>baai/bge-m3"]
   C --> D[("story_embeddings<br/>upsert on story_id")]
 
   subgraph Backfill["One-off backfill (new)"]
