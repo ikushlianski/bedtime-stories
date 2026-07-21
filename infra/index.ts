@@ -178,6 +178,12 @@ new gcp.projects.IAMMember('api-cloudtasks-enqueuer', {
   member: pulumi.interpolate`serviceAccount:${apiSa.email}`,
 })
 
+new gcp.storage.BucketIAMMember('api-storage-object-admin', {
+  bucket: storageBucket.name,
+  role: 'roles/storage.objectAdmin',
+  member: pulumi.interpolate`serviceAccount:${apiSa.email}`,
+})
+
 const catalogSyncSecret = config.requireSecret('catalogSyncSecret')
 
 new gcp.cloudscheduler.Job(

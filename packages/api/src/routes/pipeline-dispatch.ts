@@ -1,5 +1,6 @@
 import { triggerAutoPipeline, type AutoPipelineParams } from './pipeline-auto-trigger'
 import { triggerAnalysis } from './story-analysis'
+import { generateStoryImages } from './story-images'
 
 async function enqueueTask(path: string, body: unknown): Promise<void> {
   const queue = process.env['PIPELINE_QUEUE']
@@ -55,4 +56,19 @@ export async function dispatchAnalysis(storyId: number): Promise<void> {
   }
 
   triggerAnalysis(storyId)
+}
+
+export async function dispatchImageGeneration(storyId: number): Promise<void> {
+  if (process.env['PIPELINE_QUEUE']) {
+    try {
+      await enqueueTask('/api/internal/worker/generate-images', { storyId })
+      return
+    } catch (err) {
+      console.error(`[dispatch] image generation enqueue failed for storyId=${storyId}, running in-process:`, err)
+    }
+  }
+
+  void generateStoryImages(storyId).catch((err) => {
+    console.error(`[story-images] background generation failed for storyId=${storyId}:`, err)
+  })
 }

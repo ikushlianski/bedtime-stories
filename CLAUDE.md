@@ -61,7 +61,7 @@ See `docs/ci-cd/local-dev.md` for full reference.
 - **API + frontend**: single Cloud Run service (`bedtime-api`, `us-central1`)
   - The Express API serves `/api/*` and also serves the bundled React SPA for all other routes
   - Cloud Run provides HTTPS automatically
-- **Storage**: GCS bucket (`bedtime-storage-<projectId>`) for future use
+- **Storage**: GCS bucket (`bedtime-prod-storage`) — stores generated story illustrations, served through an authenticated API proxy route (the bucket itself is private)
 - **Container registry**: Artifact Registry (`bedtime-api` repo, Docker format)
 - **Database**: Neon (external, not GCP)
 
@@ -78,7 +78,7 @@ First-time setup: see `docs/ci-cd/gcp-setup.md`.
 
 ### Cloud Run env vars
 Set via GitHub Actions deploy step. Sensitive values stored as GitHub secrets.
-Required: `DATABASE_URL`, `JWT_SECRET`, `OPENROUTER_API_KEY`, `SENTRY_DSN`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_BASE_URL`.
+Required: `DATABASE_URL`, `JWT_SECRET`, `OPENROUTER_API_KEY`, `SENTRY_DSN`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_BASE_URL`, `GCS_BUCKET_NAME`.
 
 ---
 

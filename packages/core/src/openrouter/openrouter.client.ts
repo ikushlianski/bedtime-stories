@@ -30,6 +30,34 @@ export class OpenRouterHttpError extends Error {
   }
 }
 
+export interface ImageGenerationRequest {
+  model: string
+  prompt: string
+  referenceImageBase64?: string
+  referenceImageMediaType?: string
+}
+
+export interface ImageGenerationResult {
+  imageBase64: string
+  mediaType: string
+  usage: OpenRouterUsage
+}
+
+export class ImageModerationRefusedError extends Error {
+  constructor(readonly body: string) {
+    super(`OpenRouter refused to generate an image: ${body.slice(0, 500)}`)
+  }
+}
+
+function isModerationRefusalBody(body: string): boolean {
+  try {
+    const parsed = JSON.parse(body) as { error?: { message?: string } }
+    return typeof parsed.error?.message === 'string' && /no image data/i.test(parsed.error.message)
+  } catch {
+    return false
+  }
+}
+
 function authHeaders(apiKey: string): Record<string, string> {
   return {
     Authorization: `Bearer ${apiKey}`,
@@ -80,6 +108,62 @@ export class OpenRouterClient {
     }
 
     return { text, usage }
+  }
+
+  async generateImage(req: ImageGenerationRequest): Promise<ImageGenerationResult> {
+    const inputReferences =
+      req.referenceImageBase64 !== undefined
+        ? [
+            {
+              type: 'image_url',
+              image_url: {
+                url: `data:${req.referenceImageMediaType ?? 'image/png'};base64,${req.referenceImageBase64}`,
+              },
+            },
+          ]
+        : undefined
+
+    const res = await fetch(`${BASE_URL}/images`, {
+      method: 'POST',
+      headers: authHeaders(this.apiKey),
+      body: JSON.stringify({
+        model: req.model,
+        prompt: req.prompt,
+        n: 1,
+        ...(inputReferences !== undefined ? { input_references: inputReferences } : {}),
+      }),
+    })
+
+    if (!res.ok) {
+      const body = await res.text()
+
+      if (res.status === 400 && isModerationRefusalBody(body)) {
+        throw new ImageModerationRefusedError(body)
+      }
+
+      throw new OpenRouterHttpError(res.status, body)
+    }
+
+    const json = (await res.json()) as {
+      data?: Array<{ b64_json?: string; media_type?: string }>
+      usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number }
+    }
+
+    const image = json.data?.[0]
+
+    if (!image?.b64_json) {
+      throw new ImageModerationRefusedError(JSON.stringify(json))
+    }
+
+    return {
+      imageBase64: image.b64_json,
+      mediaType: image.media_type ?? 'image/png',
+      usage: {
+        promptTokens: json.usage?.prompt_tokens ?? 0,
+        completionTokens: json.usage?.completion_tokens ?? 0,
+        costUsd: json.usage?.cost ?? 0,
+      },
+    }
   }
 
   async *chatStream(req: ChatRequest): AsyncIterable<ChatStreamEvent> {

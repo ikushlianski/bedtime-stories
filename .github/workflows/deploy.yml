@@ -159,6 +159,7 @@ jobs:
             --set-env-vars="PIPELINE_QUEUE=projects/bedtime-prod/locations/us-central1/queues/bedtime-pipeline" \
             --set-env-vars="PIPELINE_WORKER_URL=https://bedtime-agent.ilya.online" \
             --set-env-vars="PIPELINE_WORKER_SECRET=${{ secrets.PROD_PIPELINE_WORKER_SECRET }}" \
+            --set-env-vars="GCS_BUCKET_NAME=bedtime-prod-storage" \
             --quiet
 
       - name: Verify deployment health

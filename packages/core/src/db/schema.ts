@@ -21,6 +21,8 @@ export const storyGroups = pgTable('story_groups', {
   styleGuideMinimize: text('style_guide_minimize'),
   styleGuideSyncedAt: timestamp('style_guide_synced_at'),
   agentOverrides: jsonb('agent_overrides').default({}),
+  visualStyleGuide: text('visual_style_guide'),
+  referenceImagePath: text('reference_image_path'),
   createdAt: timestamp('created_at').defaultNow(),
 })
 
@@ -34,6 +36,7 @@ export const universeCharacters = pgTable('universe_characters', {
   traits: text('traits'),
   relationships: text('relationships'),
   coOccurrenceNote: text('co_occurrence_note'),
+  visualDescription: text('visual_description'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 })
@@ -380,6 +383,23 @@ export const storyTextVersions = pgTable('story_text_versions', {
   stage: text('stage').$type<'writer_initial' | 'writer_critic' | 'annotated_rewrite' | 'chat_patch'>().notNull(),
   createdAt: timestamp('created_at').defaultNow(),
 })
+
+export const storyImages = pgTable('story_images', {
+  id: serial('id').primaryKey(),
+  storyId: integer('story_id').references(() => stories.id).notNull(),
+  universeId: integer('universe_id').references(() => storyGroups.id),
+  sequenceIndex: integer('sequence_index').notNull(),
+  sceneDescription: text('scene_description').notNull(),
+  promptUsed: text('prompt_used').notNull(),
+  modelId: text('model_id').references(() => modelCatalog.id),
+  status: text('status').$type<'pending' | 'generating' | 'ready' | 'failed'>().default('pending').notNull(),
+  failureReason: text('failure_reason'),
+  gcsPath: text('gcs_path'),
+  referenceImageUsed: boolean('reference_image_used').default(false).notNull(),
+  attempt: integer('attempt').default(1).notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (t) => [unique('story_images_story_sequence_unique').on(t.storyId, t.sequenceIndex)])
 
 export const appSettings = pgTable('app_settings', {
   id: integer('id').primaryKey().default(1),

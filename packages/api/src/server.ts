@@ -25,11 +25,13 @@ import modelsRouter from './routes/models'
 import storiesSwapModelRouter from './routes/stories-swap-model'
 import storiesVfmRouter from './routes/stories-vfm'
 import storyCommentsRouter from './routes/story-comments'
+import storyImagesRouter from './routes/story-images'
 import adminRouter from './routes/admin'
 import authRouter from './routes/auth.routes'
 import settingsRouter from './routes/settings'
 import internalCatalogSyncRouter from './routes/internal-catalog-sync'
 import internalBackfillRouter from './routes/internal-backfill'
+import internalBackfillImagesRouter from './routes/internal-backfill-images'
 import internalWorkerRouter from './routes/internal-worker'
 import internalUniverseMemorySyncRouter from './routes/internal-universe-memory-sync'
 import { requireAuth } from './middleware/auth.middleware'
@@ -52,6 +54,7 @@ app.get('/_healthz', (_req, res) => res.json({ status: 'ok' }))
 app.use('/api/auth', authRouter)
 app.use('/api/internal/catalog-sync', internalCatalogSyncRouter)
 app.use('/api/internal/backfill', internalBackfillRouter)
+app.use('/api/internal/backfill-images', internalBackfillImagesRouter)
 app.use('/api/internal/worker', internalWorkerRouter)
 app.use('/api/internal/universe-memory-sync', internalUniverseMemorySyncRouter)
 
@@ -82,6 +85,7 @@ app.use('/api/models', modelsRouter)
 app.use('/api/stories/:id/swap-model', storiesSwapModelRouter)
 app.use('/api/stories/:id/value-for-money', storiesVfmRouter)
 app.use('/api/stories/:id/comments', storyCommentsRouter)
+app.use('/api/stories/:id/images', storyImagesRouter)
 app.use('/api/admin', adminRouter)
 app.use('/api/settings', settingsRouter)
 

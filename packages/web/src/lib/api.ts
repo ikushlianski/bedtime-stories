@@ -2,6 +2,10 @@ import { formatApiError } from './format-api-error'
 
 const API_BASE = (import.meta as ImportMeta & { env: Record<string, string | undefined> }).env['VITE_API_URL'] ?? 'http://localhost:8020'
 
+export function storyImageUrl(storyId: number, sequenceIndex: number): string {
+  return `${API_BASE}/api/stories/${storyId}/images/${sequenceIndex}`
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     credentials: 'include',
@@ -410,6 +414,11 @@ export interface StoryCostBreakdown {
   }>
 }
 
+export interface StoryImageSummary {
+  sequenceIndex: number
+  url: string
+}
+
 export interface CreateSeriesInput {
   seed: string
   groupId?: number
@@ -535,6 +544,8 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify({ storyAnalysis }),
       }),
+
+    images: (id: number) => request<StoryImageSummary[]>(`/api/stories/${id}/images`),
 
     allTags: () => request<string[]>('/api/stories/tags'),
 
