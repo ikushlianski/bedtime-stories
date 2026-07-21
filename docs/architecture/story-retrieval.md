@@ -129,6 +129,15 @@ This is a manually-triggered developer script, not a CI-gated test — the CI `t
 `internal-backfill.ts` being a manually-triggered, credential-requiring tool rather than a scheduled
 or CI-gated job.
 
+**The harness assumes the entire universe-1 corpus is embedded, not just `status = 'read'` stories.**
+The eval's curated expected IDs include stories in `ready` and `proofreading` status. The production
+backfill route (`POST /api/internal/embed-story-backfill`, `runEmbedStoryBackfill`) only embeds
+`status = 'read'` stories by design — that's correct for its real purpose (making approved stories
+retrievable), but running only that backfill before `eval:retrieval` will leave some curated stories
+unembedded and understate recall. To run the harness meaningfully, embed the full universe-1 corpus
+directly (e.g. `embedStoriesBatch` over every `group_id = 1` story id), not via the status-filtered
+backfill.
+
 ## Investigated, not changed
 
 Alongside the `baai/bge-m3` model swap, four other standard RAG techniques were evaluated directly
