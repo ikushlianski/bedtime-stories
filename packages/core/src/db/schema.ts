@@ -22,7 +22,6 @@ export const storyGroups = pgTable('story_groups', {
   styleGuideSyncedAt: timestamp('style_guide_synced_at'),
   agentOverrides: jsonb('agent_overrides').default({}),
   visualStyleGuide: text('visual_style_guide'),
-  referenceImagePath: text('reference_image_path'),
   createdAt: timestamp('created_at').defaultNow(),
 })
 
@@ -39,6 +38,13 @@ export const universeCharacters = pgTable('universe_characters', {
   visualDescription: text('visual_description'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
+})
+
+export const characterReferenceImages = pgTable('character_reference_images', {
+  id: serial('id').primaryKey(),
+  characterId: integer('character_id').references(() => universeCharacters.id).notNull(),
+  gcsPath: text('gcs_path').notNull(),
+  uploadedAt: timestamp('uploaded_at').defaultNow().notNull(),
 })
 
 export const telegramPendingActions = pgTable('telegram_pending_actions', {

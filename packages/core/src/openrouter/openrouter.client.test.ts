@@ -35,7 +35,7 @@ describe('OpenRouterClient.generateImage', () => {
     })
   })
 
-  it('sends the reference image as an image_url data URL when provided', async () => {
+  it('sends a single reference image as an image_url data URL when provided', async () => {
     fetchMock.mockResolvedValue(
       jsonResponse(200, { data: [{ b64_json: 'aGVsbG8=', media_type: 'image/png' }], usage: {} }),
     )
@@ -44,14 +44,50 @@ describe('OpenRouterClient.generateImage', () => {
     await client.generateImage({
       model: 'google/gemini-2.5-flash-image',
       prompt: 'the same fox waving',
-      referenceImageBase64: 'cmVmZXJlbmNl',
-      referenceImageMediaType: 'image/png',
+      referenceImages: [{ base64: 'cmVmZXJlbmNl', mediaType: 'image/png' }],
     })
 
     const [, init] = fetchMock.mock.calls[0] as [string, { body: string }]
     const sentBody = JSON.parse(init.body) as { input_references: Array<{ image_url: { url: string } }> }
 
-    expect(sentBody.input_references[0].image_url.url).toBe('data:image/png;base64,cmVmZXJlbmNl')
+    expect(sentBody.input_references[0]?.image_url.url).toBe('data:image/png;base64,cmVmZXJlbmNl')
+  })
+
+  it('sends multiple reference images, one per named character', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse(200, { data: [{ b64_json: 'aGVsbG8=', media_type: 'image/png' }], usage: {} }),
+    )
+
+    const client = new OpenRouterClient('test-key')
+    await client.generateImage({
+      model: 'google/gemini-2.5-flash-image',
+      prompt: 'two friends waving',
+      referenceImages: [
+        { base64: 'Zmlyc3Q=', mediaType: 'image/png' },
+        { base64: 'c2Vjb25k', mediaType: 'image/jpeg' },
+      ],
+    })
+
+    const [, init] = fetchMock.mock.calls[0] as [string, { body: string }]
+    const sentBody = JSON.parse(init.body) as { input_references: Array<{ image_url: { url: string } }> }
+
+    expect(sentBody.input_references).toHaveLength(2)
+    expect(sentBody.input_references[0]?.image_url.url).toBe('data:image/png;base64,Zmlyc3Q=')
+    expect(sentBody.input_references[1]?.image_url.url).toBe('data:image/jpeg;base64,c2Vjb25k')
+  })
+
+  it('omits input_references when referenceImages is an empty array', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse(200, { data: [{ b64_json: 'aGVsbG8=', media_type: 'image/png' }], usage: {} }),
+    )
+
+    const client = new OpenRouterClient('test-key')
+    await client.generateImage({ model: 'google/gemini-2.5-flash-image', prompt: 'a fox reading', referenceImages: [] })
+
+    const [, init] = fetchMock.mock.calls[0] as [string, { body: string }]
+    const sentBody = JSON.parse(init.body) as Record<string, unknown>
+
+    expect(sentBody['input_references']).toBeUndefined()
   })
 
   it('omits input_references entirely when no reference image is provided', async () => {

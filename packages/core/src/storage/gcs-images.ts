@@ -30,6 +30,16 @@ export interface StoredImage {
   contentType: string
 }
 
+export async function deleteImage(path: string): Promise<void> {
+  if (!env.GCS_BUCKET_NAME) {
+    throw new Error('GCS_BUCKET_NAME is not configured')
+  }
+
+  const file = getStorage().bucket(env.GCS_BUCKET_NAME).file(path)
+
+  await file.delete({ ignoreNotFound: true })
+}
+
 export async function readImage(path: string): Promise<StoredImage | null> {
   if (!env.GCS_BUCKET_NAME) {
     return null

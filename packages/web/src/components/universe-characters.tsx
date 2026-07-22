@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { api, type UniverseCharacter } from '../lib/api'
+import { useEffect, useState } from 'react'
+import { api, characterReferenceImageUrl, type CharacterReferenceImage, type UniverseCharacter } from '../lib/api'
 import FormField from './form-field'
 import CharacterBibleFields, { type CharacterBibleValues } from './character-bible-fields'
 
@@ -23,6 +23,121 @@ const EMPTY_BIBLE: CharacterBibleValues = {
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+const ACCEPTED_REFERENCE_IMAGE_TYPES = 'image/png,image/jpeg,image/webp'
+
+interface CharacterReferenceImagesProps {
+  universeId: number
+  characterId: number
+  onCountChange: (count: number) => void
+}
+
+function CharacterReferenceImages({ universeId, characterId, onCountChange }: CharacterReferenceImagesProps) {
+  const [images, setImages] = useState<CharacterReferenceImage[] | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+
+    api.universes.listCharacterReferenceImages(universeId, characterId).then((loaded) => {
+      if (!cancelled) setImages(loaded)
+    }).catch((err) => {
+      if (!cancelled) setError(err instanceof Error ? err.message : 'Не удалось загрузить референсы')
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [universeId, characterId])
+
+  async function handleFileSelected(file: File) {
+    setUploading(true)
+    setError(null)
+
+    try {
+      const created = await api.universes.uploadCharacterReferenceImage(universeId, characterId, file)
+      setImages((prev) => {
+        const next = [created, ...(prev ?? [])]
+        onCountChange(next.length)
+        return next
+      })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Не удалось загрузить изображение')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  async function handleDelete(refId: number) {
+    setError(null)
+
+    try {
+      await api.universes.deleteCharacterReferenceImage(universeId, characterId, refId)
+      setImages((prev) => {
+        const next = (prev ?? []).filter((img) => img.id !== refId)
+        onCountChange(next.length)
+        return next
+      })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Не удалось удалить изображение')
+    }
+  }
+
+  return (
+    <div className="mt-3 border-t border-base-300 pt-3" data-testid="character-reference-images">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-base-content/60">Референсные изображения</span>
+        <label className={`btn btn-ghost btn-xs ${uploading ? 'loading' : ''}`}>
+          {uploading ? 'Загружаем...' : '+ Загрузить'}
+          <input
+            type="file"
+            accept={ACCEPTED_REFERENCE_IMAGE_TYPES}
+            className="hidden"
+            disabled={uploading}
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              e.target.value = ''
+              if (file) void handleFileSelected(file)
+            }}
+          />
+        </label>
+      </div>
+
+      {error && <p className="mt-1 text-xs text-error">{error}</p>}
+
+      {images === null && <p className="mt-2 text-xs text-base-content/40">Загрузка...</p>}
+
+      {images !== null && images.length === 0 && (
+        <p className="mt-2 text-xs text-warning" data-testid="no-reference-images">
+          Референсов пока нет — генерация иллюстраций с этим персонажем будет пропущена.
+        </p>
+      )}
+
+      {images !== null && images.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-2" data-testid="reference-image-grid">
+          {images.map((img) => (
+            <div key={img.id} className="group relative h-16 w-16 shrink-0 overflow-hidden rounded border border-base-300">
+              <img
+                src={characterReferenceImageUrl(universeId, characterId, img.id)}
+                alt="Референсное изображение персонажа"
+                className="h-full w-full object-cover"
+              />
+              <button
+                type="button"
+                className="absolute right-0 top-0 flex h-5 w-5 items-center justify-center rounded-bl bg-error text-xs text-error-content opacity-0 transition-opacity group-hover:opacity-100"
+                onClick={() => void handleDelete(img.id)}
+                aria-label="Удалить референсное изображение"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 interface CharacterCardProps {
@@ -123,7 +238,15 @@ function CharacterCard({ character, universeId, onUpdated, onDeleted }: Characte
     <div className="card border border-base-300 bg-base-200 p-4">
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-sm">{character.name}</p>
+          <div className="flex items-center gap-2">
+            <p className="font-semibold text-sm">{character.name}</p>
+            <span
+              className={`badge badge-xs ${character.referenceImageCount > 0 ? 'badge-success' : 'badge-warning'}`}
+              data-testid="reference-image-count"
+            >
+              {character.referenceImageCount > 0 ? `Референсов: ${character.referenceImageCount}` : 'Нет референсов'}
+            </span>
+          </div>
           {character.description && (
             <p className="mt-1 whitespace-pre-wrap text-xs text-base-content/60">{character.description}</p>
           )}
@@ -145,6 +268,11 @@ function CharacterCard({ character, universeId, onUpdated, onDeleted }: Characte
         </div>
       </div>
       {error && <p className="mt-2 text-xs text-error">{error}</p>}
+      <CharacterReferenceImages
+        universeId={universeId}
+        characterId={character.id}
+        onCountChange={(count) => onUpdated({ ...character, referenceImageCount: count })}
+      />
     </div>
   )
 }

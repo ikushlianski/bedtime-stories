@@ -30,11 +30,15 @@ export class OpenRouterHttpError extends Error {
   }
 }
 
+export interface ImageGenerationReference {
+  base64: string
+  mediaType: string
+}
+
 export interface ImageGenerationRequest {
   model: string
   prompt: string
-  referenceImageBase64?: string
-  referenceImageMediaType?: string
+  referenceImages?: ImageGenerationReference[]
 }
 
 export interface ImageGenerationResult {
@@ -112,15 +116,13 @@ export class OpenRouterClient {
 
   async generateImage(req: ImageGenerationRequest): Promise<ImageGenerationResult> {
     const inputReferences =
-      req.referenceImageBase64 !== undefined
-        ? [
-            {
-              type: 'image_url',
-              image_url: {
-                url: `data:${req.referenceImageMediaType ?? 'image/png'};base64,${req.referenceImageBase64}`,
-              },
+      req.referenceImages !== undefined && req.referenceImages.length > 0
+        ? req.referenceImages.map((reference) => ({
+            type: 'image_url',
+            image_url: {
+              url: `data:${reference.mediaType};base64,${reference.base64}`,
             },
-          ]
+          }))
         : undefined
 
     const res = await fetch(`${BASE_URL}/images`, {
