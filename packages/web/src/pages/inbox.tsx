@@ -42,6 +42,7 @@ function Section({
               status={item.story.status}
               createdAt={item.story.created_at}
               universeName={universes.find((u) => u.id === item.story.group_id)?.name}
+              seed={item.story.seed}
               actions={[
                 {
                   label: actionLabel(item.action),

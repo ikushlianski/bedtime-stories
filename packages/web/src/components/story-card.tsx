@@ -1,6 +1,9 @@
 import type { HTMLAttributes } from 'react'
 import type { StoryStatus } from './types'
 import { formatMicros } from '@bedtime/shared/money/micros'
+import { deriveTitlePreview } from './derive-title-preview'
+
+const PROMPT_PREVIEW_MAX_LENGTH = 100
 
 type StoryCardActionTone = 'primary' | 'secondary' | 'tertiary' | 'quiet' | 'destructive'
 
@@ -19,6 +22,7 @@ interface StoryCardProps {
   seriesId?: string | null
   totalUsdMicros?: number | null
   universeName?: string
+  seed?: string | null
   actions?: StoryCardAction[]
   onTitleClick?: () => void
   dragHandleProps?: HTMLAttributes<HTMLDivElement>
@@ -76,11 +80,12 @@ function GripIcon() {
   )
 }
 
-function StoryCard({ title, status, createdAt, rating, seriesId, totalUsdMicros, universeName, actions = [], onTitleClick, dragHandleProps }: StoryCardProps) {
+function StoryCard({ title, status, createdAt, rating, seriesId, totalUsdMicros, universeName, seed, actions = [], onTitleClick, dragHandleProps }: StoryCardProps) {
   const config = statusConfig[status]
   const isArchived = status === 'archived'
   const regularActions = actions.filter((action) => action.tone !== 'destructive')
   const destructiveActions = actions.filter((action) => action.tone === 'destructive')
+  const promptPreview = seed ? deriveTitlePreview(seed, PROMPT_PREVIEW_MAX_LENGTH) : ''
 
   return (
     <article
@@ -119,6 +124,10 @@ function StoryCard({ title, status, createdAt, rating, seriesId, totalUsdMicros,
               <span className={`badge badge-sm ${config.tone}`}>{config.label}</span>
             </div>
           </div>
+
+          {promptPreview && (
+            <p className="text-sm leading-snug text-base-content/70">{promptPreview}</p>
+          )}
 
           <div className="flex items-center justify-between gap-3 text-xs text-base-content/65">
             <span>

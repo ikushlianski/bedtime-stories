@@ -71,6 +71,7 @@ function SortableStoryCard({ story, universeName, onTitleClick, onDelete }: Sort
         seriesId={story.series_id}
         totalUsdMicros={story.total_usd_micros ?? null}
         universeName={universeName}
+        seed={story.seed}
         onTitleClick={onTitleClick}
         dragHandleProps={{ ...listeners, ...attributes }}
         actions={[
