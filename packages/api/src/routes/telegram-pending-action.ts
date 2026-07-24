@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { db } from '@bedtime/core/db/client.js'
 import { telegramPendingActions } from '@bedtime/core/db/schema.js'
 import type { NewTelegramPendingAction } from '@bedtime/core/db/types.js'
@@ -14,11 +14,12 @@ export function buildPendingActionUpsert(
   chatId: number,
   universeId: number,
   now: Date,
+  accumulatedSeed: string | null = null,
 ): NewTelegramPendingAction {
   return {
     chatId,
     universeId,
-    accumulatedSeed: null,
+    accumulatedSeed,
     createdAt: now,
   }
 }
@@ -27,22 +28,16 @@ export function isPendingActionExpired(createdAt: Date, now: Date, ttlMs: number
   return now.getTime() - createdAt.getTime() > ttlMs
 }
 
-export function appendToAccumulatedSeed(current: string | null, next: string): string {
-  const trimmedNext = next.trim()
-
-  if (!current || current.trim().length === 0) {
-    return trimmedNext
-  }
-
-  return `${current}\n${trimmedNext}`
-}
-
 export function isReadyToFinalize(accumulatedSeed: string | null): boolean {
   return accumulatedSeed !== null && accumulatedSeed.trim().length > 0
 }
 
-export async function setPendingUniverseChoice(chatId: number, universeId: number): Promise<void> {
-  const values = buildPendingActionUpsert(chatId, universeId, new Date())
+export async function setPendingUniverseChoice(
+  chatId: number,
+  universeId: number,
+  accumulatedSeed: string | null = null,
+): Promise<void> {
+  const values = buildPendingActionUpsert(chatId, universeId, new Date(), accumulatedSeed)
 
   await db
     .insert(telegramPendingActions)
@@ -68,19 +63,23 @@ export async function peekPendingAction(chatId: number): Promise<PendingActionSt
   return { universeId: row.universeId, accumulatedSeed: row.accumulatedSeed }
 }
 
-export async function appendPendingSeedText(
-  chatId: number,
-  currentAccumulatedSeed: string | null,
-  text: string,
-): Promise<string> {
-  const nextAccumulatedSeed = appendToAccumulatedSeed(currentAccumulatedSeed, text)
+export async function appendPendingSeedText(chatId: number, text: string): Promise<string> {
+  const trimmedText = text.trim()
 
-  await db
+  const [row] = await db
     .update(telegramPendingActions)
-    .set({ accumulatedSeed: nextAccumulatedSeed, createdAt: new Date() })
+    .set({
+      accumulatedSeed: sql<string>`CASE
+        WHEN ${telegramPendingActions.accumulatedSeed} IS NULL OR trim(${telegramPendingActions.accumulatedSeed}) = ''
+        THEN ${trimmedText}
+        ELSE ${telegramPendingActions.accumulatedSeed} || E'\n' || ${trimmedText}
+      END`,
+      createdAt: new Date(),
+    })
     .where(eq(telegramPendingActions.chatId, chatId))
+    .returning({ accumulatedSeed: telegramPendingActions.accumulatedSeed })
 
-  return nextAccumulatedSeed
+  return row?.accumulatedSeed ?? trimmedText
 }
 
 export async function consumePendingAction(chatId: number): Promise<PendingActionState | null> {

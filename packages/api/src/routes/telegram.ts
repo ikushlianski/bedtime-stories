@@ -32,6 +32,7 @@ const CATEGORY_READ = 'cat:read'
 const STORIES_MENU = 'stories:menu'
 const NEW_PICK_PREFIX = 'newpick:'
 const NEW_GO_CALLBACK = 'newgo'
+const MAX_ACCUMULATED_SEED_LENGTH = 4000
 const LIST_LIMIT = 30
 
 async function resolveDefaultUniverseId(): Promise<number | null> {
@@ -132,14 +133,20 @@ async function finalizePendingStory(ctx: Context): Promise<void> {
   }
 
   if (!isReadyToFinalize(pending.accumulatedSeed)) {
-    await setPendingUniverseChoice(ctx.chat!.id, pending.universeId)
+    await setPendingUniverseChoice(ctx.chat!.id, pending.universeId, pending.accumulatedSeed)
     await ctx.reply('Сначала опиши идею одним или несколькими сообщениями, потом жми «✅ Готово».')
     return
   }
 
-  const storyId = await createStoryForUniverse(pending.accumulatedSeed as string, pending.universeId)
+  try {
+    const storyId = await createStoryForUniverse(pending.accumulatedSeed as string, pending.universeId)
 
-  await ctx.reply(`Генерирую сказку №${storyId} ✨ Пришлю, когда будет готова.`)
+    await ctx.reply(`Генерирую сказку №${storyId} ✨ Пришлю, когда будет готова.`)
+  } catch (err) {
+    await setPendingUniverseChoice(ctx.chat!.id, pending.universeId, pending.accumulatedSeed)
+    await ctx.reply('Не получилось создать сказку — текст сохранён, попробуй ещё раз через /go.')
+    throw err
+  }
 }
 
 function categoryKeyboard(): InlineKeyboard {
@@ -369,12 +376,16 @@ if (bot) {
     }
 
     const universeId = Number.parseInt(ctx.callbackQuery.data.slice(NEW_PICK_PREFIX.length), 10)
+    const existingPending = await peekPendingAction(ctx.chat!.id)
+    const carriedSeed = existingPending?.accumulatedSeed ?? null
 
-    await setPendingUniverseChoice(ctx.chat!.id, universeId)
+    await setPendingUniverseChoice(ctx.chat!.id, universeId, carriedSeed)
     await ctx.answerCallbackQuery()
     await ctx.reply(
-      'Опиши идею новой сказки. Можешь прислать несколько сообщений подряд — я всё запомню. ' +
-        'Когда будешь готов, нажми «✅ Готово» или отправь /go.',
+      isReadyToFinalize(carriedSeed)
+        ? 'Вселенная изменена. То, что ты уже написал, сохранено — можешь продолжить, или нажми «✅ Готово».'
+        : 'Опиши идею новой сказки. Можешь прислать несколько сообщений подряд — я всё запомню. ' +
+            'Когда будешь готов, нажми «✅ Готово» или отправь /go.',
     )
   })
 
@@ -404,7 +415,16 @@ if (bot) {
     const pending = await peekPendingAction(ctx.chat.id)
 
     if (pending !== null) {
-      await appendPendingSeedText(ctx.chat.id, pending.accumulatedSeed, text)
+      const currentLength = pending.accumulatedSeed?.length ?? 0
+
+      if (currentLength + text.length > MAX_ACCUMULATED_SEED_LENGTH) {
+        await ctx.reply('Идея уже достаточно длинная — нажми «✅ Готово», чтобы начать генерацию.', {
+          reply_markup: readyToGoKeyboard(),
+        })
+        return
+      }
+
+      await appendPendingSeedText(ctx.chat.id, text)
       await ctx.reply('Добавлено. Можешь продолжить, или нажми «✅ Готово», когда закончишь.', {
         reply_markup: readyToGoKeyboard(),
       })
