@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { api, type ConversationMessage, type StoryComment, type ChatContext } from '../lib/api'
-import { StatusCallout } from '../components'
+import { StatusCallout, PatchDiffView } from '../components'
 
 interface PatchInfo {
   patch: string
@@ -192,7 +192,9 @@ function MutableChatPanel({ storyId, context, selectedText, onPatchApplied, onCl
                 {parsed && selectedText && isPatch && (
                   <div className="self-start ml-0 w-full max-w-[85%] rounded-lg border border-success/30 bg-success/5 px-4 py-3">
                     <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-success/70">Предлагаемая замена</p>
-                    <p className="mb-3 whitespace-pre-wrap text-sm text-base-content/80">{parsed.patch}</p>
+                    <div className="mb-3">
+                      <PatchDiffView original={selectedText} patched={parsed.patch} />
+                    </div>
                     <p className="mb-3 text-xs italic text-base-content/50">{parsed.summary}</p>
                     {applyError && <p className="mb-2 text-xs text-error">{applyError}</p>}
                     <button

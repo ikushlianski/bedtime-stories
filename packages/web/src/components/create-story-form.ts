@@ -18,6 +18,12 @@ export type CreateStoryFormValidation =
   | { valid: true; input: CreateStoryInput }
   | { valid: false; reason: string }
 
+export function buildAccumulatedSeed(messages: string[], draft: string): string {
+  const parts = [...messages, draft].map((part) => part.trim()).filter((part) => part.length > 0)
+
+  return parts.join('\n\n')
+}
+
 export function validateCreateStoryForm(state: CreateStoryFormState): CreateStoryFormValidation {
   const seed = state.seed.trim()
 

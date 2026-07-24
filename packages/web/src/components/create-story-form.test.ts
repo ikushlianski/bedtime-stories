@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   validateCreateStoryForm,
+  buildAccumulatedSeed,
   INITIAL_CREATE_STORY_FORM,
   type CreateStoryFormState,
 } from './create-story-form'
@@ -66,5 +67,35 @@ describe('validateCreateStoryForm', () => {
         lensKey: 'gosha-errs',
       },
     })
+  })
+})
+
+describe('buildAccumulatedSeed', () => {
+  it('joins accumulated messages with a blank line between them', () => {
+    expect(buildAccumulatedSeed(['Герой боится темноты', 'Он ночует у бабушки'], '')).toBe(
+      'Герой боится темноты\n\nОн ночует у бабушки',
+    )
+  })
+
+  it('appends a non-empty draft after the accumulated messages', () => {
+    expect(buildAccumulatedSeed(['Герой боится темноты'], 'И находит фонарик')).toBe(
+      'Герой боится темноты\n\nИ находит фонарик',
+    )
+  })
+
+  it('falls back to the draft alone when nothing was added yet', () => {
+    expect(buildAccumulatedSeed([], 'Единственная идея')).toBe('Единственная идея')
+  })
+
+  it('filters out empty and whitespace-only messages', () => {
+    expect(buildAccumulatedSeed(['Идея один', '   ', ''], '')).toBe('Идея один')
+  })
+
+  it('trims each message and the draft', () => {
+    expect(buildAccumulatedSeed(['  Идея один  '], '  черновик  ')).toBe('Идея один\n\nчерновик')
+  })
+
+  it('returns an empty string when there is nothing at all', () => {
+    expect(buildAccumulatedSeed([], '   ')).toBe('')
   })
 })

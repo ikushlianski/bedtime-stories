@@ -39,10 +39,17 @@ vi.mock('@bedtime/core/db/client.js', () => ({
   },
 }))
 
-vi.mock('./telegram-pending-action.js', () => ({
-  setPendingUniverseChoice: vi.fn(() => Promise.resolve()),
-  consumePendingUniverseChoice: vi.fn(() => Promise.resolve(null)),
-}))
+vi.mock('./telegram-pending-action.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./telegram-pending-action.js')>()
+
+  return {
+    ...actual,
+    setPendingUniverseChoice: vi.fn(() => Promise.resolve()),
+    peekPendingAction: vi.fn(() => Promise.resolve(null)),
+    appendPendingSeedText: vi.fn(() => Promise.resolve('')),
+    consumePendingAction: vi.fn(() => Promise.resolve(null)),
+  }
+})
 
 vi.mock('./pipeline-dispatch.js', () => ({
   dispatchAutoPipeline: vi.fn(() => Promise.resolve()),
@@ -53,7 +60,9 @@ vi.mock('./pipeline-notifications.js', () => ({
 }))
 
 const { bot } = await import('./telegram.js')
-const { consumePendingUniverseChoice, setPendingUniverseChoice } = await import('./telegram-pending-action.js')
+const { peekPendingAction, appendPendingSeedText, consumePendingAction, setPendingUniverseChoice } = await import(
+  './telegram-pending-action.js'
+)
 
 interface CapturedCall {
   method: string
@@ -124,7 +133,10 @@ describe('telegram /new flow', () => {
     ]
     dbState.storyRow = undefined
     dbState.insertedStory = undefined
-    vi.mocked(consumePendingUniverseChoice).mockResolvedValue(null)
+    vi.mocked(peekPendingAction).mockResolvedValue(null)
+    vi.mocked(appendPendingSeedText).mockResolvedValue('')
+    vi.mocked(consumePendingAction).mockResolvedValue(null)
+    vi.mocked(setPendingUniverseChoice).mockClear()
   })
 
   it('replies to /new with one inline keyboard row per universe', async () => {
@@ -166,29 +178,98 @@ describe('telegram /new flow', () => {
 
     const prompt = calls.find((c) => c.method === 'sendMessage')
     expect(prompt!.payload['text']).toContain('Опиши идею')
+    expect(prompt!.payload['text']).toContain('Готово')
   })
 
-  it('keeps the existing id-lookup behavior for plain text when there is no pending universe choice', async () => {
+  it('keeps the existing id-lookup behavior for plain text when there is no pending action', async () => {
     dbState.storyRow = undefined
     const calls = await setUpBot()
 
     await bot!.handleUpdate(baseMessageUpdate(2, '42'))
 
-    expect(vi.mocked(consumePendingUniverseChoice)).toHaveBeenCalledWith(CHAT_ID)
+    expect(vi.mocked(peekPendingAction)).toHaveBeenCalledWith(CHAT_ID)
+    expect(vi.mocked(appendPendingSeedText)).not.toHaveBeenCalled()
 
     const reply = calls.find((c) => c.method === 'sendMessage')
     expect(reply!.payload['text']).toContain('История №42 не найдена')
   })
 
-  it('treats a numeric-looking message as the seed when a pending universe choice exists, skipping id-lookup', async () => {
-    vi.mocked(consumePendingUniverseChoice).mockResolvedValue(5)
+  it('accumulates a message instead of firing the pipeline when a pending action exists', async () => {
+    vi.mocked(peekPendingAction).mockResolvedValue({ universeId: 5, accumulatedSeed: null })
+    vi.mocked(appendPendingSeedText).mockResolvedValue('42')
     const calls = await setUpBot()
 
     await bot!.handleUpdate(baseMessageUpdate(4, '42'))
 
-    expect(dbState.insertedStory).toMatchObject({ groupId: 5, seed: '42' })
+    expect(vi.mocked(appendPendingSeedText)).toHaveBeenCalledWith(CHAT_ID, null, '42')
+    expect(dbState.insertedStory).toBeUndefined()
+
+    const reply = calls.find((c) => c.method === 'sendMessage')
+    expect(reply!.payload['text']).toContain('Добавлено')
+
+    const keyboard = reply!.payload['reply_markup'] as { inline_keyboard: Array<Array<{ text: string; callback_data: string }>> }
+    expect(keyboard.inline_keyboard).toEqual([[{ text: '✅ Готово', callback_data: 'newgo' }]])
+  })
+
+  it('accumulates a second message on top of the first', async () => {
+    vi.mocked(peekPendingAction).mockResolvedValue({ universeId: 5, accumulatedSeed: 'первое сообщение' })
+    vi.mocked(appendPendingSeedText).mockResolvedValue('первое сообщение\nвторое сообщение')
+    await setUpBot()
+
+    await bot!.handleUpdate(baseMessageUpdate(5, 'второе сообщение'))
+
+    expect(vi.mocked(appendPendingSeedText)).toHaveBeenCalledWith(CHAT_ID, 'первое сообщение', 'второе сообщение')
+  })
+
+  it('finalizes via the "Готово" callback, firing the pipeline with the full accumulated seed', async () => {
+    vi.mocked(consumePendingAction).mockResolvedValue({
+      universeId: 5,
+      accumulatedSeed: 'первое сообщение\nвторое сообщение',
+    })
+    const calls = await setUpBot()
+
+    await bot!.handleUpdate(callbackQueryUpdate(6, 'newgo'))
+
+    expect(dbState.insertedStory).toMatchObject({ groupId: 5, seed: 'первое сообщение\nвторое сообщение' })
 
     const reply = calls.find((c) => c.method === 'sendMessage')
     expect(reply!.payload['text']).toContain('Генерирую сказку №77')
+  })
+
+  it('finalizes via the /go command exactly like the callback', async () => {
+    vi.mocked(consumePendingAction).mockResolvedValue({ universeId: 1, accumulatedSeed: 'идея через команду' })
+    const calls = await setUpBot()
+
+    await bot!.handleUpdate(baseMessageUpdate(7, '/go'))
+
+    expect(dbState.insertedStory).toMatchObject({ groupId: 1, seed: 'идея через команду' })
+
+    const reply = calls.find((c) => c.method === 'sendMessage')
+    expect(reply!.payload['text']).toContain('Генерирую сказку №77')
+  })
+
+  it('is a no-op and keeps the pending action alive when finalizing with nothing accumulated', async () => {
+    vi.mocked(consumePendingAction).mockResolvedValue({ universeId: 5, accumulatedSeed: null })
+    const calls = await setUpBot()
+
+    await bot!.handleUpdate(callbackQueryUpdate(8, 'newgo'))
+
+    expect(dbState.insertedStory).toBeUndefined()
+    expect(vi.mocked(setPendingUniverseChoice)).toHaveBeenCalledWith(CHAT_ID, 5)
+
+    const reply = calls.find((c) => c.method === 'sendMessage')
+    expect(reply!.payload['text']).toContain('Сначала опиши идею')
+  })
+
+  it('tells the parent to /new first when finalizing with no pending action at all', async () => {
+    vi.mocked(consumePendingAction).mockResolvedValue(null)
+    const calls = await setUpBot()
+
+    await bot!.handleUpdate(baseMessageUpdate(9, '/go'))
+
+    expect(dbState.insertedStory).toBeUndefined()
+
+    const reply = calls.find((c) => c.method === 'sendMessage')
+    expect(reply!.payload['text']).toContain('/new')
   })
 })

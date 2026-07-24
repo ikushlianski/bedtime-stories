@@ -1,0 +1,1 @@
+ALTER TABLE "telegram_pending_actions" ADD COLUMN IF NOT EXISTS "accumulated_seed" text;
