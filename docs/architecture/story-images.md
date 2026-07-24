@@ -71,6 +71,4 @@ sequenceDiagram
 
 Both prefixes live in the same private `bedtime-prod-storage` bucket and both proxy routes sit behind the app's existing cookie-session `requireAuth` middleware — the bucket itself has no public ACL, and the frontend never talks to GCS directly.
 
-## One-time backfill
-
-`POST /api/internal/backfill-images` (secret-protected via the existing `BACKFILL_SECRET`, same convention as `internal-backfill.ts`) finds `ready` stories with no `story_images` rows yet (`deriveBackfillCandidates`) and dispatches up to 20 per call through the same `dispatchImageGeneration` path, so the existing Cloud Tasks queue rate limits (`maxConcurrentDispatches: 3`) apply automatically. Safe to re-run — stories that already have image rows are skipped.
+Existing approved stories never get images retroactively — illustrations are only generated on new approvals going forward.

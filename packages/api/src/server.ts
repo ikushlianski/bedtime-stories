@@ -32,7 +32,6 @@ import authRouter from './routes/auth.routes'
 import settingsRouter from './routes/settings'
 import internalCatalogSyncRouter from './routes/internal-catalog-sync'
 import internalBackfillRouter from './routes/internal-backfill'
-import internalBackfillImagesRouter from './routes/internal-backfill-images'
 import internalWorkerRouter from './routes/internal-worker'
 import internalUniverseMemorySyncRouter from './routes/internal-universe-memory-sync'
 import { requireAuth } from './middleware/auth.middleware'
@@ -55,7 +54,6 @@ app.get('/_healthz', (_req, res) => res.json({ status: 'ok' }))
 app.use('/api/auth', authRouter)
 app.use('/api/internal/catalog-sync', internalCatalogSyncRouter)
 app.use('/api/internal/backfill', internalBackfillRouter)
-app.use('/api/internal/backfill-images', internalBackfillImagesRouter)
 app.use('/api/internal/worker', internalWorkerRouter)
 app.use('/api/internal/universe-memory-sync', internalUniverseMemorySyncRouter)
 

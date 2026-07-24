@@ -7,6 +7,12 @@ updated: 2026-07-22
 ---
 # Todo: Story illustration generation
 
+## Next steps (what I need to do)
+- Merge `story-images` branch to `main` (and deploy).
+- Run `cd infra && pulumi preview` against `prod` (fix the passphrase issue in `.env` first), review the diff, then `pulumi up` — grants the deployed API's service account write access to GCS.
+- Upload the real ~8 character reference images per character (currently only placeholder PNGs exist from implementation-phase testing).
+- Approve one real story in production and confirm images actually generate — see "Post-deploy checks" below.
+
 ## Decisions to make
 Nothing to decide.
 
@@ -24,4 +30,6 @@ Nothing to decide.
 
 ## Post-deploy checks
 - Approve one real story end-to-end in production (or the closest pre-prod equivalent available) and confirm 2-3 `story_images` rows reach `status = ready` with a fetchable image, per the Definition of Done in `spec.md`.
-- Confirm the one-time backfill endpoint, run once against the ~100 existing approved stories, completes without spiking Cloud Tasks queue load (watch `maxConcurrentDispatches: 3` isn't exceeded) and produces the expected ballpark cost (~$10 total).
+
+## Dropped
+- ~~Backfill existing approved stories with images~~ — not needed. The `POST /api/internal/backfill-images` endpoint, `deriveBackfillCandidates`, and its tests were removed; illustrations only generate for stories approved going forward.
