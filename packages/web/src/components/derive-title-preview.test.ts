@@ -40,4 +40,23 @@ describe('deriveTitlePreview', () => {
   it('returns an empty string for a whitespace-only seed', () => {
     expect(deriveTitlePreview('   \n\t  ', 100)).toBe('')
   })
+
+  it('does not stop at a Russian initial — merges short sentence fragments until substantial', () => {
+    const seed = 'А. С. Пушкин написал сказку о золотой рыбке. Она стала классикой.'
+
+    expect(deriveTitlePreview(seed, 100)).toBe('А. С. Пушкин написал сказку о золотой рыбке.')
+  })
+
+  it('treats an ellipsis as part of the same sentence, not a sentence end', () => {
+    const seed = 'Гоша шёл по лесу... вдруг он услышал странный звук.'
+
+    expect(deriveTitlePreview(seed, 100)).toBe(seed)
+  })
+
+  it('truncates without splitting a multi-code-unit character (emoji) in half', () => {
+    const preview = deriveTitlePreview('СупердлинноеСлово🐉БезПробеловИЕщеБольшеБукв', 18)
+
+    expect(preview).toBe('СупердлинноеСлово🐉…')
+    expect(preview).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/)
+  })
 })
