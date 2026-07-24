@@ -1,23 +1,36 @@
 flowchart TD
   msg["Incoming Telegram update<br/>(authorized user only)"]
   cmds{"Command or plain text?"}
-  new["/new<br/>prompt for an idea"]
+  new["/new<br/>reply with universe keyboard"]
+  pick["newpick:&lt;id&gt; callback<br/>store pending action, prompt for idea"]
   stories["/stories<br/>show category menu"]
   topic["/topic &lt;text&gt;<br/>insert topic row"]
   frag["/fragment &lt;text&gt;<br/>insert fragment row"]
+  pending{"Live pending action<br/>for this chat?"}
+  append["Append message to<br/>accumulated_seed, refresh TTL<br/>reply with '✅ Готово' button"]
+  finalize["'✅ Готово' callback or /go<br/>&rarr; finalizePendingStory"]
+  ready{"accumulated_seed<br/>non-empty?"}
   text{"Plain text:<br/>looks like a story id?"}
   show["showStory(id)<br/>reply with text, mark read"]
-  createfire["createStoryAndFire<br/>&rarr; triggerAutoPipeline"]
+  createfire["createStoryAndFire /<br/>createStoryForUniverse<br/>&rarr; triggerAutoPipeline"]
   gen["Pipeline generates story<br/>(async, fire-and-forget)"]
   cb["story-ready callback<br/>&rarr; bot.api.sendMessage"]
 
   msg --> cmds
-  cmds --> new
+  cmds --> new --> pick
   cmds --> stories
   cmds --> topic
   cmds --> frag
-  cmds --> text
+  cmds -->|"plain text or /go"| pending
+  pending -->|"yes, not finalizing"| append
+  append -.->|"parent taps Готово / sends /go"| finalize
+  pending -->|"finalize triggered"| finalize
+  finalize --> ready
+  ready -->|"yes"| createfire
+  ready -->|"no"| append
+  pending -->|"no live pending action"| text
   text -->|"yes"| show
-  text -->|"no"| createfire --> gen --> cb
+  text -->|"no"| createfire
+  createfire --> gen --> cb
   cb -.->|"user taps id"| show
   stories -->|"pick story:id button"| show

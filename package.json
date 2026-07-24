@@ -46,12 +46,15 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^7.0.0",
+    "@testing-library/react": "^16.3.2",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^25.5.0",
     "drizzle-kit": "^0.31.10",
+    "jsdom": "^29.1.1",
     "langfuse-cli": "^0.0.9",
     "tsx": "^4.21.0",
     "typescript": "^6.0.2",

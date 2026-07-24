@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { api, type CreateStoryInput, type StoryGroup } from '../lib/api'
 import {
   validateCreateStoryForm,
+  buildAccumulatedSeed,
   type CreateStoryFormState,
 } from './create-story-form'
 import FormField from './form-field'
@@ -50,6 +51,7 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
     structureKey: null,
     lensKey: null,
   })
+  const [contextMessages, setContextMessages] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [creatingSeries, setCreatingSeries] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -66,6 +68,7 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
         structureKey: null,
         lensKey: null,
       })
+      setContextMessages([])
       setError(null)
       setShowCreateUniverse(false)
       setNewUniverseName('')
@@ -84,8 +87,22 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
     return null
   }
 
+  function addContextMessage() {
+    const message = form.seed.trim()
+
+    if (!message) return
+
+    setContextMessages((prev) => [...prev, message])
+    setForm((prev) => ({ ...prev, seed: '' }))
+  }
+
+  function removeContextMessage(index: number) {
+    setContextMessages((prev) => prev.filter((_, i) => i !== index))
+  }
+
   async function handleSubmit() {
-    const validation = validateCreateStoryForm(form)
+    const seed = buildAccumulatedSeed(contextMessages, form.seed)
+    const validation = validateCreateStoryForm({ ...form, seed })
 
     if (!validation.valid) {
       setError(validation.reason)
@@ -98,6 +115,7 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
     try {
       await onSubmit(validation.input)
       setForm({ seed: '', groupId: null, structureKey: null, lensKey: null })
+      setContextMessages([])
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Не удалось создать историю')
     } finally {
@@ -128,7 +146,8 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
   }
 
   async function handleCreateSeries() {
-    const validation = validateCreateStoryForm(form)
+    const seed = buildAccumulatedSeed(contextMessages, form.seed)
+    const validation = validateCreateStoryForm({ ...form, seed })
 
     if (!validation.valid) {
       setError(validation.reason)
@@ -144,9 +163,10 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
     setError(null)
 
     try {
-      const result = await api.stories.createSeries({ seed: form.seed.trim(), groupId: form.groupId })
+      const result = await api.stories.createSeries({ seed, groupId: form.groupId })
 
       setForm({ seed: '', groupId: null, structureKey: null, lensKey: null })
+      setContextMessages([])
       onSeriesCreated?.(result.stories.length)
       onClose()
     } catch (seriesError) {
@@ -156,7 +176,8 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
     }
   }
 
-  const canSubmit = !submitting && !creatingSeries && validateCreateStoryForm(form).valid
+  const canSubmit =
+    !submitting && !creatingSeries && validateCreateStoryForm({ ...form, seed: buildAccumulatedSeed(contextMessages, form.seed) }).valid
 
   return (
     <dialog className="modal modal-open">
@@ -237,16 +258,46 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
 
           <FormField
             label="Затравка"
-            hint="Ситуация, эмоция или испытание, которое сейчас актуально для Саши."
+            hint="Ситуация, эмоция или испытание, которое сейчас актуально для Саши. Можно добавить несколько сообщений по очереди — нажми «Добавить» после каждого — или просто написать всё сразу и нажать «Создать историю»."
             required
           >
-            <textarea
-              className="textarea textarea-bordered min-h-40 w-full bg-base-200"
-              placeholder="Герой нервничает: первый раз ночевать не дома..."
-              value={form.seed}
-              onChange={(event) => setForm((prev) => ({ ...prev, seed: event.target.value }))}
-              autoFocus
-            />
+            {contextMessages.length > 0 && (
+              <ul className="mb-3 space-y-2">
+                {contextMessages.map((message, index) => (
+                  <li
+                    key={index}
+                    className="flex items-start justify-between gap-2 rounded-lg bg-base-300/50 px-3 py-2 text-sm text-base-content/80"
+                  >
+                    <span className="whitespace-pre-wrap">{message}</span>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-xs shrink-0"
+                      aria-label="Убрать сообщение"
+                      onClick={() => removeContextMessage(index)}
+                    >
+                      ✕
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="flex gap-2">
+              <textarea
+                className="textarea textarea-bordered min-h-40 w-full bg-base-200"
+                placeholder="Герой нервничает: первый раз ночевать не дома..."
+                value={form.seed}
+                onChange={(event) => setForm((prev) => ({ ...prev, seed: event.target.value }))}
+                autoFocus
+              />
+              <button
+                type="button"
+                className="btn btn-outline btn-sm self-start"
+                disabled={!form.seed.trim()}
+                onClick={addContextMessage}
+              >
+                Добавить
+              </button>
+            </div>
           </FormField>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

@@ -41,6 +41,7 @@ export const universeCharacters = pgTable('universe_characters', {
 export const telegramPendingActions = pgTable('telegram_pending_actions', {
   chatId: bigint('chat_id', { mode: 'number' }).primaryKey(),
   universeId: integer('universe_id').references(() => storyGroups.id).notNull(),
+  accumulatedSeed: text('accumulated_seed'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
