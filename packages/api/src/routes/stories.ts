@@ -13,7 +13,7 @@ import { decideApprovePlan } from './approve-plan-decision'
 import textVersionsRouter from './text-versions'
 import { createStorySchema, resolveCreateStoryMode } from './create-story-schema'
 import { analyzeStoryAndLearn } from './story-analysis'
-import { dispatchAnalysis } from './pipeline-dispatch'
+import { dispatchAnalysis, dispatchImageGeneration } from './pipeline-dispatch'
 import { loadUniverseContext } from './load-universe-context'
 import { loadStoryFragmentTexts } from '@bedtime/core/pipeline/load-fragments'
 import { syncUniverseMemory } from '@bedtime/core/pipeline/synthesize-universe-memory'
@@ -642,6 +642,10 @@ router.post('/:id/approve-text', validate(approveTextSchema), async (req, res) =
 
     void dispatchAnalysis(storyId).catch((err) => {
       console.error(`Failed to dispatch analysis for storyId=${storyId}:`, err)
+    })
+
+    void dispatchImageGeneration(storyId).catch((err) => {
+      console.error(`Failed to dispatch image generation for storyId=${storyId}:`, err)
     })
 
     res.json(toSnakeCase(story as Story))

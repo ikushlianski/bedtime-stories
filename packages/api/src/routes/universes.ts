@@ -1,13 +1,14 @@
 import { Router } from 'express'
 import { z } from 'zod'
-import { eq, and } from 'drizzle-orm'
+import { eq, and, count, inArray } from 'drizzle-orm'
 import { db } from '@bedtime/core/db/client'
-import { storyGroups, stories, universeCharacters } from '@bedtime/core/db/schema'
+import { storyGroups, stories, universeCharacters, characterReferenceImages } from '@bedtime/core/db/schema'
 import type { StoryGroup, NewStoryGroup } from '@bedtime/core/db/types'
 import { validate } from '../middleware/validate'
 import { getPendingSuggestionsCount } from './universe-suggestions'
 import { getPendingIdeasCount } from './story-ideas'
 import { syncUniverseMemory } from '@bedtime/core/pipeline/synthesize-universe-memory'
+import { deleteImage } from '@bedtime/core/storage/gcs-images'
 
 const router = Router()
 
@@ -56,12 +57,28 @@ const updateCharacterSchema = z.object({
   coOccurrenceNote: z.string().optional(),
 })
 
+async function withReferenceImageCounts(chars: (typeof universeCharacters.$inferSelect)[]) {
+  if (chars.length === 0) return []
+
+  const rows = await db
+    .select({ characterId: characterReferenceImages.characterId, referenceImageCount: count() })
+    .from(characterReferenceImages)
+    .where(inArray(characterReferenceImages.characterId, chars.map((c) => c.id)))
+    .groupBy(characterReferenceImages.characterId)
+
+  const countsByCharacterId = new Map(rows.map((r) => [r.characterId, Number(r.referenceImageCount)]))
+
+  return chars.map((c) => ({ ...c, referenceImageCount: countsByCharacterId.get(c.id) ?? 0 }))
+}
+
 async function toPublic(row: StoryGroup) {
-  const [characters, pendingSuggestionsCount, pendingIdeasCount] = await Promise.all([
+  const [rawCharacters, pendingSuggestionsCount, pendingIdeasCount] = await Promise.all([
     db.select().from(universeCharacters).where(eq(universeCharacters.universeId, row.id)),
     getPendingSuggestionsCount(row.id),
     getPendingIdeasCount(row.id),
   ])
+
+  const characters = await withReferenceImageCounts(rawCharacters)
 
   return {
     id: row.id,
@@ -217,7 +234,7 @@ router.get('/:id/characters', async (req, res) => {
       .from(universeCharacters)
       .where(eq(universeCharacters.universeId, id))
 
-    res.json(chars)
+    res.json(await withReferenceImageCounts(chars))
   } catch (err) {
     console.error('GET /universes/:id/characters failed:', err)
     res.status(500).json({ error: 'Failed to fetch characters' })
@@ -249,7 +266,7 @@ router.post('/:id/characters', validate(createCharacterSchema), async (req, res)
       })
       .returning()
 
-    res.status(201).json(created)
+    res.status(201).json({ ...created, referenceImageCount: 0 })
   } catch (err) {
     console.error('POST /universes/:id/characters failed:', err)
     res.status(500).json({ error: 'Failed to create character' })
@@ -279,7 +296,9 @@ router.patch('/:id/characters/:charId', validate(updateCharacterSchema), async (
       return
     }
 
-    res.json(updated)
+    const [withCount] = await withReferenceImageCounts([updated])
+
+    res.json(withCount)
   } catch (err) {
     console.error('PATCH /universes/:id/characters/:charId failed:', err)
     res.status(500).json({ error: 'Failed to update character' })
@@ -295,6 +314,23 @@ router.delete('/:id/characters/:charId', async (req, res) => {
       res.status(400).json({ error: 'Invalid id' })
       return
     }
+
+    const referenceImages = await db
+      .select()
+      .from(characterReferenceImages)
+      .where(eq(characterReferenceImages.characterId, charId))
+
+    await Promise.all(
+      referenceImages.map(async (image) => {
+        try {
+          await deleteImage(image.gcsPath)
+        } catch (deleteErr) {
+          console.error(`Failed to delete GCS object ${image.gcsPath} for character ${charId}:`, deleteErr)
+        }
+      }),
+    )
+
+    await db.delete(characterReferenceImages).where(eq(characterReferenceImages.characterId, charId))
 
     await db
       .delete(universeCharacters)

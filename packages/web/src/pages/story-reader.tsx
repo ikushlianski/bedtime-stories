@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, type RefObject } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { api, isReactionAnnotation, type Story, type Annotation, type AnnotationType, type PipelineStatusValue } from '../lib/api'
+import { api, isReactionAnnotation, storyImageUrl, type Story, type Annotation, type AnnotationType, type PipelineStatusValue, type StoryImageSummary } from '../lib/api'
 import { AnnotationToolbar, PageHeader, StatusCallout, Toast, StoryTagEditor } from '../components'
 import { TextVersionHistory } from '../components/text-version-history'
 import ParentReviewForm from '../components/parent-review-form'
@@ -43,6 +43,43 @@ function useStoryFetch(id: number) {
   }, [id])
 
   return { story, setStory, loading, error }
+}
+
+function useStoryImages(id: number) {
+  const [images, setImages] = useState<StoryImageSummary[]>([])
+
+  useEffect(() => {
+    if (isNaN(id)) return
+
+    api.stories
+      .images(id)
+      .then(setImages)
+      .catch(() => undefined)
+  }, [id])
+
+  return images
+}
+
+function StoryIllustrations({ storyId, images }: { storyId: number; images: StoryImageSummary[] }) {
+  if (images.length === 0) return null
+
+  return (
+    <section className="mb-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {images
+          .slice()
+          .sort((a, b) => a.sequenceIndex - b.sequenceIndex)
+          .map((image) => (
+            <img
+              key={image.sequenceIndex}
+              src={storyImageUrl(storyId, image.sequenceIndex)}
+              alt=""
+              className="w-full rounded-box border border-base-300 object-cover shadow-sm"
+            />
+          ))}
+      </div>
+    </section>
+  )
 }
 
 function stripLeadingTitle(text: string): string {
@@ -169,6 +206,7 @@ export function StoryReaderPage() {
   const navigate = useNavigate()
   const storyId = Number(id)
   const { story, setStory, loading, error } = useStoryFetch(storyId)
+  const storyImages = useStoryImages(storyId)
   const [selection, setSelection] = useState<SelectionState | null>(null)
   const [annotations, setAnnotations] = useState<Annotation[]>([])
   const [annotationError, setAnnotationError] = useState<string | null>(null)
@@ -518,6 +556,8 @@ setStoryTags((story.tags as string[] | null) ?? [])
           }}
         />
       )}
+
+      <StoryIllustrations storyId={storyId} images={storyImages} />
 
       <div className="relative">
         {textToDisplay ? (

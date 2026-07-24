@@ -15,6 +15,7 @@ import dashboardRouter from './routes/dashboard'
 import improverRouter from './routes/improver'
 import universesRouter from './routes/universes'
 import universeSuggestionsRouter from './routes/universe-suggestions'
+import characterReferenceImagesRouter from './routes/character-reference-images'
 import storyIdeasRouter from './routes/story-ideas'
 import diaryRouter from './routes/diary'
 import fragmentsRouter from './routes/fragments'
@@ -25,6 +26,7 @@ import modelsRouter from './routes/models'
 import storiesSwapModelRouter from './routes/stories-swap-model'
 import storiesVfmRouter from './routes/stories-vfm'
 import storyCommentsRouter from './routes/story-comments'
+import storyImagesRouter from './routes/story-images'
 import adminRouter from './routes/admin'
 import authRouter from './routes/auth.routes'
 import settingsRouter from './routes/settings'
@@ -71,6 +73,7 @@ app.use('/api/pipeline', pipelineRouter)
 app.use('/api/dashboard', dashboardRouter)
 app.use('/api/improver', improverRouter)
 app.use('/api/universes', universesRouter)
+app.use('/api/universes/:universeId/characters/:charId/reference-images', characterReferenceImagesRouter)
 app.use('/api/universes/:universeId/suggestions', universeSuggestionsRouter)
 app.use('/api/universes/:universeId/ideas', storyIdeasRouter)
 app.use('/api/diary', diaryRouter)
@@ -82,6 +85,7 @@ app.use('/api/models', modelsRouter)
 app.use('/api/stories/:id/swap-model', storiesSwapModelRouter)
 app.use('/api/stories/:id/value-for-money', storiesVfmRouter)
 app.use('/api/stories/:id/comments', storyCommentsRouter)
+app.use('/api/stories/:id/images', storyImagesRouter)
 app.use('/api/admin', adminRouter)
 app.use('/api/settings', settingsRouter)
 

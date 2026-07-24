@@ -14,6 +14,7 @@ const envSchema = z.object({
   NOTION_DATABASE_ID: z.string().optional(),
   OPENROUTER_API_KEY: z.string().min(1),
   JWT_SECRET: z.string().min(32),
+  GCS_BUCKET_NAME: z.string().min(1).optional(),
 })
 
 export const env = envSchema.parse(process.env)

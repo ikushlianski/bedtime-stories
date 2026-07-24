@@ -2,6 +2,14 @@ import { formatApiError } from './format-api-error'
 
 const API_BASE = (import.meta as ImportMeta & { env: Record<string, string | undefined> }).env['VITE_API_URL'] ?? 'http://localhost:8020'
 
+export function storyImageUrl(storyId: number, sequenceIndex: number): string {
+  return `${API_BASE}/api/stories/${storyId}/images/${sequenceIndex}`
+}
+
+export function characterReferenceImageUrl(universeId: number, charId: number, refId: number): string {
+  return `${API_BASE}/api/universes/${universeId}/characters/${charId}/reference-images/${refId}`
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     credentials: 'include',
@@ -44,6 +52,31 @@ async function requestEmpty(path: string, init?: RequestInit): Promise<void> {
   }
 }
 
+async function requestUpload<T>(path: string, file: File): Promise<T> {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const res = await fetch(`${API_BASE}${path}`, {
+    credentials: 'include',
+    method: 'POST',
+    body: formData,
+  })
+
+  if (!res.ok) {
+    let body: unknown = null
+
+    try {
+      body = await res.json()
+    } catch {
+      body = null
+    }
+
+    throw new Error(formatApiError(res.status, res.statusText, body))
+  }
+
+  return res.json() as Promise<T>
+}
+
 export interface UniverseCharacter {
   id: number
   universeId: number
@@ -56,6 +89,14 @@ export interface UniverseCharacter {
   coOccurrenceNote: string | null
   createdAt: string | null
   updatedAt: string | null
+  referenceImageCount: number
+}
+
+export interface CharacterReferenceImage {
+  id: number
+  characterId: number
+  gcsPath: string
+  uploadedAt: string
 }
 
 export interface UniverseSuggestion {
@@ -410,6 +451,11 @@ export interface StoryCostBreakdown {
   }>
 }
 
+export interface StoryImageSummary {
+  sequenceIndex: number
+  url: string
+}
+
 export interface CreateSeriesInput {
   seed: string
   groupId?: number
@@ -535,6 +581,8 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify({ storyAnalysis }),
       }),
+
+    images: (id: number) => request<StoryImageSummary[]>(`/api/stories/${id}/images`),
 
     allTags: () => request<string[]>('/api/stories/tags'),
 
@@ -804,6 +852,15 @@ export const api = {
 
     deleteCharacter: (universeId: number, charId: number) =>
       requestEmpty(`/api/universes/${universeId}/characters/${charId}`, { method: 'DELETE' }),
+
+    listCharacterReferenceImages: (universeId: number, charId: number) =>
+      request<CharacterReferenceImage[]>(`/api/universes/${universeId}/characters/${charId}/reference-images`),
+
+    uploadCharacterReferenceImage: (universeId: number, charId: number, file: File) =>
+      requestUpload<CharacterReferenceImage>(`/api/universes/${universeId}/characters/${charId}/reference-images`, file),
+
+    deleteCharacterReferenceImage: (universeId: number, charId: number, refId: number) =>
+      requestEmpty(`/api/universes/${universeId}/characters/${charId}/reference-images/${refId}`, { method: 'DELETE' }),
 
     listSuggestions: (universeId: number) =>
       request<UniverseSuggestion[]>(`/api/universes/${universeId}/suggestions`),
