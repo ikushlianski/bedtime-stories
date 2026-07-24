@@ -62,6 +62,10 @@ vi.mock('./load-reaction-preferences', async () => {
   const actual = await vi.importActual<typeof import('./load-reaction-preferences')>('./load-reaction-preferences')
   return { ...actual, loadReactionPreferences: vi.fn().mockResolvedValue(null) }
 })
+vi.mock('./load-recent-titles', async () => {
+  const actual = await vi.importActual<typeof import('./load-recent-titles')>('./load-recent-titles')
+  return { ...actual, loadRecentTitles: vi.fn().mockResolvedValue([]) }
+})
 
 const baseModels = {
   plotter: 'claude-sonnet-4-6',

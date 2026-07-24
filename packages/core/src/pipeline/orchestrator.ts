@@ -6,6 +6,7 @@ import { resolvePrompt, type ResolvedPrompt } from './prompt-resolver'
 import { loadEligibleFragments, extractFragmentMarkers, MAX_FRAGMENTS_PER_STORY } from './load-fragments'
 import { loadReactionPreferences, MIN_REACTIONS } from './load-reaction-preferences'
 import { loadMemorableMoments } from './load-memorable-moments'
+import { loadRecentTitles } from './load-recent-titles'
 import { resolveStoryStructureChoice } from './resolve-story-structure-choice'
 import { extractWordMarkers, MAX_WORDS_PER_STORY, type TargetWord } from './stages/words-block'
 import type { CharacterBibleEntry } from './stages/character-bible-block'
@@ -114,11 +115,12 @@ export async function runPlanPhase(options: {
   const userFeedbackArg = options.userFeedback ? { userFeedback: options.userFeedback } : {}
   const storyIdArg = { storyId: options.storyId }
 
-  const [eligibleFragments, reactionSummary, memorableMoments, structureChoice] = await Promise.all([
+  const [eligibleFragments, reactionSummary, memorableMoments, structureChoice, recentTitles] = await Promise.all([
     options.injectFragments ? loadEligibleFragments(options.universeId ?? null) : Promise.resolve([]),
     options.universeId != null ? loadReactionPreferences(options.universeId) : Promise.resolve(null),
     loadMemorableMoments(options.universeId ?? null, options.storyId),
     resolveStoryStructureChoice(options.storyId),
+    loadRecentTitles(options.universeId ?? null, options.storyId),
   ])
   const fragmentsArg = eligibleFragments.length > 0 ? { eligibleFragments } : {}
   const reactionArg = reactionSummary && reactionSummary.sampleSize >= MIN_REACTIONS ? { reactionSummary } : {}
@@ -154,6 +156,7 @@ export async function runPlanPhase(options: {
   const titleSuggested = await generateStoryTitle({
     plan: planV1,
     seed,
+    recentTitles,
     ...cwdArg,
     ...storyIdArg,
   })
@@ -285,11 +288,12 @@ export async function runPlotterOnly(options: {
 
   const storyIdArg = { storyId: options.storyId }
 
-  const [eligibleFragments, reactionSummary, memorableMoments, structureChoice] = await Promise.all([
+  const [eligibleFragments, reactionSummary, memorableMoments, structureChoice, recentTitles] = await Promise.all([
     options.injectFragments ? loadEligibleFragments(options.universeId ?? null) : Promise.resolve([]),
     options.universeId != null ? loadReactionPreferences(options.universeId) : Promise.resolve(null),
     loadMemorableMoments(options.universeId ?? null, options.storyId),
     resolveStoryStructureChoice(options.storyId),
+    loadRecentTitles(options.universeId ?? null, options.storyId),
   ])
   const fragmentsArg = eligibleFragments.length > 0 ? { eligibleFragments } : {}
   const reactionArg = reactionSummary && reactionSummary.sampleSize >= MIN_REACTIONS ? { reactionSummary } : {}
@@ -325,6 +329,7 @@ export async function runPlotterOnly(options: {
   const titleSuggested = await generateStoryTitle({
     plan: planV1,
     seed,
+    recentTitles,
     ...cwdArg,
     ...storyIdArg,
   })
