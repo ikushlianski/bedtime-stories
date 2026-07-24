@@ -1,3 +1,6 @@
+// Backport of lib.es2022.intl.d.ts's Intl.Segmenter, since packages/web's tsconfig `lib`
+// predates ES2022 (CLAUDE.md reserves tsconfig edits for dependency installs). Delete this
+// file the day `lib` is bumped to ES2022+ — the real definitions will collide with these.
 export {}
 
 declare global {
@@ -22,7 +25,7 @@ declare global {
     }
 
     interface Segments {
-      containing(codeUnitIndex?: number): SegmentData
+      containing(codeUnitIndex?: number): SegmentData | undefined
       [Symbol.iterator](): IterableIterator<SegmentData>
     }
 

@@ -9,6 +9,6 @@ export default defineConfig({
     },
   },
   test: {
-    environmentMatchGlobs: [['packages/web/**', 'jsdom']],
+    environmentMatchGlobs: [['packages/web/**/*.test.tsx', 'jsdom']],
   },
 })
