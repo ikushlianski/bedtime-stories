@@ -1,0 +1,1 @@
+export const MAX_UNIVERSES_PER_STORY = 4

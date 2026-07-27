@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { PIPELINE_STAGES, PipelineStage } from '@bedtime/core/pipeline/pipeline-stages'
 import { getStoryStructureByKey } from '@bedtime/core/pipeline/stages/story-structures'
 import { getCharacterLensByKey } from '@bedtime/core/pipeline/stages/character-lenses'
-import { MAX_UNIVERSES_PER_STORY } from './story-universe-links'
+import { MAX_UNIVERSES_PER_STORY } from './story-universe-limits'
 
 const stageOverrideSchema = z.object({
   model: z.string().min(1),
