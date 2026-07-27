@@ -2,8 +2,6 @@ import { eq, inArray } from 'drizzle-orm'
 import { db } from '@bedtime/core/db/client'
 import { storyUniverses } from '@bedtime/core/db/schema'
 
-export const MAX_UNIVERSES_PER_STORY = 4
-
 export async function getStoryUniverseIds(storyId: number, fallbackGroupId?: number | null): Promise<number[]> {
   const rows = await db
     .select({ universeId: storyUniverses.universeId })
