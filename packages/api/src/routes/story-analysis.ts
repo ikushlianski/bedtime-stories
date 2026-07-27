@@ -5,6 +5,7 @@ import { runStoryAnalyzer } from '@bedtime/core/pipeline/stages/story-analyzer'
 import { updateStyleGuide } from '@bedtime/core/pipeline/style-guide-updater'
 import { formatParentFeedback } from '@bedtime/core/pipeline/derivers/format-parent-feedback'
 import { runUniverseFactExtractor } from '@bedtime/core/pipeline/stages/universe-fact-extractor'
+import { getStoryUniverseIds } from './story-universe-links'
 
 export interface AnalyzeResult {
   storyAnalysis: string
@@ -59,9 +60,13 @@ export async function analyzeStoryAndLearn(storyId: number): Promise<AnalyzeResu
   }
 
   let suggestionsCreated = 0
+  let styleGuideUpdated = false
 
-  if (story.groupId !== null && story.groupId !== undefined) {
+  const universeIds = await getStoryUniverseIds(storyId, story.groupId)
+
+  if (story.groupId !== null && story.groupId !== undefined && universeIds.length === 1) {
     const groupId = story.groupId
+    styleGuideUpdated = true
 
     console.log(`[analyze] story ${storyId} — updating style guide for group ${groupId}`)
     const [existingChars, parentReview, storyAnnotations] = await Promise.all([
@@ -102,7 +107,7 @@ export async function analyzeStoryAndLearn(storyId: number): Promise<AnalyzeResu
   return {
     storyAnalysis: output.analysis_summary,
     reactionsExtracted: output.extracted_reactions.length,
-    styleGuideUpdated: story.groupId !== null && story.groupId !== undefined,
+    styleGuideUpdated,
     suggestionsCreated,
   }
 }

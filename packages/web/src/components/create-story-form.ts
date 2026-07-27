@@ -1,15 +1,17 @@
 import type { CreateStoryInput } from '../lib/api'
 
+export const MAX_UNIVERSES_PER_STORY = 4
+
 export interface CreateStoryFormState {
   seed: string
-  groupId: number | null
+  groupIds: number[]
   structureKey: string | null
   lensKey: string | null
 }
 
 export const INITIAL_CREATE_STORY_FORM: CreateStoryFormState = {
   seed: '',
-  groupId: null,
+  groupIds: [],
   structureKey: null,
   lensKey: null,
 }
@@ -29,8 +31,8 @@ export function validateCreateStoryForm(state: CreateStoryFormState): CreateStor
     return { valid: false, reason: 'Seed is too long' }
   }
 
-  if (state.groupId === null) {
-    return { valid: false, reason: 'Universe is required' }
+  if (state.groupIds.length > MAX_UNIVERSES_PER_STORY) {
+    return { valid: false, reason: `Choose at most ${MAX_UNIVERSES_PER_STORY} universes` }
   }
 
   return {
@@ -38,7 +40,7 @@ export function validateCreateStoryForm(state: CreateStoryFormState): CreateStor
     input: {
       seed,
       pipelineMode: 'auto',
-      groupId: state.groupId,
+      ...(state.groupIds.length > 0 ? { groupIds: state.groupIds } : {}),
       ...(state.structureKey ? { structureKey: state.structureKey } : {}),
       ...(state.lensKey ? { lensKey: state.lensKey } : {}),
     },

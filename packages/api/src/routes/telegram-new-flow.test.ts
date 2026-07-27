@@ -34,6 +34,7 @@ vi.mock('@bedtime/core/db/client.js', () => ({
           dbState.insertedStory = values
           return Promise.resolve([{ id: 77 }])
         }),
+        onConflictDoNothing: vi.fn(() => Promise.resolve([])),
       })),
     })),
   },

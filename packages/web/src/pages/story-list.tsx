@@ -44,12 +44,12 @@ const PAGE_META: Record<string, { eyebrow: string; title: string; description: s
 
 interface SortableStoryCardProps {
   story: Story
-  universeName?: string
+  universeNames?: string[]
   onTitleClick: () => void
   onDelete: () => void
 }
 
-function SortableStoryCard({ story, universeName, onTitleClick, onDelete }: SortableStoryCardProps) {
+function SortableStoryCard({ story, universeNames, onTitleClick, onDelete }: SortableStoryCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: story.id,
   })
@@ -70,7 +70,7 @@ function SortableStoryCard({ story, universeName, onTitleClick, onDelete }: Sort
         createdAt={story.created_at}
         seriesId={story.series_id}
         totalUsdMicros={story.total_usd_micros ?? null}
-        universeName={universeName}
+        universeNames={universeNames}
         onTitleClick={onTitleClick}
         dragHandleProps={{ ...listeners, ...attributes }}
         actions={[
@@ -143,6 +143,7 @@ export function StoryListPage({ lockedStatus }: { lockedStatus?: StatusFilter })
         groupId: effectiveFilters.groupId ?? undefined,
         tag: effectiveFilters.tag ?? undefined,
         sort: effectiveFilters.sort !== 'custom' ? effectiveFilters.sort : undefined,
+        mixedOnly: effectiveFilters.mixedOnly || undefined,
       })
 
       setStories(data)
@@ -266,7 +267,7 @@ export function StoryListPage({ lockedStatus }: { lockedStatus?: StatusFilter })
                 <SortableStoryCard
                   key={story.id}
                   story={story}
-                  universeName={universes.find((u) => u.id === story.group_id)?.name}
+                  universeNames={story.group_ids.map((id) => universes.find((u) => u.id === id)?.name).filter((n): n is string => n != null)}
                   onTitleClick={() => navigate(`/stories/${story.id}`)}
                   onDelete={() => handleDeleteStory(story)}
                 />

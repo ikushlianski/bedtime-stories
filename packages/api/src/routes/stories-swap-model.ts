@@ -2,10 +2,12 @@ import { Router, type Request } from 'express'
 import { z } from 'zod'
 import { eq, desc } from 'drizzle-orm'
 import { db } from '@bedtime/core/db/client'
-import { stories, storyGroups, runSnapshots, modelSwapEvents } from '@bedtime/core/db/schema'
+import { stories, runSnapshots, modelSwapEvents } from '@bedtime/core/db/schema'
 import { validate } from '../middleware/validate'
 import { triggerPlanRedo } from './pipeline-plan-redo'
 import { triggerTextPhase } from './pipeline-text-trigger'
+import { getStoryUniverseIds } from './story-universe-links'
+import { loadUniverseContext } from './load-universe-context'
 import type { StageOverrides } from '@bedtime/core/pipeline/derivers/per-stage-models'
 
 const ORCHESTRATOR_STAGES = ['plotter', 'writer'] as const
@@ -82,18 +84,8 @@ router.post('/', validate(swapModelSchema), async (req: Request<StoryParams>, re
 
     console.log(`[swap] story_id=${storyId} stage=${stage} from=${fromModel ?? 'none'} to=${body.toModel} chip=${body.reasonChip ?? 'none'}`)
 
-    let universeSystemPrompt: string | undefined
-    let universeContext: string | undefined
-    let styleGuide: string | undefined
-
-    if (storyRow.groupId !== null && storyRow.groupId !== undefined) {
-      const [group] = await db.select().from(storyGroups).where(eq(storyGroups.id, storyRow.groupId)).limit(1)
-      if (group) {
-        universeSystemPrompt = group.systemPrompt
-        universeContext = group.universeContext ?? undefined
-        styleGuide = group.styleGuide ?? undefined
-      }
-    }
+    const universeIds = await getStoryUniverseIds(storyId, storyRow.groupId)
+    const { universeSystemPrompt, universeContext, styleGuide } = await loadUniverseContext(universeIds)
 
     setImmediate(() => {
       if (stage === 'plotter') {
@@ -104,7 +96,7 @@ router.post('/', validate(swapModelSchema), async (req: Request<StoryParams>, re
           universeSystemPrompt,
           universeContext,
           styleGuide,
-          storyRow.groupId ?? null,
+          universeIds,
         )
       } else {
         triggerTextPhase(
@@ -116,7 +108,7 @@ router.post('/', validate(swapModelSchema), async (req: Request<StoryParams>, re
           null,
           universeContext,
           styleGuide,
-          storyRow.groupId ?? null,
+          universeIds,
           storyRow.textV1 ?? undefined,
           storyRow.activeTextVersionId ?? null,
         )

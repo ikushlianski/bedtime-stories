@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { eq, desc, and, sql } from 'drizzle-orm'
 import { db } from '@bedtime/core/db/client'
-import { stories, annotations, feedback, runSnapshots, storyGroups, planQuestions, planConversations, parentReviews, childReactions, storyReadings, modelCalls, storyTextVersions } from '@bedtime/core/db/schema'
+import { stories, annotations, feedback, runSnapshots, storyGroups, planQuestions, planConversations, parentReviews, childReactions, storyReadings, modelCalls, storyTextVersions, storyUniverses } from '@bedtime/core/db/schema'
 import { deriveStoryCostBreakdown } from '@bedtime/core/cost/aggregations/derive-story-cost-breakdown'
 import type { Story, NewStory, NewAnnotation, ParentReview, ChildReaction } from '@bedtime/core/db/types'
 import { validate } from '../middleware/validate'
@@ -15,6 +15,7 @@ import { createStorySchema, resolveCreateStoryMode } from './create-story-schema
 import { analyzeStoryAndLearn } from './story-analysis'
 import { dispatchAnalysis } from './pipeline-dispatch'
 import { loadUniverseContext } from './load-universe-context'
+import { getStoryUniverseIds, getStoryUniverseIdsBatch, setStoryUniverses } from './story-universe-links'
 import { loadStoryFragmentTexts } from '@bedtime/core/pipeline/load-fragments'
 import { syncUniverseMemory } from '@bedtime/core/pipeline/synthesize-universe-memory'
 import { notifyStoryReady } from './pipeline-notifications'
@@ -140,6 +141,10 @@ router.post('/', validate(createStorySchema), async (req, res) => {
     }
     const [story] = await db.insert(stories).values(newStory).returning()
 
+    if (resolved.groupIds !== undefined && resolved.groupIds.length > 0) {
+      await setStoryUniverses((story as Story).id, resolved.groupIds)
+    }
+
     res.status(201).json(toSnakeCase(story as Story))
   } catch (err) {
     console.error('POST /stories failed:', err)
@@ -193,7 +198,7 @@ router.get('/tags', async (_req, res) => {
 
 router.get('/', async (req, res) => {
   try {
-    const { status, groupId, tag, sort } = req.query
+    const { status, groupId, tag, sort, mixedOnly } = req.query
 
     if (status !== undefined && typeof status !== 'string') {
       res.status(400).json({ error: 'Invalid status filter' })
@@ -210,12 +215,16 @@ router.get('/', async (req, res) => {
       const gid = parseInt(groupId, 10)
 
       if (!isNaN(gid)) {
-        conditions.push(eq(stories.groupId, gid))
+        conditions.push(sql`(${stories.groupId} = ${gid} or exists (select 1 from story_universes where story_universes.story_id = stories.id and story_universes.universe_id = ${gid}))`)
       }
     }
 
     if (tag !== undefined && typeof tag === 'string') {
       conditions.push(sql`${stories.tags}::jsonb @> ${JSON.stringify([tag])}::jsonb`)
+    }
+
+    if (mixedOnly === 'true') {
+      conditions.push(sql`(select count(*) from story_universes where story_universes.story_id = stories.id) >= 2`)
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined
@@ -254,9 +263,11 @@ router.get('/', async (req, res) => {
       if (t.storyId !== null) totalById.set(t.storyId, Number(t.totalUsdMicros ?? 0))
     }
 
+    const universeIdsByStory = await getStoryUniverseIdsBatch(result.map((row) => ({ id: row.id, groupId: row.groupId })))
+
     res.json(result.map((row) => {
       const total = totalById.get(row.id)
-      return { ...toSnakeCase(row), total_usd_micros: total ?? null }
+      return { ...toSnakeCase(row), total_usd_micros: total ?? null, group_ids: universeIdsByStory.get(row.id) ?? [] }
     }))
   } catch (err) {
     console.error('GET /stories failed:', err)
@@ -289,10 +300,14 @@ router.post('/:id/readings', async (req, res) => {
       statusUpdated = true
 
       if (story.groupId) {
-        const universeId = story.groupId
-        void syncUniverseMemory(universeId).catch((err) =>
-          console.error('[auto-synthesize] failed for universe', universeId, err),
-        )
+        const universeIds = await getStoryUniverseIds(storyId, story.groupId)
+
+        if (universeIds.length === 1) {
+          const universeId = universeIds[0]!
+          void syncUniverseMemory(universeId).catch((err) =>
+            console.error('[auto-synthesize] failed for universe', universeId, err),
+          )
+        }
       }
     }
 
@@ -458,9 +473,8 @@ router.post('/:id/approve-plan', validate(approvePlanSchema), async (req, res) =
     }
 
     if (decision.action === 'start_text_phase') {
-      const { universeSystemPrompt, universeContext, styleGuide } = existing.groupId != null
-        ? await loadUniverseContext(existing.groupId)
-        : { universeSystemPrompt: undefined, universeContext: undefined, styleGuide: undefined }
+      const universeIds = await getStoryUniverseIds(storyId, existing.groupId)
+      const { universeSystemPrompt, universeContext, styleGuide } = await loadUniverseContext(universeIds)
       let sashaContext: string | null = null
 
       const [snapshot] = await db
@@ -476,7 +490,7 @@ router.post('/:id/approve-plan', validate(approvePlanSchema), async (req, res) =
 
       await db.update(stories).set({ planFinal: decision.planV1, updatedAt: new Date() }).where(eq(stories.id, storyId))
 
-      triggerTextPhase(storyId, decision.seed, decision.planV1, existing.mode ?? 'manual', universeSystemPrompt, sashaContext, universeContext, styleGuide)
+      triggerTextPhase(storyId, decision.seed, decision.planV1, existing.mode ?? 'manual', universeSystemPrompt, sashaContext, universeContext, styleGuide, universeIds)
     }
 
     res.json(toSnakeCase(existing as Story))
@@ -509,11 +523,10 @@ router.post('/:id/redo-plan', validate(redoPlanSchema), async (req, res) => {
 
     const { reason, model } = req.body as z.infer<typeof redoPlanSchema>
 
-    const { universeSystemPrompt, universeContext, styleGuide } = existing.groupId != null
-      ? await loadUniverseContext(existing.groupId)
-      : { universeSystemPrompt: undefined, universeContext: undefined, styleGuide: undefined }
+    const universeIds = await getStoryUniverseIds(storyId, existing.groupId)
+    const { universeSystemPrompt, universeContext, styleGuide } = await loadUniverseContext(universeIds)
 
-    triggerPlanRedo(storyId, existing.seed, existing.planFinal ?? '', universeSystemPrompt, universeContext, styleGuide, existing.groupId ?? null, reason, model)
+    triggerPlanRedo(storyId, existing.seed, existing.planFinal ?? '', universeSystemPrompt, universeContext, styleGuide, universeIds, reason, model)
 
     res.json({ started: true, storyId })
   } catch (err) {
@@ -555,9 +568,8 @@ router.post('/:id/redo-text', validate(redoTextSchema), async (req, res) => {
       return
     }
 
-    const { universeSystemPrompt, universeContext, styleGuide } = existing.groupId != null
-      ? await loadUniverseContext(existing.groupId)
-      : { universeSystemPrompt: undefined, universeContext: undefined, styleGuide: undefined }
+    const universeIds = await getStoryUniverseIds(storyId, existing.groupId)
+    const { universeSystemPrompt, universeContext, styleGuide } = await loadUniverseContext(universeIds)
     let sashaContext: string | null = null
 
     const { reason, model } = req.body as z.infer<typeof redoTextSchema>
@@ -586,7 +598,7 @@ router.post('/:id/redo-text', validate(redoTextSchema), async (req, res) => {
       sashaContext = snapshot.sashaContext
     }
 
-    triggerTextRewrite(storyId, currentText, existing.planFinal, universeSystemPrompt, universeContext, styleGuide, sashaContext, existing.groupId ?? null, existing.activeTextVersionId ?? null, trimmedReason || undefined, model)
+    triggerTextRewrite(storyId, currentText, existing.planFinal, universeSystemPrompt, universeContext, styleGuide, sashaContext, universeIds, existing.activeTextVersionId ?? null, trimmedReason || undefined, model)
 
     res.json({ started: true, storyId })
   } catch (err) {
@@ -987,16 +999,20 @@ router.post('/:id/apply-plan-patch', validate(applyPlanPatchSchema), async (req,
       .returning()
 
     if (summary && storyRow.groupId) {
-      const [universe] = await db.select().from(storyGroups).where(eq(storyGroups.id, storyRow.groupId))
+      const universeIds = await getStoryUniverseIds(storyId, storyRow.groupId)
 
-      if (universe) {
-        const existing = universe.styleGuideWorks ?? ''
-        const appended = existing ? `${existing}\n- ${summary}` : `- ${summary}`
+      if (universeIds.length === 1) {
+        const [universe] = await db.select().from(storyGroups).where(eq(storyGroups.id, storyRow.groupId))
 
-        await db
-          .update(storyGroups)
-          .set({ styleGuideWorks: appended })
-          .where(eq(storyGroups.id, storyRow.groupId))
+        if (universe) {
+          const existing = universe.styleGuideWorks ?? ''
+          const appended = existing ? `${existing}\n- ${summary}` : `- ${summary}`
+
+          await db
+            .update(storyGroups)
+            .set({ styleGuideWorks: appended })
+            .where(eq(storyGroups.id, storyRow.groupId))
+        }
       }
     }
 
@@ -1065,16 +1081,20 @@ router.post('/:id/apply-text-patch', validate(applyTextPatchSchema), async (req,
       .returning()
 
     if (summary && storyRow.groupId) {
-      const [universe] = await db.select().from(storyGroups).where(eq(storyGroups.id, storyRow.groupId))
+      const universeIds = await getStoryUniverseIds(storyId, storyRow.groupId)
 
-      if (universe) {
-        const existing = universe.styleGuideWorks ?? ''
-        const appended = existing ? `${existing}\n- ${summary}` : `- ${summary}`
+      if (universeIds.length === 1) {
+        const [universe] = await db.select().from(storyGroups).where(eq(storyGroups.id, storyRow.groupId))
 
-        await db
-          .update(storyGroups)
-          .set({ styleGuideWorks: appended })
-          .where(eq(storyGroups.id, storyRow.groupId))
+        if (universe) {
+          const existing = universe.styleGuideWorks ?? ''
+          const appended = existing ? `${existing}\n- ${summary}` : `- ${summary}`
+
+          await db
+            .update(storyGroups)
+            .set({ styleGuideWorks: appended })
+            .where(eq(storyGroups.id, storyRow.groupId))
+        }
       }
     }
 
@@ -1109,6 +1129,7 @@ router.delete('/:id', async (req, res) => {
     await db.delete(storyReadings).where(eq(storyReadings.storyId, storyId))
     await db.delete(modelCalls).where(eq(modelCalls.storyId, storyId))
     await db.delete(storyTextVersions).where(eq(storyTextVersions.storyId, storyId))
+    await db.delete(storyUniverses).where(eq(storyUniverses.storyId, storyId))
     await db.delete(stories).where(eq(stories.id, storyId))
 
     res.status(204).send()

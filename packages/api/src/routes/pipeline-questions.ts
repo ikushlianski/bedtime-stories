@@ -5,6 +5,7 @@ import { validate } from '../middleware/validate'
 import { db } from '@bedtime/core/db/client'
 import { planQuestions, planConversations, stories, storyGroups, storyTextVersions, annotations } from '@bedtime/core/db/schema'
 import { loadUniverseContext } from './load-universe-context'
+import { getStoryUniverseIds } from './story-universe-links'
 import { aiRunner } from '@bedtime/core/ai'
 import { triggerPlanPhaseFromAnswers } from './pipeline-plan-trigger'
 import { resolveChatGate } from '@bedtime/core/pipeline/resolve-chat-gate'
@@ -90,9 +91,8 @@ router.post('/questions/:storyId/submit', validate(submitAnswersSchema), async (
 
     const seed = storyRow.seed ?? ''
 
-    const { universeSystemPrompt, universeContext, styleGuide, bibleCharacters } = storyRow.groupId != null
-      ? await loadUniverseContext(storyRow.groupId)
-      : { universeSystemPrompt: undefined, universeContext: undefined, styleGuide: undefined, bibleCharacters: [] }
+    const universeIds = await getStoryUniverseIds(storyIdRaw, storyRow.groupId)
+    const { universeSystemPrompt, universeContext, styleGuide, bibleCharacters } = await loadUniverseContext(universeIds)
 
     const updatedQuestions = await db
       .select()
@@ -103,7 +103,7 @@ router.post('/questions/:storyId/submit', validate(submitAnswersSchema), async (
       .filter((q) => q.answerText !== null && q.answerText !== undefined)
       .map((q) => ({ question: q.questionText, answer: q.answerText ?? '' }))
 
-    triggerPlanPhaseFromAnswers(storyIdRaw, seed, qaArray, universeSystemPrompt, universeContext, styleGuide, storyRow.groupId ?? null, bibleCharacters)
+    triggerPlanPhaseFromAnswers(storyIdRaw, seed, qaArray, universeSystemPrompt, universeContext, styleGuide, universeIds, bibleCharacters)
 
     res.json({ ok: true })
   } catch (err) {
@@ -144,11 +144,10 @@ router.post('/questions/:storyId/retry-plan', async (req, res) => {
 
     const seed = storyRow.seed ?? ''
 
-    const { universeSystemPrompt: usp2, universeContext: uc2, styleGuide: sg2, bibleCharacters: bc2 } = storyRow.groupId != null
-      ? await loadUniverseContext(storyRow.groupId)
-      : { universeSystemPrompt: undefined, universeContext: undefined, styleGuide: undefined, bibleCharacters: [] }
+    const universeIds2 = await getStoryUniverseIds(storyIdRaw, storyRow.groupId)
+    const { universeSystemPrompt: usp2, universeContext: uc2, styleGuide: sg2, bibleCharacters: bc2 } = await loadUniverseContext(universeIds2)
 
-    triggerPlanPhaseFromAnswers(storyIdRaw, seed, qaArray, usp2, uc2, sg2, storyRow.groupId ?? null, bc2)
+    triggerPlanPhaseFromAnswers(storyIdRaw, seed, qaArray, usp2, uc2, sg2, universeIds2, bc2)
 
     res.json({ ok: true, storyId: storyIdRaw })
   } catch (err) {

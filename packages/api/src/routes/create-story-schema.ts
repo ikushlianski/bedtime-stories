@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { PIPELINE_STAGES, PipelineStage } from '@bedtime/core/pipeline/pipeline-stages'
 import { getStoryStructureByKey } from '@bedtime/core/pipeline/stages/story-structures'
 import { getCharacterLensByKey } from '@bedtime/core/pipeline/stages/character-lenses'
+import { MAX_UNIVERSES_PER_STORY } from './story-universe-links'
 
 const stageOverrideSchema = z.object({
   model: z.string().min(1),
@@ -26,6 +27,7 @@ export const createStorySchema = z
     title: z.string().min(1).max(200).optional(),
     textFinal: z.string().min(1).optional(),
     groupId: z.number().int().positive().optional(),
+    groupIds: z.array(z.number().int().positive()).min(1).max(MAX_UNIVERSES_PER_STORY).optional(),
     pipelineMode: z.enum(['auto', 'manual']).optional(),
     source: z.enum(['user', 'legacy']).optional(),
     addToReadingList: z.boolean().optional(),
@@ -64,6 +66,7 @@ export type CreateStoryMode =
       seed: string
       title: string
       groupId?: number
+      groupIds?: number[]
       pipelineMode?: 'auto' | 'manual'
       perStageOverrides?: PerStageOverrides
       structureKey?: string
@@ -101,8 +104,15 @@ export function resolveCreateStoryMode(input: CreateStoryInput): CreateStoryMode
   const title = seed.trim().slice(0, 60)
   const result: CreateStoryMode = { mode: 'agent', seed, title }
 
-  if (input.groupId !== undefined) {
-    result.groupId = input.groupId
+  const groupIds = input.groupIds !== undefined
+    ? Array.from(new Set(input.groupIds))
+    : input.groupId !== undefined ? [input.groupId] : undefined
+
+  const [primaryGroupId] = groupIds ?? []
+
+  if (groupIds !== undefined && primaryGroupId !== undefined) {
+    result.groupIds = groupIds
+    result.groupId = primaryGroupId
   }
 
   if (input.pipelineMode !== undefined) {

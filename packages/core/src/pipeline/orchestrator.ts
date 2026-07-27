@@ -82,7 +82,7 @@ export async function runPlanPhase(options: {
   styleGuide?: string
   sashaContext?: string | null
   userFeedback?: string
-  universeId?: number | null
+  universeIds?: number[]
   injectFragments?: boolean
   bibleCharacters?: CharacterBibleEntry[]
   cwd?: string
@@ -113,11 +113,12 @@ export async function runPlanPhase(options: {
 
   const userFeedbackArg = options.userFeedback ? { userFeedback: options.userFeedback } : {}
   const storyIdArg = { storyId: options.storyId }
+  const universeIds = options.universeIds ?? []
 
   const [eligibleFragments, reactionSummary, memorableMoments, structureChoice] = await Promise.all([
-    options.injectFragments ? loadEligibleFragments(options.universeId ?? null) : Promise.resolve([]),
-    options.universeId != null ? loadReactionPreferences(options.universeId) : Promise.resolve(null),
-    loadMemorableMoments(options.universeId ?? null, options.storyId),
+    options.injectFragments ? loadEligibleFragments(universeIds) : Promise.resolve([]),
+    loadReactionPreferences(universeIds),
+    loadMemorableMoments(universeIds, options.storyId),
     resolveStoryStructureChoice(options.storyId),
   ])
   const fragmentsArg = eligibleFragments.length > 0 ? { eligibleFragments } : {}
@@ -182,7 +183,7 @@ export async function runTextPhase(options: {
   styleGuide?: string
   sashaContext?: string | null
   exemplars?: Exemplar[]
-  universeId?: number | null
+  universeIds?: number[]
   cwd?: string
   onStepChange?: (step: string) => void
 }): Promise<TextPhaseResult> {
@@ -220,7 +221,7 @@ export async function runTextPhase(options: {
   const storyIdArg = { storyId: options.storyId }
 
   const [memorableMoments, structureChoice] = await Promise.all([
-    loadMemorableMoments(options.universeId ?? null, options.storyId),
+    loadMemorableMoments(options.universeIds ?? [], options.storyId),
     resolveStoryStructureChoice(options.storyId),
   ])
   const memorableMomentsArg = memorableMoments.length > 0 ? { memorableMoments } : {}
@@ -261,7 +262,7 @@ export async function runPlotterOnly(options: {
   styleGuide?: string
   sashaContext?: string | null
   userFeedback?: string
-  universeId?: number | null
+  universeIds?: number[]
   injectFragments?: boolean
   bibleCharacters?: CharacterBibleEntry[]
   cwd?: string
@@ -284,11 +285,12 @@ export async function runPlotterOnly(options: {
   }
 
   const storyIdArg = { storyId: options.storyId }
+  const universeIds = options.universeIds ?? []
 
   const [eligibleFragments, reactionSummary, memorableMoments, structureChoice] = await Promise.all([
-    options.injectFragments ? loadEligibleFragments(options.universeId ?? null) : Promise.resolve([]),
-    options.universeId != null ? loadReactionPreferences(options.universeId) : Promise.resolve(null),
-    loadMemorableMoments(options.universeId ?? null, options.storyId),
+    options.injectFragments ? loadEligibleFragments(universeIds) : Promise.resolve([]),
+    loadReactionPreferences(universeIds),
+    loadMemorableMoments(universeIds, options.storyId),
     resolveStoryStructureChoice(options.storyId),
   ])
   const fragmentsArg = eligibleFragments.length > 0 ? { eligibleFragments } : {}
@@ -354,7 +356,7 @@ export async function runWriterOnly(options: {
   targetWords?: TargetWord[]
   previousText?: string
   userAnnotations?: string
-  universeId?: number | null
+  universeIds?: number[]
   cwd?: string
   onStepChange?: (step: string) => void
   onChunk?: (chunk: string) => void
@@ -385,7 +387,7 @@ export async function runWriterOnly(options: {
   const storyIdArg = { storyId: options.storyId }
 
   const [memorableMoments, structureChoice] = await Promise.all([
-    loadMemorableMoments(options.universeId ?? null, options.storyId),
+    loadMemorableMoments(options.universeIds ?? [], options.storyId),
     resolveStoryStructureChoice(options.storyId),
   ])
   const memorableMomentsArg = memorableMoments.length > 0 ? { memorableMoments } : {}

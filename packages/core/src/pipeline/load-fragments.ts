@@ -6,11 +6,11 @@ import type { EligibleFragment } from './fragments-prompt'
 export * from './fragments-prompt'
 
 export async function loadEligibleFragments(
-  universeId: number | null,
+  universeIds: number[],
   limit: number = 12,
 ): Promise<EligibleFragment[]> {
-  const scopeFilter = universeId !== null
-    ? or(isNull(fragments.universeId), eq(fragments.universeId, universeId))
+  const scopeFilter = universeIds.length > 0
+    ? or(isNull(fragments.universeId), inArray(fragments.universeId, universeIds))
     : isNull(fragments.universeId)
 
   const usedCount = sql<number>`(

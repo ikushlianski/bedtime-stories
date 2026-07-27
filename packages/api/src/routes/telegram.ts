@@ -15,6 +15,7 @@ import {
 } from './telegram-format.js'
 import { dispatchAutoPipeline } from './pipeline-dispatch.js'
 import { registerStoryReadyCallback } from './pipeline-notifications.js'
+import { setStoryUniverses } from './story-universe-links.js'
 
 export { deriveIsAuthorizedUser, deriveIdeaFromMessage }
 
@@ -60,13 +61,14 @@ async function insertAndDispatchStory(seedText: string, universeId: number): Pro
 
   const storyId = newStory!.id
 
+  await setStoryUniverses(storyId, [universeId])
   void dispatchAutoPipeline({
     storyId,
     seed: seedText,
     universeSystemPrompt: universe?.systemPrompt ?? undefined,
     universeContext: universe?.universeContext ?? undefined,
     styleGuide: universe?.styleGuide ?? undefined,
-    universeId,
+    universeIds: [universeId],
   }).catch((err) => {
     console.error(`Failed to dispatch auto pipeline for storyId=${storyId}:`, err)
   })

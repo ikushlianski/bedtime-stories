@@ -9,6 +9,7 @@ import { DEFAULT_STAGE_MODELS } from '@bedtime/core/pipeline/derivers/stage-defa
 import { validate } from '../middleware/validate'
 import { loadUniverseContext } from './load-universe-context'
 import { dispatchAutoPipeline } from './pipeline-dispatch'
+import { setStoryUniverses } from './story-universe-links'
 
 const router = Router()
 
@@ -167,7 +168,7 @@ router.post('/suggest-combos', validate(suggestCombosSchema), async (req, res) =
     let universeStyleGuide: string | undefined
 
     if (universeId) {
-      const ctx = await loadUniverseContext(universeId)
+      const ctx = await loadUniverseContext([universeId])
       universeContext = ctx.universeContext
       universeStyleGuide = ctx.styleGuide
     }
@@ -238,7 +239,8 @@ router.post('/generate', validate(generateSchema), async (req, res) => {
       .values(orderedTopics.map((t) => ({ storyId: newStory.id, topicId: t.id })))
       .onConflictDoNothing()
 
-    await dispatchAutoPipeline({ storyId: newStory.id, seed: storySeed, universeId })
+    await setStoryUniverses(newStory.id, [universeId])
+    await dispatchAutoPipeline({ storyId: newStory.id, seed: storySeed, universeIds: [universeId] })
 
     res.status(201).json({ storyId: newStory.id })
   } catch (err) {

@@ -174,10 +174,10 @@ describe('memorable moments propagation', () => {
       storyId: 1,
       models: baseModels,
       promptVersions: baseVersions,
-      universeId: 42,
+      universeIds: [42],
     })
 
-    expect(loadMemorableMomentsModule.loadMemorableMoments).toHaveBeenCalledWith(42, 1)
+    expect(loadMemorableMomentsModule.loadMemorableMoments).toHaveBeenCalledWith([42], 1)
     const callArgs = vi.mocked(plotterStage.runPlotter).mock.calls[0]?.[0]
     expect(callArgs?.memorableMoments).toEqual([moment])
   })
@@ -191,7 +191,7 @@ describe('memorable moments propagation', () => {
       storyId: 1,
       models: baseModels,
       promptVersions: baseVersions,
-      universeId: 42,
+      universeIds: [42],
     })
 
     const callArgs = vi.mocked(plotterStage.runPlotter).mock.calls[0]?.[0]
@@ -208,10 +208,10 @@ describe('memorable moments propagation', () => {
       storyId: 1,
       models: baseModels,
       promptVersions: baseVersions,
-      universeId: 42,
+      universeIds: [42],
     })
 
-    expect(loadMemorableMomentsModule.loadMemorableMoments).toHaveBeenCalledWith(42, 1)
+    expect(loadMemorableMomentsModule.loadMemorableMoments).toHaveBeenCalledWith([42], 1)
     const callArgs = vi.mocked(writerStage.runWriter).mock.calls[0]?.[0]
     expect(callArgs?.memorableMoments).toEqual([moment])
   })
@@ -226,7 +226,7 @@ describe('memorable moments propagation', () => {
       storyId: 1,
       models: baseModels,
       promptVersions: baseVersions,
-      universeId: 42,
+      universeIds: [42],
     })
 
     const callArgs = vi.mocked(writerStage.runWriter).mock.calls[0]?.[0]
