@@ -93,6 +93,13 @@ export const stories = pgTable('stories', {
   lensKey: text('lens_key'),
 })
 
+export const storyUniverses = pgTable('story_universes', {
+  id: serial('id').primaryKey(),
+  storyId: integer('story_id').references(() => stories.id).notNull(),
+  universeId: integer('universe_id').references(() => storyGroups.id).notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (t) => [unique('story_universes_story_universe_unique').on(t.storyId, t.universeId)])
+
 export const fragments = pgTable('fragments', {
   id: serial('id').primaryKey(),
   text: text('text').notNull(),

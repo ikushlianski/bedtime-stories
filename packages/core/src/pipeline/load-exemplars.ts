@@ -1,4 +1,4 @@
-import { and, eq, isNotNull, sql } from 'drizzle-orm'
+import { and, eq, inArray, isNotNull, sql } from 'drizzle-orm'
 import { db } from '../db/client'
 import { stories } from '../db/schema'
 
@@ -8,13 +8,13 @@ export interface Exemplar {
 }
 
 export async function loadRandomExemplars(
-  universeId: number | null,
+  universeIds: number[],
   count: number = 2,
 ): Promise<Exemplar[]> {
   const baseFilter = and(eq(stories.isLegacy, true), isNotNull(stories.textFinal))
 
-  const filter = universeId !== null
-    ? and(baseFilter, eq(stories.groupId, universeId))
+  const filter = universeIds.length > 0
+    ? and(baseFilter, inArray(stories.groupId, universeIds))
     : baseFilter
 
   const rows = await db
@@ -24,7 +24,7 @@ export async function loadRandomExemplars(
     .orderBy(sql`RANDOM()`)
     .limit(count)
 
-  if (rows.length === 0 && universeId !== null) {
+  if (rows.length === 0 && universeIds.length > 0) {
     const fallback = await db
       .select({ title: stories.title, textFinal: stories.textFinal })
       .from(stories)

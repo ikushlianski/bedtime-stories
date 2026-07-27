@@ -16,17 +16,18 @@ export function triggerTextRewrite(
   universeContext?: string,
   styleGuide?: string,
   sashaContext?: string | null,
-  universeId: number | null = null,
+  universeIds: number[] = [],
   activeTextVersionId?: number | null,
   reason?: string,
   modelOverride?: string,
 ): void {
   setPipelineStatus(storyId, 'text_running')
+  const primaryUniverseId = universeIds[0] ?? null
 
   withPipelineTraceIfNone(String(storyId), async () => {
     const [feedback, models] = await Promise.all([
-      gatherRedoFeedback({ storyId, context: 'text', reason, universeId, activeTextVersionId }),
-      loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(universeId, overrides)),
+      gatherRedoFeedback({ storyId, context: 'text', reason, universeId: primaryUniverseId, activeTextVersionId }),
+      loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(primaryUniverseId, overrides)),
     ])
 
     if (modelOverride) {

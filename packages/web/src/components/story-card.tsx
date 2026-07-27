@@ -18,7 +18,7 @@ interface StoryCardProps {
   rating?: number
   seriesId?: string | null
   totalUsdMicros?: number | null
-  universeName?: string
+  universeNames?: string[]
   actions?: StoryCardAction[]
   onTitleClick?: () => void
   dragHandleProps?: HTMLAttributes<HTMLDivElement>
@@ -76,11 +76,12 @@ function GripIcon() {
   )
 }
 
-function StoryCard({ title, status, createdAt, rating, seriesId, totalUsdMicros, universeName, actions = [], onTitleClick, dragHandleProps }: StoryCardProps) {
+function StoryCard({ title, status, createdAt, rating, seriesId, totalUsdMicros, universeNames = [], actions = [], onTitleClick, dragHandleProps }: StoryCardProps) {
   const config = statusConfig[status]
   const isArchived = status === 'archived'
   const regularActions = actions.filter((action) => action.tone !== 'destructive')
   const destructiveActions = actions.filter((action) => action.tone === 'destructive')
+  const isMixed = universeNames.length > 1
 
   return (
     <article
@@ -115,6 +116,9 @@ function StoryCard({ title, status, createdAt, rating, seriesId, totalUsdMicros,
             <div className="flex shrink-0 gap-1">
               {seriesId && (
                 <span className="badge badge-sm badge-outline" title="Часть серии историй">Серия</span>
+              )}
+              {isMixed && (
+                <span className="badge badge-sm badge-outline" title={universeNames.join(' + ')}>Микс</span>
               )}
               <span className={`badge badge-sm ${config.tone}`}>{config.label}</span>
             </div>
