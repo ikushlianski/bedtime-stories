@@ -127,7 +127,7 @@ function StoryCard({ title, status, createdAt, rating, seriesId, totalUsdMicros,
           <div className="flex items-center justify-between gap-3 text-xs text-base-content/65">
             <span>
               {formatDate(createdAt)}
-              {universeName && <span className="ml-1.5 text-base-content/40">{universeName}</span>}
+              {universeNames.length > 0 && <span className="ml-1.5 text-base-content/40">{universeNames.join(' + ')}</span>}
             </span>
 
             <span className="flex items-center gap-3">
