@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm'
+import { desc, eq, inArray } from 'drizzle-orm'
 import { db } from '../db/client'
 import { childReactions, stories } from '../db/schema'
 import {
@@ -11,9 +11,9 @@ import {
 export * from './stages/reaction-preferences'
 
 export async function loadReactionPreferences(
-  universeId: number | null,
+  universeIds: number[],
 ): Promise<ReactionSummary> {
-  if (universeId === null) {
+  if (universeIds.length === 0) {
     return summarizeReactions([])
   }
 
@@ -29,7 +29,7 @@ export async function loadReactionPreferences(
     })
     .from(childReactions)
     .innerJoin(stories, eq(childReactions.storyId, stories.id))
-    .where(eq(stories.groupId, universeId))
+    .where(inArray(stories.groupId, universeIds))
     .orderBy(desc(childReactions.createdAt))
     .limit(REACTION_WINDOW)
 

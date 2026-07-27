@@ -12,6 +12,7 @@ import { synthesizeSashaContext } from '@bedtime/core/pipeline/feedback-synthesi
 import type { CharacterBibleEntry } from '@bedtime/core/pipeline/stages/character-bible-block'
 import { resolvePipelineModels } from './pipeline-defaults'
 import { loadUniverseContext } from './load-universe-context'
+import { setStoryUniverses } from './story-universe-links'
 import { withPipelineTrace } from '@bedtime/observability'
 
 const router = Router()
@@ -37,7 +38,7 @@ router.post('/', validate(createSeriesSchema), async (req, res) => {
         universeSystemPrompt = group.systemPrompt
         universeContext = group.universeContext ?? undefined
         styleGuide = group.styleGuide ?? undefined
-        bibleCharacters = (await loadUniverseContext(groupId)).bibleCharacters
+        bibleCharacters = (await loadUniverseContext([groupId])).bibleCharacters
       }
     }
 
@@ -47,7 +48,7 @@ router.post('/', validate(createSeriesSchema), async (req, res) => {
       const [sashaContext, resolvedModels, eligibleFragments] = await Promise.all([
         synthesizeSashaContext(),
         resolvePipelineModels(groupId ?? null, null),
-        loadEligibleFragments(groupId ?? null),
+        loadEligibleFragments(groupId !== undefined ? [groupId] : []),
       ])
 
       const resolvedPlans = await runPlotterSeries({
@@ -90,6 +91,10 @@ router.post('/', validate(createSeriesSchema), async (req, res) => {
         return recordStoryFragments(row.id, ids)
       }),
     )
+
+    if (groupId !== undefined) {
+      await Promise.all(created.map((row) => setStoryUniverses(row.id, [groupId])))
+    }
 
     res.status(201).json({
       seriesId,

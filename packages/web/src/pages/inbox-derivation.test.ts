@@ -34,6 +34,7 @@ function mkStory(overrides: Partial<Story>): Story {
     is_legacy: false,
     discussion_questions: null,
     group_id: null,
+    group_ids: [],
     plan_change_summary: null,
     mode: 'auto',
     text_change_summary: null,

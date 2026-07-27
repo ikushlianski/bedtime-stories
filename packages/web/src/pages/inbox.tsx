@@ -41,7 +41,7 @@ function Section({
               title={item.story.title}
               status={item.story.status}
               createdAt={item.story.created_at}
-              universeName={universes.find((u) => u.id === item.story.group_id)?.name}
+              universeNames={item.story.group_ids.map((id) => universes.find((u) => u.id === id)?.name).filter((n): n is string => n != null)}
               seed={item.story.seed}
               actions={[
                 {

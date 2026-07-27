@@ -81,6 +81,7 @@ export const WithSelectedFilters: Story = {
         groupId: 1,
         tag: 'спокойная',
         sort: 'custom',
+        mixedOnly: false,
       }}
     />
   ),

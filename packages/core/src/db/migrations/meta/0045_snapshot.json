@@ -1,6 +1,6 @@
 {
-  "id": "72c696fb-9141-4c98-8bab-1db83ceeb0dd",
-  "prevId": "672b194d-4a7a-4264-8265-9a7e931634f9",
+  "id": "cc34f7a5-a3fc-4b56-91bd-22a419df7906",
+  "prevId": "72c696fb-9141-4c98-8bab-1db83ceeb0dd",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2271,6 +2271,12 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true
+        },
+        "accumulated_seed": {
+          "name": "accumulated_seed",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",

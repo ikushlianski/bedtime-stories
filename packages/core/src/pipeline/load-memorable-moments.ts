@@ -9,15 +9,15 @@ const MEMORABLE_ANNOTATION_TYPES = ['sasha_laughed', 'sasha_loved'] as const
 const CANDIDATE_QUERY_LIMIT = MAX_MEMORABLE_MOMENTS * 4
 
 export async function loadMemorableMoments(
-  universeId: number | null,
+  universeIds: number[],
   excludeStoryId?: number,
 ): Promise<MemorableMomentRow[]> {
-  if (universeId === null) {
+  if (universeIds.length === 0) {
     return []
   }
 
   const conditions = [
-    eq(stories.groupId, universeId),
+    inArray(stories.groupId, universeIds),
     inArray(annotations.type, MEMORABLE_ANNOTATION_TYPES),
     isNotNull(annotations.selectedText),
     ...(excludeStoryId !== undefined ? [ne(annotations.storyId, excludeStoryId)] : []),

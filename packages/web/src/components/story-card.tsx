@@ -21,7 +21,7 @@ interface StoryCardProps {
   rating?: number
   seriesId?: string | null
   totalUsdMicros?: number | null
-  universeName?: string
+  universeNames?: string[]
   seed?: string | null
   actions?: StoryCardAction[]
   onTitleClick?: () => void
@@ -80,12 +80,13 @@ function GripIcon() {
   )
 }
 
-function StoryCard({ title, status, createdAt, rating, seriesId, totalUsdMicros, universeName, seed, actions = [], onTitleClick, dragHandleProps }: StoryCardProps) {
+function StoryCard({ title, status, createdAt, rating, seriesId, totalUsdMicros, universeNames = [], seed, actions = [], onTitleClick, dragHandleProps }: StoryCardProps) {
   const config = statusConfig[status]
   const isArchived = status === 'archived'
   const regularActions = actions.filter((action) => action.tone !== 'destructive')
   const destructiveActions = actions.filter((action) => action.tone === 'destructive')
   const promptPreview = seed ? deriveTitlePreview(seed, PROMPT_PREVIEW_MAX_LENGTH) : ''
+  const isMixed = universeNames.length > 1
 
   return (
     <article
@@ -121,6 +122,9 @@ function StoryCard({ title, status, createdAt, rating, seriesId, totalUsdMicros,
               {seriesId && (
                 <span className="badge badge-sm badge-outline" title="Часть серии историй">Серия</span>
               )}
+              {isMixed && (
+                <span className="badge badge-sm badge-outline" title={universeNames.join(' + ')}>Микс</span>
+              )}
               <span className={`badge badge-sm ${config.tone}`}>{config.label}</span>
             </div>
           </div>
@@ -132,7 +136,9 @@ function StoryCard({ title, status, createdAt, rating, seriesId, totalUsdMicros,
           <div className="flex items-center justify-between gap-3 text-xs text-base-content/65">
             <span>
               {formatDate(createdAt)}
-              {universeName && <span className="ml-1.5 text-base-content/40">{universeName}</span>}
+              {universeNames.length > 0 && (
+                <span className="ml-1.5 text-base-content/40">{universeNames.join(', ')}</span>
+              )}
             </span>
 
             <span className="flex items-center gap-3">

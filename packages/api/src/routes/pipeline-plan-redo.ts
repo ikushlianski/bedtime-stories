@@ -35,17 +35,18 @@ export function triggerPlanRedo(
   universeSystemPrompt?: string,
   universeContext?: string,
   styleGuide?: string,
-  universeId: number | null = null,
+  universeIds: number[] = [],
   reason?: string,
   modelOverride?: string,
 ): void {
   setPipelineStatus(storyId, 'plan_running')
+  const primaryUniverseId = universeIds[0] ?? null
 
   withPipelineTrace(String(storyId), async () => {
     const [feedback, models, ctx] = await Promise.all([
-      gatherRedoFeedback({ storyId, context: 'plan', reason, universeId }),
-      loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(universeId, overrides)),
-      universeId != null ? loadUniverseContext(universeId) : Promise.resolve(null),
+      gatherRedoFeedback({ storyId, context: 'plan', reason, universeId: primaryUniverseId }),
+      loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(primaryUniverseId, overrides)),
+      loadUniverseContext(universeIds),
     ])
 
     if (modelOverride) {
@@ -68,7 +69,7 @@ export function triggerPlanRedo(
       ...(sashaContext !== null ? { sashaContext } : {}),
       ...(userFeedback ? { userFeedback } : {}),
       ...(bibleCharacters.length > 0 ? { bibleCharacters } : {}),
-      universeId,
+      universeIds,
       onStepChange: (step) => setCurrentStep(storyId, step),
     })
 

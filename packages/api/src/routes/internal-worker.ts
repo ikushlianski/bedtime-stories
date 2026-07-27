@@ -14,7 +14,7 @@ const pipelineTaskSchema = z.object({
   universeSystemPrompt: z.string().optional(),
   universeContext: z.string().optional(),
   styleGuide: z.string().optional(),
-  universeId: z.number().int().nullable().optional(),
+  universeIds: z.array(z.number().int()).optional(),
 })
 
 const analyzeTaskSchema = z.object({

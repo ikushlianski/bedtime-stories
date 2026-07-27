@@ -1,4 +1,4 @@
-import { eq, isNull, or, sql } from 'drizzle-orm'
+import { inArray, isNull, or, sql } from 'drizzle-orm'
 import { db } from '../db/client'
 import { words, storyWords } from '../db/schema'
 import type { TargetWord } from './stages/words-block'
@@ -6,11 +6,11 @@ import type { TargetWord } from './stages/words-block'
 export * from './stages/words-block'
 
 export async function loadEligibleWords(
-  universeId: number | null,
+  universeIds: number[],
   limit: number = 12,
 ): Promise<TargetWord[]> {
-  const scopeFilter = universeId !== null
-    ? or(isNull(words.universeId), eq(words.universeId, universeId))
+  const scopeFilter = universeIds.length > 0
+    ? or(isNull(words.universeId), inArray(words.universeId, universeIds))
     : isNull(words.universeId)
 
   const usedCount = sql<number>`(

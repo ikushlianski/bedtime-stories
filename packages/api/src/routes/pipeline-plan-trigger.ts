@@ -33,7 +33,7 @@ export function triggerPlanPhaseFromAnswers(
   universeSystemPrompt?: string,
   universeContext?: string,
   styleGuide?: string,
-  universeId: number | null = null,
+  universeIds: number[] = [],
   bibleCharacters: CharacterBibleEntry[] = [],
 ): void {
   setPipelineStatus(storyId, 'questions_answered')
@@ -43,11 +43,12 @@ export function triggerPlanPhaseFromAnswers(
     .join('\n')
 
   const seedWithAnswers = `SEED: ${seed}\n\nCLARIFYING Q&A:\n${qaBlock}`
+  const primaryUniverseId = universeIds[0] ?? null
 
   withPipelineTrace(String(storyId), async () => {
     const [sashaContext, models] = await Promise.all([
       synthesizeSashaContext(),
-      loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(universeId, overrides)),
+      loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(primaryUniverseId, overrides)),
     ])
 
     const result = await runPlotterOnly({
@@ -55,7 +56,7 @@ export function triggerPlanPhaseFromAnswers(
       storyId,
       models,
       promptVersions: defaultPromptVersions,
-      universeId,
+      universeIds,
       injectFragments: true,
       ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
       ...(universeContext !== undefined ? { universeContext } : {}),
