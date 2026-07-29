@@ -136,7 +136,6 @@ jobs:
             --region ${{ vars.PROD_REGION }} \
             --platform managed \
             --allow-unauthenticated \
-            --no-cpu-throttling \
             --timeout=900 \
             --set-env-vars="NODE_ENV=production,HOST=0.0.0.0" \
             --set-env-vars="DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}" \
