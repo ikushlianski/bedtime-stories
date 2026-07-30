@@ -11,7 +11,7 @@ import {
 } from './pipeline-persistence'
 import { getPipelineStatus, setPipelineStatus, setCurrentStep, emitPipelineEvent } from './pipeline-state'
 import { defaultPromptVersions, resolvePipelineModels, loadStoryOverrides } from './pipeline-defaults'
-import { notifyStoryReady } from './pipeline-notifications'
+import { notifyStoryReady, notifyStoryFailed } from './pipeline-notifications'
 import { withPipelineTraceIfNone } from '@bedtime/observability'
 
 export { getPipelineStatus, setPipelineStatus }
@@ -148,6 +148,11 @@ export async function runTextPhaseDurable(params: TextPhaseParams): Promise<void
     })
   } catch (textError) {
     setPipelineStatus(storyId, 'text_failed')
+
+    if (mode === 'auto') {
+      notifyStoryFailed(storyId, 'text')
+    }
+
     throw textError
   }
 }

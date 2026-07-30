@@ -12,6 +12,7 @@ import { setPipelineStatus, setCurrentStep } from './pipeline-state'
 import { defaultPromptVersions, resolvePipelineModels, loadStoryOverrides } from './pipeline-defaults'
 import { runTextPhaseDurable } from './pipeline-text-trigger'
 import { loadUniverseContext } from './load-universe-context'
+import { notifyStoryFailed } from './pipeline-notifications'
 import { withPipelineTrace } from '@bedtime/observability'
 
 export interface AutoPipelineParams {
@@ -72,6 +73,7 @@ export async function runAutoPipeline(params: AutoPipelineParams): Promise<void>
     } catch (planError) {
       console.error(`Auto pipeline plan phase failed for storyId=${storyId}:`, planError)
       setPipelineStatus(storyId, 'plan_failed')
+      notifyStoryFailed(storyId, 'plan')
       throw planError
     }
 
