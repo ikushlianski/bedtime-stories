@@ -18,7 +18,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       body = null
     }
 
-    throw new Error(formatApiError(res.status, res.statusText, body))
+    console.error(`API request failed: ${res.status} ${res.statusText}`, body)
+    throw new Error(formatApiError(body))
   }
 
   return res.json() as Promise<T>
@@ -40,7 +41,8 @@ async function requestEmpty(path: string, init?: RequestInit): Promise<void> {
       body = null
     }
 
-    throw new Error(formatApiError(res.status, res.statusText, body))
+    console.error(`API request failed: ${res.status} ${res.statusText}`, body)
+    throw new Error(formatApiError(body))
   }
 }
 

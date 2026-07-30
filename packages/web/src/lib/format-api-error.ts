@@ -1,15 +1,9 @@
-export function formatApiError(status: number, statusText: string, body: unknown): string {
+const GENERIC_FAILURE_MESSAGE = 'Что-то пошло не так. Попробуй ещё раз через пару минут.'
+
+export function formatApiError(body: unknown): string {
   const bodyMessage = extractBodyMessage(body)
 
-  if (bodyMessage !== null) {
-    return `API error ${status}: ${bodyMessage}`
-  }
-
-  if (statusText.length > 0) {
-    return `API error ${status}: ${statusText}`
-  }
-
-  return `API error ${status}`
+  return bodyMessage ?? GENERIC_FAILURE_MESSAGE
 }
 
 function extractBodyMessage(body: unknown): string | null {
