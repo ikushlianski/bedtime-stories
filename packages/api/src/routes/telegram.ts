@@ -20,7 +20,7 @@ import {
   pickReadableText,
 } from './telegram-format.js'
 import { dispatchAutoPipeline } from './pipeline-dispatch.js'
-import { registerStoryReadyCallback } from './pipeline-notifications.js'
+import { registerStoryReadyCallback, registerStoryFailedCallback } from './pipeline-notifications.js'
 import { setStoryUniverses } from './story-universe-links.js'
 
 export { deriveIsAuthorizedUser, deriveIdeaFromMessage }
@@ -262,6 +262,22 @@ if (bot) {
       })
       .catch((err) => {
         console.error('[telegram] failed to send story notification:', err)
+      })
+  })
+
+  registerStoryFailedCallback((storyId, phase) => {
+    const message =
+      phase === 'plan'
+        ? `Не получилось придумать план для сказки №${storyId} 😕 Открой /stories и попробуй пересоздать её.`
+        : `План для сказки №${storyId} готов, но текст не получился 😕 Открой /stories и попробуй пересоздать текст.`
+
+    bot!.api
+      .sendMessage(allowedUserId, message)
+      .then(() => {
+        console.log(`[telegram] story failure notification sent for story #${storyId} (phase=${phase})`)
+      })
+      .catch((err) => {
+        console.error('[telegram] failed to send story failure notification:', err)
       })
   })
 

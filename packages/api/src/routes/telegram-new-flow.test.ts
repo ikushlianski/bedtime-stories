@@ -58,6 +58,7 @@ vi.mock('./pipeline-dispatch.js', () => ({
 
 vi.mock('./pipeline-notifications.js', () => ({
   registerStoryReadyCallback: vi.fn(),
+  registerStoryFailedCallback: vi.fn(),
 }))
 
 const { bot } = await import('./telegram.js')
