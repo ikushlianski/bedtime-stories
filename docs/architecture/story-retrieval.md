@@ -52,6 +52,20 @@ flowchart TD
   end
 ```
 
+## User-facing search (new)
+
+Retrieval isn't only for the plotter. `GET /api/stories/search?q=...&universeId=...` exposes the
+same underlying pgvector query directly to the user, behind the normal cookie-auth gate (not the
+internal-route secret-header pattern used by the backfill endpoint). The web app's "Поиск" page
+lets a user pick a universe, type a thematic query, and get back ranked past stories (title,
+similarity, excerpt) linking to the story reader.
+
+The DB query itself was extracted out of the plotter's tool module into a shared function,
+`searchStoriesByEmbedding` (`packages/core/src/pipeline/search-stories-by-embedding.ts`), so the
+tool-calling path and this user-facing endpoint call the same retrieval code rather than
+duplicating the embed-and-query logic. The tool module (`search-past-stories-tool.ts`) keeps its
+own args-parsing, result-shaping, and model-facing rendering on top of that shared function.
+
 ## Data model
 
 `story_embeddings` — one row per story, no chunking (a full story fits comfortably within

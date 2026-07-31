@@ -1,11 +1,8 @@
 import { z } from 'zod'
-import { and, eq, ne, sql } from 'drizzle-orm'
-import { db } from '../db/client.js'
-import { stories, storyEmbeddings } from '../db/schema.js'
 import { env } from '../env.js'
 import { OpenRouterClient } from '../openrouter/openrouter.client.js'
 import type { ToolDefinition } from '../openrouter/tool-types.js'
-import { EMBEDDING_MODEL } from './embed-story.js'
+import { searchStoriesByEmbedding } from './search-stories-by-embedding.js'
 
 const MIN_LIMIT = 1
 const MAX_LIMIT = 5
@@ -121,33 +118,7 @@ export async function searchPastStories(
   options: SearchPastStoriesOptions,
   client: OpenRouterClient = new OpenRouterClient(env.OPENROUTER_API_KEY),
 ): Promise<string> {
-  const { embeddings } = await client.embed([options.query], EMBEDDING_MODEL)
-  const queryVector = embeddings[0]
-
-  if (queryVector === undefined) {
-    throw new Error('embed() returned no vector for the search query')
-  }
-
-  const queryVectorLiteral = JSON.stringify(queryVector)
-  const distanceExpr = sql<number>`${storyEmbeddings.embedding} <=> ${queryVectorLiteral}::vector`
-
-  const conditions = [
-    eq(storyEmbeddings.universeId, options.universeId),
-    ...(options.excludeStoryId !== undefined ? [ne(storyEmbeddings.storyId, options.excludeStoryId)] : []),
-  ]
-
-  const rows = await db
-    .select({
-      storyTitle: stories.title,
-      text: sql<string>`coalesce(${stories.textFinal}, ${stories.textV2}, ${stories.textV1})`,
-      distance: distanceExpr,
-    })
-    .from(storyEmbeddings)
-    .innerJoin(stories, eq(storyEmbeddings.storyId, stories.id))
-    .where(and(...conditions))
-    .orderBy(distanceExpr)
-    .limit(options.limit)
-
+  const rows = await searchStoriesByEmbedding(options, client)
   const result = deriveSearchPastStoriesResult(rows)
 
   return renderSearchPastStoriesResultForModel(result)

@@ -7,6 +7,7 @@ import { PipelineStatusPage } from './pages/pipeline-status'
 import { PlanQuestionsPage } from './pages/plan-questions'
 import { DashboardPage } from './pages/dashboard'
 import { IdeasPage } from './pages/ideas'
+import { StorySearchPage } from './pages/story-search'
 import { UniversesPage } from './pages/universes'
 import { UniverseDetailPage } from './pages/universe-detail'
 import { DiaryPage } from './pages/diary'
@@ -23,6 +24,7 @@ import { LoginPage } from './pages/login/login.page'
 import { ProtectedRoute } from './components/protected-route'
 
 const OTHER_NAV = [
+  { to: '/search', label: 'Поиск' },
   { to: '/ideas', label: 'Идеи' },
   { to: '/topics', label: 'Темы' },
   { to: '/fragments', label: 'Фрагменты' },
@@ -169,6 +171,7 @@ function AppShell() {
                       <Route path="/stories/:id/text-review" element={<TextReviewPage />} />
                       <Route path="/stories/:id/pipeline" element={<PipelineStatusPage />} />
                       <Route path="/stories/:id/questions" element={<PlanQuestionsPage />} />
+                      <Route path="/search" element={<StorySearchPage />} />
                       <Route path="/dashboard" element={<DashboardPage />} />
                       <Route path="/admin" element={<AdminPage />} />
                       <Route path="/ideas" element={<IdeasPage />} />
