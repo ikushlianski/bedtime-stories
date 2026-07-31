@@ -52,6 +52,7 @@ One sentence: what real-life situation does this story address for Sasha (6-year
 ПЕРСОНАЖИ
 2–4 characters. One line each: name, key trait, role in the story. At least one should be funny or quirky.
 At least one character must hold an opposing view to Gosha and maintain it across several scenes — not cave immediately.
+At least one side character besides Gosha and Mira (from the universe's character notes, or a background figure consistent with the seed) must reveal a small, concrete detail about themselves during the story — a habit, an interest, a specific thing they say or do. Not just their name and role in the plot.
 
 МЕСТО И ВРЕМЯ
 One sentence. Familiar or mildly fantastical. Calming for bedtime.
@@ -118,7 +119,7 @@ export async function runPlotter(options: {
     : ''
 
   const universeContextBlock = options.universeContext
-    ? `\n\n---\nКОНТЕКСТ ВСЕЛЕННОЙ (персонажи, события, темы этой вселенной):\n${options.universeContext}\n---\n`
+    ? `\n\n---\nКОНТЕКСТ ВСЕЛЕННОЙ (персонажи, события, темы вселенной или вселенных истории):\n${options.universeContext}\n---\n`
     : ''
 
   const styleGuideBlock = options.styleGuide

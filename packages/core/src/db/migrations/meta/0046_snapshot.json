@@ -1,6 +1,6 @@
 {
-  "id": "d0b3f987-c8e6-4d90-87cb-b5cd154c1738",
-  "prevId": "672b194d-4a7a-4264-8265-9a7e931634f9",
+  "id": "efd3228c-f495-4a0a-8eff-7b676f5b5a26",
+  "prevId": "cc34f7a5-a3fc-4b56-91bd-22a419df7906",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2207,6 +2207,80 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.story_universes": {
+      "name": "story_universes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "story_id": {
+          "name": "story_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "universe_id": {
+          "name": "universe_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "story_universes_story_id_stories_id_fk": {
+          "name": "story_universes_story_id_stories_id_fk",
+          "tableFrom": "story_universes",
+          "tableTo": "stories",
+          "columnsFrom": [
+            "story_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "story_universes_universe_id_story_groups_id_fk": {
+          "name": "story_universes_universe_id_story_groups_id_fk",
+          "tableFrom": "story_universes",
+          "tableTo": "story_groups",
+          "columnsFrom": [
+            "universe_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "story_universes_story_universe_unique": {
+          "name": "story_universes_story_universe_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "story_id",
+            "universe_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.story_words": {
       "name": "story_words",
       "schema": "",
@@ -2296,6 +2370,12 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true
+        },
+        "accumulated_seed": {
+          "name": "accumulated_seed",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",

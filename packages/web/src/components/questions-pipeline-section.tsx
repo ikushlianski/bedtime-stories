@@ -72,12 +72,15 @@ export function QuestionsPipelineSection({ storyId, pipelineStatus, onAnswersSub
   )
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [fetchError, setFetchError] = useState<string | null>(null)
+  const [retryKey, setRetryKey] = useState(0)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     if (!isPending && !isAnswered) return
 
     setLoading(true)
+    setFetchError(null)
 
     async function fetchOnce() {
       try {
@@ -91,8 +94,13 @@ export function QuestionsPipelineSection({ storyId, pipelineStatus, onAnswersSub
             intervalRef.current = null
           }
         }
-      } catch {
+      } catch (err) {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current)
+          intervalRef.current = null
+        }
         setLoading(false)
+        setFetchError(err instanceof Error ? err.message : 'Не удалось загрузить уточняющие вопросы')
       }
     }
 
@@ -108,7 +116,7 @@ export function QuestionsPipelineSection({ storyId, pipelineStatus, onAnswersSub
         intervalRef.current = null
       }
     }
-  }, [storyId, isPending, isAnswered])
+  }, [storyId, isPending, isAnswered, retryKey])
 
   useEffect(() => {
     saveToStorage(STORAGE_KEY_OPTIONS(storyId), selectedOptions)
@@ -198,7 +206,14 @@ export function QuestionsPipelineSection({ storyId, pipelineStatus, onAnswersSub
           Ответь на вопросы, чтобы история стала более личной.
         </p>
 
-        {loading || questions.length === 0 ? (
+        {fetchError ? (
+          <div className="flex flex-col items-center gap-4 py-6 text-center">
+            <StatusCallout tone="error" title="Не удалось загрузить вопросы" message={fetchError} />
+            <button type="button" className="btn btn-sm btn-outline" onClick={() => setRetryKey((n) => n + 1)}>
+              Попробовать снова
+            </button>
+          </div>
+        ) : loading || questions.length === 0 ? (
           <GeneratingSpinner />
         ) : (
           <>

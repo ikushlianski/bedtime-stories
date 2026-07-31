@@ -6,6 +6,7 @@ import { resolvePrompt, type ResolvedPrompt } from './prompt-resolver'
 import { loadEligibleFragments, extractFragmentMarkers, MAX_FRAGMENTS_PER_STORY } from './load-fragments'
 import { loadReactionPreferences, MIN_REACTIONS } from './load-reaction-preferences'
 import { loadMemorableMoments } from './load-memorable-moments'
+import { loadRecentTitles } from './load-recent-titles'
 import { resolveStoryStructureChoice } from './resolve-story-structure-choice'
 import { extractWordMarkers, MAX_WORDS_PER_STORY, type TargetWord } from './stages/words-block'
 import type { CharacterBibleEntry } from './stages/character-bible-block'
@@ -82,7 +83,7 @@ export async function runPlanPhase(options: {
   styleGuide?: string
   sashaContext?: string | null
   userFeedback?: string
-  universeId?: number | null
+  universeIds?: number[]
   injectFragments?: boolean
   bibleCharacters?: CharacterBibleEntry[]
   cwd?: string
@@ -113,12 +114,14 @@ export async function runPlanPhase(options: {
 
   const userFeedbackArg = options.userFeedback ? { userFeedback: options.userFeedback } : {}
   const storyIdArg = { storyId: options.storyId }
+  const universeIds = options.universeIds ?? []
 
-  const [eligibleFragments, reactionSummary, memorableMoments, structureChoice] = await Promise.all([
-    options.injectFragments ? loadEligibleFragments(options.universeId ?? null) : Promise.resolve([]),
-    options.universeId != null ? loadReactionPreferences(options.universeId) : Promise.resolve(null),
-    loadMemorableMoments(options.universeId ?? null, options.storyId),
+  const [eligibleFragments, reactionSummary, memorableMoments, structureChoice, recentTitles] = await Promise.all([
+    options.injectFragments ? loadEligibleFragments(universeIds) : Promise.resolve([]),
+    loadReactionPreferences(universeIds),
+    loadMemorableMoments(universeIds, options.storyId),
     resolveStoryStructureChoice(options.storyId),
+    loadRecentTitles(universeIds[0] ?? null, options.storyId),
   ])
   const fragmentsArg = eligibleFragments.length > 0 ? { eligibleFragments } : {}
   const reactionArg = reactionSummary && reactionSummary.sampleSize >= MIN_REACTIONS ? { reactionSummary } : {}
@@ -143,7 +146,7 @@ export async function runPlanPhase(options: {
     ...memorableMomentsArg,
     ...userFeedbackArg,
     ...storyIdArg,
-    universeId: options.universeId ?? null,
+    universeId: universeIds[0] ?? null,
   })
 
   const marker = extractFragmentMarkers(planRaw)
@@ -155,6 +158,7 @@ export async function runPlanPhase(options: {
   const titleSuggested = await generateStoryTitle({
     plan: planV1,
     seed,
+    recentTitles,
     ...cwdArg,
     ...storyIdArg,
   })
@@ -183,7 +187,7 @@ export async function runTextPhase(options: {
   styleGuide?: string
   sashaContext?: string | null
   exemplars?: Exemplar[]
-  universeId?: number | null
+  universeIds?: number[]
   cwd?: string
   onStepChange?: (step: string) => void
 }): Promise<TextPhaseResult> {
@@ -221,7 +225,7 @@ export async function runTextPhase(options: {
   const storyIdArg = { storyId: options.storyId }
 
   const [memorableMoments, structureChoice] = await Promise.all([
-    loadMemorableMoments(options.universeId ?? null, options.storyId),
+    loadMemorableMoments(options.universeIds ?? [], options.storyId),
     resolveStoryStructureChoice(options.storyId),
   ])
   const memorableMomentsArg = memorableMoments.length > 0 ? { memorableMoments } : {}
@@ -262,7 +266,7 @@ export async function runPlotterOnly(options: {
   styleGuide?: string
   sashaContext?: string | null
   userFeedback?: string
-  universeId?: number | null
+  universeIds?: number[]
   injectFragments?: boolean
   bibleCharacters?: CharacterBibleEntry[]
   cwd?: string
@@ -285,12 +289,14 @@ export async function runPlotterOnly(options: {
   }
 
   const storyIdArg = { storyId: options.storyId }
+  const universeIds = options.universeIds ?? []
 
-  const [eligibleFragments, reactionSummary, memorableMoments, structureChoice] = await Promise.all([
-    options.injectFragments ? loadEligibleFragments(options.universeId ?? null) : Promise.resolve([]),
-    options.universeId != null ? loadReactionPreferences(options.universeId) : Promise.resolve(null),
-    loadMemorableMoments(options.universeId ?? null, options.storyId),
+  const [eligibleFragments, reactionSummary, memorableMoments, structureChoice, recentTitles] = await Promise.all([
+    options.injectFragments ? loadEligibleFragments(universeIds) : Promise.resolve([]),
+    loadReactionPreferences(universeIds),
+    loadMemorableMoments(universeIds, options.storyId),
     resolveStoryStructureChoice(options.storyId),
+    loadRecentTitles(universeIds[0] ?? null, options.storyId),
   ])
   const fragmentsArg = eligibleFragments.length > 0 ? { eligibleFragments } : {}
   const reactionArg = reactionSummary && reactionSummary.sampleSize >= MIN_REACTIONS ? { reactionSummary } : {}
@@ -315,7 +321,7 @@ export async function runPlotterOnly(options: {
     ...memorableMomentsArg,
     ...userFeedbackArg,
     ...storyIdArg,
-    universeId: options.universeId ?? null,
+    universeId: universeIds[0] ?? null,
   })
 
   const marker = extractFragmentMarkers(planRaw)
@@ -327,6 +333,7 @@ export async function runPlotterOnly(options: {
   const titleSuggested = await generateStoryTitle({
     plan: planV1,
     seed,
+    recentTitles,
     ...cwdArg,
     ...storyIdArg,
   })
@@ -356,7 +363,7 @@ export async function runWriterOnly(options: {
   targetWords?: TargetWord[]
   previousText?: string
   userAnnotations?: string
-  universeId?: number | null
+  universeIds?: number[]
   cwd?: string
   onStepChange?: (step: string) => void
   onChunk?: (chunk: string) => void
@@ -387,7 +394,7 @@ export async function runWriterOnly(options: {
   const storyIdArg = { storyId: options.storyId }
 
   const [memorableMoments, structureChoice] = await Promise.all([
-    loadMemorableMoments(options.universeId ?? null, options.storyId),
+    loadMemorableMoments(options.universeIds ?? [], options.storyId),
     resolveStoryStructureChoice(options.storyId),
   ])
   const memorableMomentsArg = memorableMoments.length > 0 ? { memorableMoments } : {}

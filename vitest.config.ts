@@ -8,4 +8,7 @@ export default defineConfig({
       '@bedtime/core': path.resolve(__dirname, 'packages/core/src'),
     },
   },
+  test: {
+    environmentMatchGlobs: [['packages/web/**/*.test.tsx', 'jsdom']],
+  },
 })

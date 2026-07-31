@@ -18,7 +18,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       body = null
     }
 
-    throw new Error(formatApiError(res.status, res.statusText, body))
+    console.error(`API request failed: ${res.status} ${res.statusText}`, body)
+    throw new Error(formatApiError(body))
   }
 
   return res.json() as Promise<T>
@@ -40,7 +41,8 @@ async function requestEmpty(path: string, init?: RequestInit): Promise<void> {
       body = null
     }
 
-    throw new Error(formatApiError(res.status, res.statusText, body))
+    console.error(`API request failed: ${res.status} ${res.statusText}`, body)
+    throw new Error(formatApiError(body))
   }
 }
 
@@ -133,6 +135,7 @@ export interface Story {
   is_legacy: boolean
   discussion_questions: string[] | null
   group_id: number | null
+  group_ids: number[]
   plan_change_summary: string | null
   mode: 'auto' | 'manual'
   text_change_summary: string | null
@@ -362,6 +365,7 @@ export type CreateStoryInput =
   | {
       seed: string
       groupId?: number
+      groupIds?: number[]
       pipelineMode?: 'auto' | 'manual'
       perStageOverrides?: PerStageOverrides
       structureKey?: string
@@ -463,13 +467,14 @@ export interface PipelineStatus {
 
 export const api = {
   stories: {
-    list: (filters?: { status?: string; groupId?: number; tag?: string; sort?: string }) => {
+    list: (filters?: { status?: string; groupId?: number; tag?: string; sort?: string; mixedOnly?: boolean }) => {
       const params = new URLSearchParams()
 
       if (filters?.status) params.set('status', filters.status)
       if (filters?.groupId != null) params.set('groupId', String(filters.groupId))
       if (filters?.tag) params.set('tag', filters.tag)
       if (filters?.sort && filters.sort !== 'custom') params.set('sort', filters.sort)
+      if (filters?.mixedOnly) params.set('mixedOnly', 'true')
 
       const query = params.toString() ? `?${params.toString()}` : ''
 

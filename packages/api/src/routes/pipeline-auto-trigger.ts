@@ -12,6 +12,7 @@ import { setPipelineStatus, setCurrentStep } from './pipeline-state'
 import { defaultPromptVersions, resolvePipelineModels, loadStoryOverrides } from './pipeline-defaults'
 import { runTextPhaseDurable } from './pipeline-text-trigger'
 import { loadUniverseContext } from './load-universe-context'
+import { notifyStoryFailed } from './pipeline-notifications'
 import { withPipelineTrace } from '@bedtime/observability'
 
 export interface AutoPipelineParams {
@@ -20,11 +21,12 @@ export interface AutoPipelineParams {
   universeSystemPrompt?: string | undefined
   universeContext?: string | undefined
   styleGuide?: string | undefined
-  universeId?: number | null | undefined
+  universeIds?: number[] | undefined
 }
 
 export async function runAutoPipeline(params: AutoPipelineParams): Promise<void> {
-  const { storyId, seed, universeSystemPrompt, universeContext, styleGuide, universeId = null } = params
+  const { storyId, seed, universeSystemPrompt, universeContext, styleGuide, universeIds = [] } = params
+  const primaryUniverseId = universeIds[0] ?? null
 
   setPipelineStatus(storyId, 'plan_running')
 
@@ -38,8 +40,8 @@ export async function runAutoPipeline(params: AutoPipelineParams): Promise<void>
     try {
       const [sasha, models, enrichedContext] = await Promise.all([
         synthesizeSashaContext(),
-        loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(universeId, overrides)),
-        universeId !== null ? loadUniverseContext(universeId) : Promise.resolve(null),
+        loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(primaryUniverseId, overrides)),
+        loadUniverseContext(universeIds),
       ])
 
       sashaContext = sasha
@@ -53,7 +55,7 @@ export async function runAutoPipeline(params: AutoPipelineParams): Promise<void>
         storyId,
         models,
         promptVersions: defaultPromptVersions,
-        universeId,
+        universeIds,
         injectFragments: true,
         ...(effectiveSystemPrompt !== undefined ? { universeSystemPrompt: effectiveSystemPrompt } : {}),
         ...(effectiveUniverseContext !== undefined ? { universeContext: effectiveUniverseContext } : {}),
@@ -71,6 +73,7 @@ export async function runAutoPipeline(params: AutoPipelineParams): Promise<void>
     } catch (planError) {
       console.error(`Auto pipeline plan phase failed for storyId=${storyId}:`, planError)
       setPipelineStatus(storyId, 'plan_failed')
+      notifyStoryFailed(storyId, 'plan')
       throw planError
     }
 
@@ -83,7 +86,7 @@ export async function runAutoPipeline(params: AutoPipelineParams): Promise<void>
       sashaContext,
       universeContext: effectiveUniverseContext,
       styleGuide: effectiveStyleGuide,
-      universeId,
+      universeIds,
     })
   })
 }

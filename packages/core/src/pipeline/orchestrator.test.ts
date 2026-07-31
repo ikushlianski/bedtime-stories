@@ -62,6 +62,10 @@ vi.mock('./load-reaction-preferences', async () => {
   const actual = await vi.importActual<typeof import('./load-reaction-preferences')>('./load-reaction-preferences')
   return { ...actual, loadReactionPreferences: vi.fn().mockResolvedValue(null) }
 })
+vi.mock('./load-recent-titles', async () => {
+  const actual = await vi.importActual<typeof import('./load-recent-titles')>('./load-recent-titles')
+  return { ...actual, loadRecentTitles: vi.fn().mockResolvedValue([]) }
+})
 
 const baseModels = {
   plotter: 'claude-sonnet-4-6',
@@ -174,10 +178,10 @@ describe('memorable moments propagation', () => {
       storyId: 1,
       models: baseModels,
       promptVersions: baseVersions,
-      universeId: 42,
+      universeIds: [42],
     })
 
-    expect(loadMemorableMomentsModule.loadMemorableMoments).toHaveBeenCalledWith(42, 1)
+    expect(loadMemorableMomentsModule.loadMemorableMoments).toHaveBeenCalledWith([42], 1)
     const callArgs = vi.mocked(plotterStage.runPlotter).mock.calls[0]?.[0]
     expect(callArgs?.memorableMoments).toEqual([moment])
   })
@@ -191,7 +195,7 @@ describe('memorable moments propagation', () => {
       storyId: 1,
       models: baseModels,
       promptVersions: baseVersions,
-      universeId: 42,
+      universeIds: [42],
     })
 
     const callArgs = vi.mocked(plotterStage.runPlotter).mock.calls[0]?.[0]
@@ -208,10 +212,10 @@ describe('memorable moments propagation', () => {
       storyId: 1,
       models: baseModels,
       promptVersions: baseVersions,
-      universeId: 42,
+      universeIds: [42],
     })
 
-    expect(loadMemorableMomentsModule.loadMemorableMoments).toHaveBeenCalledWith(42, 1)
+    expect(loadMemorableMomentsModule.loadMemorableMoments).toHaveBeenCalledWith([42], 1)
     const callArgs = vi.mocked(writerStage.runWriter).mock.calls[0]?.[0]
     expect(callArgs?.memorableMoments).toEqual([moment])
   })
@@ -226,7 +230,7 @@ describe('memorable moments propagation', () => {
       storyId: 1,
       models: baseModels,
       promptVersions: baseVersions,
-      universeId: 42,
+      universeIds: [42],
     })
 
     const callArgs = vi.mocked(writerStage.runWriter).mock.calls[0]?.[0]

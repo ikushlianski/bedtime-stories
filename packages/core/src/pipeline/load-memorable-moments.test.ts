@@ -24,10 +24,10 @@ describe('loadMemorableMoments', () => {
     mockRows = []
   })
 
-  it('returns an empty list when universeId is null, without querying the db', async () => {
+  it('returns an empty list when universeIds is empty, without querying the db', async () => {
     mockRows = [{ type: 'sasha_loved', selectedText: 'момент', noteText: null, storyTitle: null }]
 
-    const result = await loadMemorableMoments(null)
+    const result = await loadMemorableMoments([])
 
     expect(result).toEqual([])
   })
@@ -35,7 +35,7 @@ describe('loadMemorableMoments', () => {
   it('returns an empty list when the universe has no qualifying rows', async () => {
     mockRows = []
 
-    const result = await loadMemorableMoments(1)
+    const result = await loadMemorableMoments([1])
 
     expect(result).toEqual([])
   })
@@ -46,7 +46,7 @@ describe('loadMemorableMoments', () => {
       { type: 'sasha_laughed', selectedText: 'Мира упала в лужу', noteText: null, storyTitle: 'Прогулка' },
     ]
 
-    const result = await loadMemorableMoments(1)
+    const result = await loadMemorableMoments([1])
 
     expect(result).toHaveLength(2)
     expect(result[0]).toEqual({
@@ -57,10 +57,18 @@ describe('loadMemorableMoments', () => {
     })
   })
 
+  it('combines rows across multiple mixed universes', async () => {
+    mockRows = [{ type: 'sasha_loved', selectedText: 'Гоша нашёл рыбку', noteText: null, storyTitle: 'Рыбка' }]
+
+    const result = await loadMemorableMoments([1, 2])
+
+    expect(result).toHaveLength(1)
+  })
+
   it('drops rows with a null selectedText', async () => {
     mockRows = [{ type: 'sasha_loved', selectedText: null, noteText: null, storyTitle: null }]
 
-    const result = await loadMemorableMoments(1)
+    const result = await loadMemorableMoments([1])
 
     expect(result).toEqual([])
   })

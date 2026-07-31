@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { api, type CreateStoryInput, type StoryGroup } from '../lib/api'
 import {
   validateCreateStoryForm,
+  buildAccumulatedSeed,
+  MAX_UNIVERSES_PER_STORY,
   type CreateStoryFormState,
 } from './create-story-form'
 import FormField from './form-field'
@@ -23,21 +25,30 @@ function toDisplayLabel(title: string): string {
   return title.charAt(0) + title.slice(1).toLowerCase()
 }
 
-function loadLastUniverseId(): number | null {
+function loadLastUniverseIds(): number[] {
   try {
     const raw = localStorage.getItem(LAST_UNIVERSE_KEY)
-    return raw ? Number(raw) : null
+
+    if (!raw) return []
+
+    const parsed: unknown = JSON.parse(raw)
+
+    if (Array.isArray(parsed)) return parsed.filter((id): id is number => typeof id === 'number')
+
+    if (typeof parsed === 'number') return [parsed]
+
+    return []
   } catch {
-    return null
+    return []
   }
 }
 
-function saveLastUniverseId(id: number | null) {
+function saveLastUniverseIds(ids: number[]) {
   try {
-    if (id === null) {
+    if (ids.length === 0) {
       localStorage.removeItem(LAST_UNIVERSE_KEY)
     } else {
-      localStorage.setItem(LAST_UNIVERSE_KEY, String(id))
+      localStorage.setItem(LAST_UNIVERSE_KEY, JSON.stringify(ids))
     }
   } catch {
   }
@@ -46,10 +57,11 @@ function saveLastUniverseId(id: number | null) {
 function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSeed = '', initialGroupId = null }: CreateStoryModalProps) {
   const [form, setForm] = useState<CreateStoryFormState>({
     seed: initialSeed,
-    groupId: initialGroupId ?? loadLastUniverseId(),
+    groupIds: initialGroupId != null ? [initialGroupId] : loadLastUniverseIds(),
     structureKey: null,
     lensKey: null,
   })
+  const [contextMessages, setContextMessages] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [creatingSeries, setCreatingSeries] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -62,10 +74,11 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
     if (open) {
       setForm({
         seed: initialSeed,
-        groupId: initialGroupId ?? loadLastUniverseId(),
+        groupIds: initialGroupId != null ? [initialGroupId] : loadLastUniverseIds(),
         structureKey: null,
         lensKey: null,
       })
+      setContextMessages([])
       setError(null)
       setShowCreateUniverse(false)
       setNewUniverseName('')
@@ -84,8 +97,22 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
     return null
   }
 
+  function addContextMessage() {
+    const message = form.seed.trim()
+
+    if (!message) return
+
+    setContextMessages((prev) => [...prev, message])
+    setForm((prev) => ({ ...prev, seed: '' }))
+  }
+
+  function removeContextMessage(index: number) {
+    setContextMessages((prev) => prev.filter((_, i) => i !== index))
+  }
+
   async function handleSubmit() {
-    const validation = validateCreateStoryForm(form)
+    const seed = buildAccumulatedSeed(contextMessages, form.seed)
+    const validation = validateCreateStoryForm({ ...form, seed })
 
     if (!validation.valid) {
       setError(validation.reason)
@@ -97,7 +124,8 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
 
     try {
       await onSubmit(validation.input)
-      setForm({ seed: '', groupId: null, structureKey: null, lensKey: null })
+      setForm({ seed: '', groupIds: [], structureKey: null, lensKey: null })
+      setContextMessages([])
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Не удалось создать историю')
     } finally {
@@ -116,8 +144,12 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
       const created = await api.universes.create({ name, systemPrompt: '.' })
 
       setUniverses((prev) => [...prev, created])
-      saveLastUniverseId(created.id)
-      setForm((prev) => ({ ...prev, groupId: created.id }))
+
+      setForm((prev) => {
+        const groupIds = prev.groupIds.includes(created.id) ? prev.groupIds : [...prev.groupIds, created.id]
+        saveLastUniverseIds(groupIds)
+        return { ...prev, groupIds }
+      })
       setShowCreateUniverse(false)
       setNewUniverseName('')
     } catch {
@@ -128,14 +160,22 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
   }
 
   async function handleCreateSeries() {
-    const validation = validateCreateStoryForm(form)
+    const seed = buildAccumulatedSeed(contextMessages, form.seed)
+    const validation = validateCreateStoryForm({ ...form, seed })
 
     if (!validation.valid) {
       setError(validation.reason)
       return
     }
 
-    if (!('seed' in validation.input) || form.groupId === null) {
+    if (form.groupIds.length > 1) {
+      setError('Серия пока поддерживает только одну вселенную — оставь только одну галочку')
+      return
+    }
+
+    const [primaryGroupId] = form.groupIds
+
+    if (!('seed' in validation.input) || primaryGroupId === undefined) {
       setError('Укажи затравку и вселенную')
       return
     }
@@ -144,9 +184,10 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
     setError(null)
 
     try {
-      const result = await api.stories.createSeries({ seed: form.seed.trim(), groupId: form.groupId })
+      const result = await api.stories.createSeries({ seed, groupId: primaryGroupId })
 
-      setForm({ seed: '', groupId: null, structureKey: null, lensKey: null })
+      setForm({ seed: '', groupIds: [], structureKey: null, lensKey: null })
+      setContextMessages([])
       onSeriesCreated?.(result.stories.length)
       onClose()
     } catch (seriesError) {
@@ -156,7 +197,8 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
     }
   }
 
-  const canSubmit = !submitting && !creatingSeries && validateCreateStoryForm(form).valid
+  const canSubmit =
+    !submitting && !creatingSeries && validateCreateStoryForm({ ...form, seed: buildAccumulatedSeed(contextMessages, form.seed) }).valid
 
   return (
     <dialog className="modal modal-open">
@@ -164,7 +206,7 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
         <h2 className="font-serif text-3xl text-base-content">Новая история</h2>
 
         <div className="mt-5 space-y-5">
-          <FormField label="Вселенная" required>
+          <FormField label="Вселенная" hint="Необязательно. Можно выбрать несколько — их персонажи и стиль смешаются в истории.">
             {showCreateUniverse ? (
               <div className="flex gap-2">
                 <input
@@ -205,28 +247,42 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
                 )}
               </div>
             ) : (
-              <div className="flex gap-2">
-                <select
-                  className="select select-bordered flex-1 bg-base-200"
-                  value={form.groupId ?? ''}
-                  onChange={(event) => {
-                    const value = event.target.value
-                    const groupId = value === '' ? null : parseInt(value, 10)
+              <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-1 rounded-lg border border-base-300 bg-base-200 p-2 max-h-48 overflow-y-auto">
+                  {universes.length === 0 && (
+                    <p className="px-1 py-1 text-sm text-base-content/50">Нет ни одной вселенной</p>
+                  )}
+                  {universes.map((u) => {
+                    const checked = form.groupIds.includes(u.id)
+                    const atLimit = !checked && form.groupIds.length >= MAX_UNIVERSES_PER_STORY
 
-                    saveLastUniverseId(groupId)
-                    setForm((prev) => ({ ...prev, groupId }))
-                  }}
-                >
-                  <option value="" disabled>Выбери вселенную...</option>
-                  {universes.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name}
-                    </option>
-                  ))}
-                </select>
+                    return (
+                      <label
+                        key={u.id}
+                        className={`label cursor-pointer justify-start gap-2 rounded px-1 py-1 hover:bg-base-300 ${atLimit ? 'opacity-50' : ''}`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="checkbox checkbox-sm"
+                          checked={checked}
+                          disabled={atLimit}
+                          onChange={(event) => {
+                            const groupIds = event.target.checked
+                              ? [...form.groupIds, u.id]
+                              : form.groupIds.filter((id) => id !== u.id)
+
+                            saveLastUniverseIds(groupIds)
+                            setForm((prev) => ({ ...prev, groupIds }))
+                          }}
+                        />
+                        <span className="label-text">{u.name}</span>
+                      </label>
+                    )
+                  })}
+                </div>
                 <button
                   type="button"
-                  className="btn btn-ghost btn-sm text-primary"
+                  className="btn btn-ghost btn-sm self-start text-primary"
                   onClick={() => setShowCreateUniverse(true)}
                 >
                   + Новая
@@ -237,16 +293,46 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
 
           <FormField
             label="Затравка"
-            hint="Ситуация, эмоция или испытание, которое сейчас актуально для Саши."
+            hint="Ситуация, эмоция или испытание, которое сейчас актуально для Саши. Можно добавить несколько сообщений по очереди — нажми «Добавить» после каждого — или просто написать всё сразу и нажать «Создать историю»."
             required
           >
-            <textarea
-              className="textarea textarea-bordered min-h-40 w-full bg-base-200"
-              placeholder="Герой нервничает: первый раз ночевать не дома..."
-              value={form.seed}
-              onChange={(event) => setForm((prev) => ({ ...prev, seed: event.target.value }))}
-              autoFocus
-            />
+            {contextMessages.length > 0 && (
+              <ul className="mb-3 space-y-2">
+                {contextMessages.map((message, index) => (
+                  <li
+                    key={index}
+                    className="flex items-start justify-between gap-2 rounded-lg bg-base-300/50 px-3 py-2 text-sm text-base-content/80"
+                  >
+                    <span className="whitespace-pre-wrap">{message}</span>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-xs shrink-0"
+                      aria-label="Убрать сообщение"
+                      onClick={() => removeContextMessage(index)}
+                    >
+                      ✕
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="flex gap-2">
+              <textarea
+                className="textarea textarea-bordered min-h-40 w-full bg-base-200"
+                placeholder="Герой нервничает: первый раз ночевать не дома..."
+                value={form.seed}
+                onChange={(event) => setForm((prev) => ({ ...prev, seed: event.target.value }))}
+                autoFocus
+              />
+              <button
+                type="button"
+                className="btn btn-outline btn-sm self-start"
+                disabled={!form.seed.trim()}
+                onClick={addContextMessage}
+              >
+                Добавить
+              </button>
+            </div>
           </FormField>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

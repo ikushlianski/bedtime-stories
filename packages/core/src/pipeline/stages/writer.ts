@@ -62,7 +62,7 @@ export async function runWriter(options: {
     : resolved.text
 
   const universeContextBlock = options.universeContext
-    ? `\n\n---\nКОНТЕКСТ ВСЕЛЕННОЙ (персонажи, события, темы этой вселенной):\n${options.universeContext}\n---\n`
+    ? `\n\n---\nКОНТЕКСТ ВСЕЛЕННОЙ (персонажи, события, темы вселенной или вселенных истории):\n${options.universeContext}\n---\n`
     : ''
 
   const styleGuideBlock = options.styleGuide

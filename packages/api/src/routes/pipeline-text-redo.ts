@@ -23,15 +23,16 @@ export function triggerTextRedoWithAnnotations(
   universeSystemPrompt?: string,
   universeContext?: string,
   styleGuide?: string,
-  universeId: number | null = null,
+  universeIds: number[] = [],
 ): void {
   setPipelineStatus(storyId, 'plan_running')
+  const primaryUniverseId = universeIds[0] ?? null
 
   withPipelineTrace(String(storyId), async () => {
     const [sashaContext, models, ctx] = await Promise.all([
       synthesizeSashaContext(),
-      loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(universeId, overrides)),
-      universeId != null ? loadUniverseContext(universeId) : Promise.resolve(null),
+      loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(primaryUniverseId, overrides)),
+      loadUniverseContext(universeIds),
     ])
 
     const bibleCharacters = ctx?.bibleCharacters ?? []
@@ -64,7 +65,7 @@ export function triggerTextRedoWithAnnotations(
       ...(universeContext !== undefined ? { universeContext } : {}),
       ...(styleGuide !== undefined ? { styleGuide } : {}),
       ...(sashaContext !== null && sashaContext !== undefined ? { sashaContext } : {}),
-      universeId,
+      universeIds,
       onStepChange: (step) => setCurrentStep(storyId, step),
     })
 

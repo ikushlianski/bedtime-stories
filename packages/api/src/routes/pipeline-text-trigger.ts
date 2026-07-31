@@ -11,7 +11,7 @@ import {
 } from './pipeline-persistence'
 import { getPipelineStatus, setPipelineStatus, setCurrentStep, emitPipelineEvent } from './pipeline-state'
 import { defaultPromptVersions, resolvePipelineModels, loadStoryOverrides } from './pipeline-defaults'
-import { notifyStoryReady } from './pipeline-notifications'
+import { notifyStoryReady, notifyStoryFailed } from './pipeline-notifications'
 import { withPipelineTraceIfNone } from '@bedtime/observability'
 
 export { getPipelineStatus, setPipelineStatus }
@@ -25,7 +25,7 @@ export interface TextPhaseParams {
   sashaContext?: string | null | undefined
   universeContext?: string | undefined
   styleGuide?: string | undefined
-  universeId?: number | null | undefined
+  universeIds?: number[] | undefined
   currentText?: string | undefined
   activeTextVersionId?: number | null | undefined
 }
@@ -40,10 +40,11 @@ export async function runTextPhaseDurable(params: TextPhaseParams): Promise<void
     sashaContext,
     universeContext,
     styleGuide,
-    universeId = null,
+    universeIds = [],
     currentText,
     activeTextVersionId,
   } = params
+  const primaryUniverseId = universeIds[0] ?? null
 
   setPipelineStatus(storyId, 'text_running')
 
@@ -64,8 +65,8 @@ export async function runTextPhaseDurable(params: TextPhaseParams): Promise<void
         .select({ selectedText: annotations.selectedText, noteText: annotations.noteText })
         .from(annotations)
         .where(and(eq(annotations.storyId, storyId), eq(annotations.context, annotationContext), versionFilter)),
-      loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(universeId, overrides)),
-      isRetry ? Promise.resolve([]) : loadRandomExemplars(universeId, 2),
+      loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(primaryUniverseId, overrides)),
+      isRetry ? Promise.resolve([]) : loadRandomExemplars(universeIds, 2),
     ])
 
     const userAnnotations = rows
@@ -79,7 +80,7 @@ export async function runTextPhaseDurable(params: TextPhaseParams): Promise<void
 
     const [chosenFragments, targetWords] = await Promise.all([
       isRetry ? Promise.resolve([]) : loadStoryFragmentTexts(storyId),
-      isRetry ? Promise.resolve([]) : loadEligibleWords(universeId),
+      isRetry ? Promise.resolve([]) : loadEligibleWords(universeIds),
     ])
 
     if (chosenFragments.length > 0) {
@@ -105,7 +106,7 @@ export async function runTextPhaseDurable(params: TextPhaseParams): Promise<void
       ...(targetWords.length > 0 ? { targetWords } : {}),
       ...(isRetry ? { previousText: currentText } : {}),
       ...(userAnnotations ? { userAnnotations } : {}),
-      universeId,
+      universeIds,
       onStepChange: (step) => setCurrentStep(storyId, step),
       onChunk: (chunk) => emitPipelineEvent(storyId, { type: 'chunk', text: chunk }),
       onChunkReset: () => emitPipelineEvent(storyId, { type: 'chunk_reset' }),
@@ -147,6 +148,11 @@ export async function runTextPhaseDurable(params: TextPhaseParams): Promise<void
     })
   } catch (textError) {
     setPipelineStatus(storyId, 'text_failed')
+
+    if (mode === 'auto') {
+      notifyStoryFailed(storyId, 'text')
+    }
+
     throw textError
   }
 }
@@ -160,7 +166,7 @@ export function triggerTextPhase(
   sashaContext?: string | null,
   universeContext?: string,
   styleGuide?: string,
-  universeId: number | null = null,
+  universeIds: number[] = [],
   currentText?: string,
   activeTextVersionId?: number | null,
 ): void {
@@ -173,7 +179,7 @@ export function triggerTextPhase(
     sashaContext,
     universeContext,
     styleGuide,
-    universeId,
+    universeIds,
     currentText,
     activeTextVersionId,
   }).catch((textError) => {

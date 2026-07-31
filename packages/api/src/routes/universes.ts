@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { eq, and } from 'drizzle-orm'
 import { db } from '@bedtime/core/db/client'
-import { storyGroups, stories, universeCharacters } from '@bedtime/core/db/schema'
+import { storyGroups, stories, universeCharacters, storyUniverses } from '@bedtime/core/db/schema'
 import type { StoryGroup, NewStoryGroup } from '@bedtime/core/db/types'
 import { validate } from '../middleware/validate'
 import { getPendingSuggestionsCount } from './universe-suggestions'
@@ -189,7 +189,13 @@ router.delete('/:id', async (req, res) => {
       .where(eq(stories.groupId, id))
       .limit(1)
 
-    if (referencingStory) {
+    const [referencingLink] = await db
+      .select({ id: storyUniverses.id })
+      .from(storyUniverses)
+      .where(eq(storyUniverses.universeId, id))
+      .limit(1)
+
+    if (referencingStory || referencingLink) {
       res.status(409).json({ error: 'Universe is referenced by one or more stories' })
       return
     }

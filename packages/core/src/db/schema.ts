@@ -41,6 +41,7 @@ export const universeCharacters = pgTable('universe_characters', {
 export const telegramPendingActions = pgTable('telegram_pending_actions', {
   chatId: bigint('chat_id', { mode: 'number' }).primaryKey(),
   universeId: integer('universe_id').references(() => storyGroups.id).notNull(),
+  accumulatedSeed: text('accumulated_seed'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
@@ -92,6 +93,13 @@ export const stories = pgTable('stories', {
   structureKey: text('structure_key'),
   lensKey: text('lens_key'),
 })
+
+export const storyUniverses = pgTable('story_universes', {
+  id: serial('id').primaryKey(),
+  storyId: integer('story_id').references(() => stories.id).notNull(),
+  universeId: integer('universe_id').references(() => storyGroups.id).notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (t) => [unique('story_universes_story_universe_unique').on(t.storyId, t.universeId)])
 
 export const fragments = pgTable('fragments', {
   id: serial('id').primaryKey(),

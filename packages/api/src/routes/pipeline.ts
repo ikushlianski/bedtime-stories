@@ -9,7 +9,9 @@ import {
 } from '@bedtime/core/pipeline/orchestrator'
 import { synthesizeSashaContext } from '@bedtime/core/pipeline/feedback-synthesizer'
 import { db } from '@bedtime/core/db/client'
-import { runSnapshots, stories, storyGroups, planQuestions } from '@bedtime/core/db/schema'
+import { runSnapshots, stories, planQuestions } from '@bedtime/core/db/schema'
+import { loadUniverseContext } from './load-universe-context'
+import { getStoryUniverseIds } from './story-universe-links'
 import {
   toPublicStatus,
   type PipelineInternalStatus,
@@ -81,24 +83,13 @@ router.post('/run', validate(runPipelineSchema), async (req, res) => {
       return
     }
 
-    let universeSystemPrompt: string | undefined
-    let universeContext: string | undefined
-    let styleGuide: string | undefined
-
-    if (storyRow.groupId !== null && storyRow.groupId !== undefined) {
-      const [group] = await db.select().from(storyGroups).where(eq(storyGroups.id, storyRow.groupId))
-
-      if (group) {
-        universeSystemPrompt = group.systemPrompt
-        universeContext = group.universeContext ?? undefined
-        styleGuide = group.styleGuide ?? undefined
-      }
-    }
+    const universeIds = await getStoryUniverseIds(storyId, storyRow.groupId)
+    const { universeSystemPrompt, universeContext, styleGuide } = await loadUniverseContext(universeIds)
 
     const mode = storyRow.mode ?? 'auto'
 
     if (mode === 'auto') {
-      await dispatchAutoPipeline({ storyId, seed, universeSystemPrompt, universeContext, styleGuide, universeId: storyRow.groupId ?? null })
+      await dispatchAutoPipeline({ storyId, seed, universeSystemPrompt, universeContext, styleGuide, universeIds })
       res.json({ started: true, storyId, phase: 'auto' })
       return
     }

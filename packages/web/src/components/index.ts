@@ -1,5 +1,6 @@
 export { default as StoryCard } from './story-card'
 export { default as DiffViewer } from './diff-viewer'
+export { default as PatchDiffView } from './patch-diff-view'
 export { default as PlanReviewCard } from './plan-review-card'
 export { default as TextReviewCard } from './text-review-card'
 export { default as FeedbackForm } from './feedback-form'

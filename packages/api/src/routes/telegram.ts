@@ -3,7 +3,13 @@ import { desc, eq, inArray, isNotNull } from 'drizzle-orm'
 import { db } from '@bedtime/core/db/client.js'
 import { stories, storyGroups, storyReadings, topics, fragments } from '@bedtime/core/db/schema.js'
 import { deriveIsAuthorizedUser, deriveIdeaFromMessage, parseCommandArgument } from './telegram-utils.js'
-import { setPendingUniverseChoice, consumePendingUniverseChoice } from './telegram-pending-action.js'
+import {
+  setPendingUniverseChoice,
+  peekPendingAction,
+  appendPendingSeedText,
+  consumePendingAction,
+  isReadyToFinalize,
+} from './telegram-pending-action.js'
 import {
   UNREAD_STATUSES,
   READ_STATUSES,
@@ -14,7 +20,8 @@ import {
   pickReadableText,
 } from './telegram-format.js'
 import { dispatchAutoPipeline } from './pipeline-dispatch.js'
-import { registerStoryReadyCallback } from './pipeline-notifications.js'
+import { registerStoryReadyCallback, registerStoryFailedCallback } from './pipeline-notifications.js'
+import { setStoryUniverses } from './story-universe-links.js'
 
 export { deriveIsAuthorizedUser, deriveIdeaFromMessage }
 
@@ -25,6 +32,8 @@ const CATEGORY_UNREAD = 'cat:unread'
 const CATEGORY_READ = 'cat:read'
 const STORIES_MENU = 'stories:menu'
 const NEW_PICK_PREFIX = 'newpick:'
+const NEW_GO_CALLBACK = 'newgo'
+const MAX_ACCUMULATED_SEED_LENGTH = 4000
 const LIST_LIMIT = 30
 
 async function resolveDefaultUniverseId(): Promise<number | null> {
@@ -60,13 +69,14 @@ async function insertAndDispatchStory(seedText: string, universeId: number): Pro
 
   const storyId = newStory!.id
 
+  await setStoryUniverses(storyId, [universeId])
   void dispatchAutoPipeline({
     storyId,
     seed: seedText,
     universeSystemPrompt: universe?.systemPrompt ?? undefined,
     universeContext: universe?.universeContext ?? undefined,
     styleGuide: universe?.styleGuide ?? undefined,
-    universeId,
+    universeIds: [universeId],
   }).catch((err) => {
     console.error(`Failed to dispatch auto pipeline for storyId=${storyId}:`, err)
   })
@@ -110,6 +120,35 @@ async function addFragment(text: string): Promise<boolean> {
   await db.insert(fragments).values({ text, universeId })
 
   return true
+}
+
+function readyToGoKeyboard(): InlineKeyboard {
+  return new InlineKeyboard().text('✅ Готово', NEW_GO_CALLBACK)
+}
+
+async function finalizePendingStory(ctx: Context): Promise<void> {
+  const pending = await consumePendingAction(ctx.chat!.id)
+
+  if (pending === null) {
+    await ctx.reply('Сейчас нет начатой сказки. Нажми /new, чтобы выбрать вселенную.')
+    return
+  }
+
+  if (!isReadyToFinalize(pending.accumulatedSeed)) {
+    await setPendingUniverseChoice(ctx.chat!.id, pending.universeId, pending.accumulatedSeed)
+    await ctx.reply('Сначала опиши идею одним или несколькими сообщениями, потом жми «✅ Готово».')
+    return
+  }
+
+  try {
+    const storyId = await createStoryForUniverse(pending.accumulatedSeed as string, pending.universeId)
+
+    await ctx.reply(`Генерирую сказку №${storyId} ✨ Пришлю, когда будет готова.`)
+  } catch (err) {
+    await setPendingUniverseChoice(ctx.chat!.id, pending.universeId, pending.accumulatedSeed)
+    await ctx.reply('Не получилось создать сказку — текст сохранён, попробуй ещё раз через /go.')
+    throw err
+  }
 }
 
 function categoryKeyboard(): InlineKeyboard {
@@ -226,6 +265,22 @@ if (bot) {
       })
   })
 
+  registerStoryFailedCallback((storyId, phase) => {
+    const message =
+      phase === 'plan'
+        ? `Не получилось придумать план для сказки №${storyId} 😕 Открой /stories и попробуй пересоздать её.`
+        : `План для сказки №${storyId} готов, но текст не получился 😕 Открой /stories и попробуй пересоздать текст.`
+
+    bot!.api
+      .sendMessage(allowedUserId, message)
+      .then(() => {
+        console.log(`[telegram] story failure notification sent for story #${storyId} (phase=${phase})`)
+      })
+      .catch((err) => {
+        console.error('[telegram] failed to send story failure notification:', err)
+      })
+  })
+
   bot.command('start', async (ctx) => {
     if (!deriveIsAuthorizedUser(ctx.from?.id, allowedUserId)) return
 
@@ -339,10 +394,33 @@ if (bot) {
     }
 
     const universeId = Number.parseInt(ctx.callbackQuery.data.slice(NEW_PICK_PREFIX.length), 10)
+    const existingPending = await peekPendingAction(ctx.chat!.id)
+    const carriedSeed = existingPending?.accumulatedSeed ?? null
 
-    await setPendingUniverseChoice(ctx.chat!.id, universeId)
+    await setPendingUniverseChoice(ctx.chat!.id, universeId, carriedSeed)
     await ctx.answerCallbackQuery()
-    await ctx.reply('Опиши идею новой сказки одним сообщением 👇')
+    await ctx.reply(
+      isReadyToFinalize(carriedSeed)
+        ? 'Вселенная изменена. То, что ты уже написал, сохранено — можешь продолжить, или нажми «✅ Готово».'
+        : 'Опиши идею новой сказки. Можешь прислать несколько сообщений подряд — я всё запомню. ' +
+            'Когда будешь готов, нажми «✅ Готово» или отправь /go.',
+    )
+  })
+
+  bot.callbackQuery(NEW_GO_CALLBACK, async (ctx) => {
+    if (!deriveIsAuthorizedUser(ctx.from?.id, allowedUserId)) {
+      await ctx.answerCallbackQuery()
+      return
+    }
+
+    await ctx.answerCallbackQuery()
+    await finalizePendingStory(ctx)
+  })
+
+  bot.command('go', async (ctx) => {
+    if (!deriveIsAuthorizedUser(ctx.from?.id, allowedUserId)) return
+
+    await finalizePendingStory(ctx)
   })
 
   bot.on('message:text', async (ctx) => {
@@ -352,12 +430,22 @@ if (bot) {
 
     if (text.length === 0) return
 
-    const pendingUniverseId = await consumePendingUniverseChoice(ctx.chat.id)
+    const pending = await peekPendingAction(ctx.chat.id)
 
-    if (pendingUniverseId !== null) {
-      const storyId = await createStoryForUniverse(text, pendingUniverseId)
+    if (pending !== null) {
+      const currentLength = pending.accumulatedSeed?.length ?? 0
 
-      await ctx.reply(`Генерирую сказку №${storyId} ✨ Пришлю, когда будет готова.`)
+      if (currentLength + text.length > MAX_ACCUMULATED_SEED_LENGTH) {
+        await ctx.reply('Идея уже достаточно длинная — нажми «✅ Готово», чтобы начать генерацию.', {
+          reply_markup: readyToGoKeyboard(),
+        })
+        return
+      }
+
+      await appendPendingSeedText(ctx.chat.id, text)
+      await ctx.reply('Добавлено. Можешь продолжить, или нажми «✅ Готово», когда закончишь.', {
+        reply_markup: readyToGoKeyboard(),
+      })
       return
     }
 
