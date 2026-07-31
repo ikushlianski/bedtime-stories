@@ -14,6 +14,14 @@ let mockExistingRows: Array<{ storyId: number; contentHash: string | null }> = [
 
 let selectCallCount = 0
 
+vi.mock('../env.js', () => ({
+  env: {
+    DATABASE_URL: 'postgresql://user:pass@localhost:5432/testdb',
+    OPENROUTER_API_KEY: 'test-key',
+    JWT_SECRET: 'x'.repeat(32),
+  },
+}))
+
 vi.mock('../db/client', () => ({
   db: {
     select: vi.fn(() => {

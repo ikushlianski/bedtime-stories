@@ -1,4 +1,13 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+vi.mock('../env.js', () => ({
+  env: {
+    DATABASE_URL: 'postgresql://user:pass@localhost:5432/testdb',
+    OPENROUTER_API_KEY: 'test-key',
+    JWT_SECRET: 'x'.repeat(32),
+  },
+}))
+
 import {
   deriveSearchPastStoriesArgs,
   deriveSearchPastStoriesResult,
