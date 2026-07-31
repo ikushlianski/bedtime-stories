@@ -323,6 +323,13 @@
       "when": 1785190342374,
       "tag": "0045_white_mordo",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1785509297899,
+      "tag": "0046_wandering_banshee",
+      "breakpoints": true
     }
   ]
 }

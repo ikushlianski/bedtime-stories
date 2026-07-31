@@ -103,6 +103,13 @@ export interface StoryGroup {
   pendingIdeasCount: number
 }
 
+export interface StorySearchResult {
+  storyId: number
+  title: string
+  similarity: number
+  excerpt: string
+}
+
 export interface Story {
   id: number
   title: string
@@ -542,6 +549,14 @@ export const api = {
       }),
 
     allTags: () => request<string[]>('/api/stories/tags'),
+
+    search: (params: { q: string; universeId: number; limit?: number }) => {
+      const query = new URLSearchParams({ q: params.q, universeId: String(params.universeId) })
+
+      if (params.limit != null) query.set('limit', String(params.limit))
+
+      return request<StorySearchResult[]>(`/api/stories/search?${query.toString()}`)
+    },
 
     updateTags: (id: number, tags: string[]) =>
       request<Story>(`/api/stories/${id}/tags`, {

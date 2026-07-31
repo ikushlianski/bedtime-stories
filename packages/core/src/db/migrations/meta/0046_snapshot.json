@@ -1,6 +1,6 @@
 {
-  "id": "72c696fb-9141-4c98-8bab-1db83ceeb0dd",
-  "prevId": "672b194d-4a7a-4264-8265-9a7e931634f9",
+  "id": "efd3228c-f495-4a0a-8eff-7b676f5b5a26",
+  "prevId": "cc34f7a5-a3fc-4b56-91bd-22a419df7906",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1648,6 +1648,105 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.story_embeddings": {
+      "name": "story_embeddings",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "story_id": {
+          "name": "story_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "universe_id": {
+          "name": "universe_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "embedding": {
+          "name": "embedding",
+          "type": "vector(1024)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "content_hash": {
+          "name": "content_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "embedding_model": {
+          "name": "embedding_model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'baai/bge-m3'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "story_embeddings_story_id_stories_id_fk": {
+          "name": "story_embeddings_story_id_stories_id_fk",
+          "tableFrom": "story_embeddings",
+          "tableTo": "stories",
+          "columnsFrom": [
+            "story_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "story_embeddings_universe_id_story_groups_id_fk": {
+          "name": "story_embeddings_universe_id_story_groups_id_fk",
+          "tableFrom": "story_embeddings",
+          "tableTo": "story_groups",
+          "columnsFrom": [
+            "universe_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "story_embeddings_story_id_unique": {
+          "name": "story_embeddings_story_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "story_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.story_fragments": {
       "name": "story_fragments",
       "schema": "",
@@ -2271,6 +2370,12 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true
+        },
+        "accumulated_seed": {
+          "name": "accumulated_seed",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",

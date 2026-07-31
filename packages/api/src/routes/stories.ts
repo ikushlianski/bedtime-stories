@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { eq, desc, and, sql } from 'drizzle-orm'
 import { db } from '@bedtime/core/db/client'
-import { stories, annotations, feedback, runSnapshots, storyGroups, planQuestions, planConversations, parentReviews, childReactions, storyReadings, modelCalls, storyTextVersions, storyUniverses } from '@bedtime/core/db/schema'
+import { stories, annotations, feedback, runSnapshots, storyGroups, planQuestions, planConversations, parentReviews, childReactions, storyReadings, modelCalls, storyTextVersions, storyEmbeddings, storyUniverses } from '@bedtime/core/db/schema'
 import { deriveStoryCostBreakdown } from '@bedtime/core/cost/aggregations/derive-story-cost-breakdown'
 import type { Story, NewStory, NewAnnotation, ParentReview, ChildReaction } from '@bedtime/core/db/types'
 import { validate } from '../middleware/validate'
@@ -22,6 +22,7 @@ import { notifyStoryReady } from './pipeline-notifications'
 import { resolveChatGate } from '@bedtime/core/pipeline/resolve-chat-gate'
 import { computePatchedText } from '@bedtime/core/pipeline/compute-patched-text'
 import { insertTextVersion } from './pipeline-persistence'
+import { searchStoriesByEmbedding, deriveStorySearchApiResults } from '@bedtime/core/pipeline/search-stories-by-embedding'
 
 const router = Router()
 
@@ -193,6 +194,42 @@ router.get('/tags', async (_req, res) => {
   } catch (err) {
     console.error('GET /stories/tags failed:', err)
     res.status(500).json({ error: 'Failed to fetch tags' })
+  }
+})
+
+const SEARCH_DEFAULT_LIMIT = 5
+const SEARCH_MAX_LIMIT = 10
+
+router.get('/search', async (req, res) => {
+  try {
+    const { q, universeId, limit } = req.query
+
+    if (typeof q !== 'string' || q.trim().length === 0) {
+      res.status(400).json({ error: 'Missing search query "q"' })
+      return
+    }
+
+    if (typeof universeId !== 'string') {
+      res.status(400).json({ error: 'Missing "universeId"' })
+      return
+    }
+
+    const parsedUniverseId = parseInt(universeId, 10)
+
+    if (isNaN(parsedUniverseId)) {
+      res.status(400).json({ error: 'Invalid "universeId"' })
+      return
+    }
+
+    const requestedLimit = typeof limit === 'string' ? parseInt(limit, 10) : SEARCH_DEFAULT_LIMIT
+    const clampedLimit = Math.max(1, Math.min(SEARCH_MAX_LIMIT, isNaN(requestedLimit) ? SEARCH_DEFAULT_LIMIT : requestedLimit))
+
+    const rows = await searchStoriesByEmbedding({ universeId: parsedUniverseId, query: q, limit: clampedLimit })
+
+    res.json(deriveStorySearchApiResults(rows))
+  } catch (err) {
+    console.error('GET /stories/search failed:', err)
+    res.status(500).json({ error: 'Failed to search stories' })
   }
 })
 
@@ -1129,6 +1166,7 @@ router.delete('/:id', async (req, res) => {
     await db.delete(storyReadings).where(eq(storyReadings.storyId, storyId))
     await db.delete(modelCalls).where(eq(modelCalls.storyId, storyId))
     await db.delete(storyTextVersions).where(eq(storyTextVersions.storyId, storyId))
+    await db.delete(storyEmbeddings).where(eq(storyEmbeddings.storyId, storyId))
     await db.delete(storyUniverses).where(eq(storyUniverses.storyId, storyId))
     await db.delete(stories).where(eq(stories.id, storyId))
 

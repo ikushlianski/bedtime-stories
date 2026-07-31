@@ -7,6 +7,11 @@ import { selectCharacterLens, buildCharacterLensBlock, type CharacterLens } from
 import { buildCharacterBibleBlock, type CharacterBibleEntry } from './character-bible-block'
 import { buildReactionPreferenceBlock, type ReactionSummary } from './reaction-preferences'
 import { buildMemorableMomentsBlock, type MemorableMomentRow } from './memorable-moments'
+import {
+  deriveSearchPastStoriesArgs,
+  searchPastStories,
+  SEARCH_PAST_STORIES_TOOL,
+} from '../search-past-stories-tool'
 import type { CriticOutput } from '../schemas'
 
 const PLOTTER_TEMPERATURE = 0.95
@@ -98,6 +103,7 @@ export async function runPlotter(options: {
   characterLens?: CharacterLens
   cwd?: string
   storyId?: number
+  universeId?: number | null
 }): Promise<string> {
   const { seed, previousPlan, criticNotes, userFeedback, model } = options
   const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
@@ -171,5 +177,47 @@ export async function runPlotter(options: {
 
   const storyIdArg = options.storyId !== undefined ? { storyId: options.storyId } : {}
 
-  return aiRunner.runText({ model, prompt, label: `plotter:v${resolved.version}`, stage: 'plotter', temperature: PLOTTER_TEMPERATURE, ...cwdArg, ...storyIdArg })
+  const universeId = options.universeId
+  const toolsArg =
+    universeId !== undefined && universeId !== null
+      ? {
+          tools: [SEARCH_PAST_STORIES_TOOL],
+          executeTool: async (name: string, argsJson: string): Promise<unknown> => {
+            if (name !== SEARCH_PAST_STORIES_TOOL.name) {
+              return { error: 'unknown_tool', message: `no such tool: ${name}` }
+            }
+
+            const parsedArgs = deriveSearchPastStoriesArgs(argsJson)
+
+            if ('error' in parsedArgs) {
+              return { error: 'invalid_arguments', message: parsedArgs.error }
+            }
+
+            try {
+              return await searchPastStories({
+                universeId,
+                ...(options.storyId !== undefined ? { excludeStoryId: options.storyId } : {}),
+                query: parsedArgs.query,
+                limit: parsedArgs.limit,
+              })
+            } catch (err) {
+              return {
+                error: 'retrieval_failed',
+                message: err instanceof Error ? err.message : String(err),
+              }
+            }
+          },
+        }
+      : {}
+
+  return aiRunner.runText({
+    model,
+    prompt,
+    label: `plotter:v${resolved.version}`,
+    stage: 'plotter',
+    temperature: PLOTTER_TEMPERATURE,
+    ...cwdArg,
+    ...storyIdArg,
+    ...toolsArg,
+  })
 }

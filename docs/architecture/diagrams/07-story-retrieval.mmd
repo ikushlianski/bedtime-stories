@@ -1,0 +1,25 @@
+flowchart TD
+  classDef default fill:#e8eaf6,stroke:#455a64,stroke-width:1.5px,color:#000
+  linkStyle default stroke:#455a64,stroke-width:1.5px
+
+  subgraph Approval["Story approval (existing trigger, unchanged)"]
+    A["analyzeStoryAndLearn(storyId)"]
+  end
+  A -->|"fire-and-forget, own catch"| B["embedStory(storyId)"]
+  B --> C["OpenRouter /embeddings<br/>baai/bge-m3"]
+  C --> D[("story_embeddings<br/>upsert on story_id")]
+
+  subgraph Backfill["One-off backfill (new)"]
+    E["POST /api/internal/embed-story-backfill<br/>+ secret header"] --> F["embedStoriesBatch(storyIds)"]
+    F --> C
+  end
+
+  subgraph PlotterRun["Plotter generation (new tool-calling path)"]
+    G["runPlotter(..., universeId)"] --> H["aiRunner.runText<br/>tools: [search_past_stories]"]
+    H -->|"model requests tool"| I["executeTool -> searchPastStories<br/>(universeId, excludeStoryId, query)"]
+    I --> J["OpenRouter /embeddings<br/>(query text)"]
+    I --> K["pgvector cosine query<br/>WHERE universe_id = X"]
+    K --> D
+    I -->|"role: tool message"| H
+    H -->|"cap reached or no more<br/>tool calls"| L["final outline text"]
+  end

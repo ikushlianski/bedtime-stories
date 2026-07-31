@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { ToolDefinition } from '../openrouter/tool-types.js'
 
 export type ThinkingConfig =
   | { type: 'enabled'; budgetTokens?: number }
@@ -17,6 +18,9 @@ export interface RunTextOptions {
   fallback?: string
   storyId?: number
   stage?: string
+  tools?: ToolDefinition[]
+  executeTool?: (name: string, argsJson: string) => Promise<unknown>
+  maxToolIterations?: number
 }
 
 export interface RunStructuredOptions<T> {

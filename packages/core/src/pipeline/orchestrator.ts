@@ -146,6 +146,7 @@ export async function runPlanPhase(options: {
     ...memorableMomentsArg,
     ...userFeedbackArg,
     ...storyIdArg,
+    universeId: universeIds[0] ?? null,
   })
 
   const marker = extractFragmentMarkers(planRaw)
@@ -320,6 +321,7 @@ export async function runPlotterOnly(options: {
     ...memorableMomentsArg,
     ...userFeedbackArg,
     ...storyIdArg,
+    universeId: universeIds[0] ?? null,
   })
 
   const marker = extractFragmentMarkers(planRaw)
