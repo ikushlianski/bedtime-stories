@@ -342,7 +342,7 @@ setStoryTags((story.tags as string[] | null) ?? [])
           />
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-base-content">История на вычитке. Прочитай, оставь заметки, отправь на доработку — или одобри для Саши.</p>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {reviewActionError && (
                 <span className="text-xs text-error">{reviewActionError}</span>
               )}
@@ -438,44 +438,46 @@ setStoryTags((story.tags as string[] | null) ?? [])
             <p className="text-xs font-medium uppercase tracking-wide text-base-content/50">Стоимость</p>
             <p className="text-sm">Итого: <span className="font-mono">${formatMicros(story.cost.totalUsdMicros, 5)}</span></p>
           </div>
-          <table className="table table-xs">
-            <thead>
-              <tr>
-                <th>Стадия</th>
-                <th>Модель</th>
-                <th className="text-right">In</th>
-                <th className="text-right">Out</th>
-                <th className="text-right">USD</th>
-              </tr>
-            </thead>
-            <tbody>
-              {story.cost.perStage.map((row, i) => {
-                const swappable = (['plotter', 'writer'] as const).includes(
-                  row.stage as 'plotter' | 'writer',
-                )
-                return (
-                  <tr key={i}>
-                    <td className="font-mono text-xs">
-                      {row.stage}{row.attempt > 1 ? ` #${row.attempt}` : ''}
-                      {swappable && (
-                        <button
-                          className="btn btn-ghost btn-xs ml-2"
-                          title="Сменить модель и пере-запустить эту стадию"
-                          onClick={() => setSwapStage(row.stage as 'plotter' | 'writer')}
-                        >
-                          ↻
-                        </button>
-                      )}
-                    </td>
-                    <td className="font-mono text-xs">{row.model}</td>
-                    <td className="text-right font-mono">{row.tokensIn}</td>
-                    <td className="text-right font-mono">{row.tokensOut}</td>
-                    <td className="text-right font-mono">${formatMicros(row.usdMicros, 5)}</td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table className="table table-xs">
+              <thead>
+                <tr>
+                  <th>Стадия</th>
+                  <th>Модель</th>
+                  <th className="text-right">In</th>
+                  <th className="text-right">Out</th>
+                  <th className="text-right">USD</th>
+                </tr>
+              </thead>
+              <tbody>
+                {story.cost.perStage.map((row, i) => {
+                  const swappable = (['plotter', 'writer'] as const).includes(
+                    row.stage as 'plotter' | 'writer',
+                  )
+                  return (
+                    <tr key={i}>
+                      <td className="font-mono text-xs">
+                        {row.stage}{row.attempt > 1 ? ` #${row.attempt}` : ''}
+                        {swappable && (
+                          <button
+                            className="btn btn-ghost btn-xs ml-2"
+                            title="Сменить модель и пере-запустить эту стадию"
+                            onClick={() => setSwapStage(row.stage as 'plotter' | 'writer')}
+                          >
+                            ↻
+                          </button>
+                        )}
+                      </td>
+                      <td className="font-mono text-xs">{row.model}</td>
+                      <td className="text-right font-mono">{row.tokensIn}</td>
+                      <td className="text-right font-mono">{row.tokensOut}</td>
+                      <td className="text-right font-mono">${formatMicros(row.usdMicros, 5)}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
           <div className="mt-3 text-right text-xs">
             <button
               className="link"
@@ -594,7 +596,7 @@ setStoryTags((story.tags as string[] | null) ?? [])
         <div className="mt-4 rounded-box border border-primary/30 bg-primary/10 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-base-content">Отправь на доработку или одобри для Саши.</p>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {reviewActionError && <span className="text-xs text-error self-center">{reviewActionError}</span>}
               <button
                 className="btn btn-sm btn-outline"

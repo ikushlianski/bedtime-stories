@@ -381,7 +381,7 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
 
         {error && <p className="mt-3 text-sm text-error">{error}</p>}
 
-        <div className="modal-action">
+        <div className="modal-action flex-wrap">
           <button className="btn btn-ghost" onClick={onClose}>
             Отмена
           </button>

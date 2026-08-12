@@ -272,7 +272,7 @@ export function TextReviewPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="font-serif text-3xl text-base-content">Текст истории</h2>
 
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button className="btn btn-outline btn-sm" onClick={() => void handleRedo()} disabled={redoing || approving}>
                 {redoing ? 'Запускаем...' : 'Отправить на доработку'}
               </button>
