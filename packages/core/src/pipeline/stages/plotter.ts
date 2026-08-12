@@ -57,6 +57,7 @@ One sentence. Familiar or mildly fantastical. Calming for bedtime.
 СЦЕНЫ (5–7 сцен)
 Very brief: scene title + what happens + emotional beat. No dialogue, no descriptions.
 If Gosha makes a wrong choice, consequences must persist for at least 2–3 scenes before resolving.
+Each scene needs a concrete external event or physical action — someone moves, does, builds, breaks, discovers, or changes something in the world. Internal feeling can follow the action, but must never be the scene's only content.
 
 МОМЕНТЫ СМЕХА
 This section is MANDATORY. List every funny moment in the story. For each one:
