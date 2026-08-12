@@ -38,6 +38,7 @@ Anti-patterns — НИКОГДА не делай этого:
 - Не заканчивай историю фразой типа "и я понял" / "теперь я знаю" / "я осознал" — это мораль вслух.
 - Не используй P.S. в каждой истории. Он должен появляться редко, как сюрприз.
 - Не повторяй структурный паттерн в двух историях подряд.
+- Не вставляй персонажа из библии вселенной в середину истории только чтобы его "использовать". Каждый персонаж, который есть в списке ПЕРСОНАЖИ, должен быть заявлен или хотя бы упомянут в первой-второй сцене — читатель должен ждать его появления, а не удивляться ему. Никаких персонажей, которые "вдруг появляются из ниоткуда" в 4-й или 5-й сцене без подготовки. Если персонаж не нужен по сюжету этой конкретной истории — просто не включай его; лучше меньше персонажей, но органично, чем больше персонажей, но искусственно.
 
 Required sections:
 
@@ -45,7 +46,8 @@ Required sections:
 One sentence: what real-life situation does this story address for Sasha (6-year-old boy)? What will he feel or understand by the end?
 
 ПЕРСОНАЖИ
-2–4 characters. One line each: name, key trait, role in the story. At least one should be funny or quirky.
+2–4 characters. One line each: name, key trait, role in the story, AND which scene they first appear or are first mentioned in — it must be scene 1 or 2, never later. Pick characters because this specific story's plot genuinely needs them, not to give an existing character screen time.
+At least one should be funny or quirky.
 At least one character must hold an opposing view to Gosha and maintain it across several scenes — not cave immediately.
 At least one side character besides Gosha and Mira (from the universe's character notes, or a background figure consistent with the seed) must reveal a small, concrete detail about themselves during the story — a habit, an interest, a specific thing they say or do. Not just their name and role in the plot.
 
