@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { desc, eq, inArray, sql } from 'drizzle-orm'
 import { db } from '@bedtime/core/db/client'
 import { topics, storyTopics, stories, storyGroups } from '@bedtime/core/db/schema'
+import { recordStoryTopics } from '@bedtime/core/pipeline/load-topics'
 import { runTopicCombiner, type TopicPoolItem } from '@bedtime/core/pipeline/stages/topic-combiner'
 import { filterValidCombos, isValidComboSelection, synthesizeSeedFromTopics } from '@bedtime/core/pipeline/topic-derivers'
 import { DEFAULT_STAGE_MODELS } from '@bedtime/core/pipeline/derivers/stage-defaults'
@@ -42,7 +43,9 @@ const generateSchema = z.object({
 const usedCount = sql<number>`(
   select count(distinct st.story_id)::int
   from story_topics st
+  join stories s on s.id = st.story_id
   where st.topic_id = ${topics}.id
+    and s.status in ('proofreading', 'ready', 'read')
 )`
 
 router.get('/', async (_req, res) => {
@@ -234,10 +237,7 @@ router.post('/generate', validate(generateSchema), async (req, res) => {
       return
     }
 
-    await db
-      .insert(storyTopics)
-      .values(orderedTopics.map((t) => ({ storyId: newStory.id, topicId: t.id })))
-      .onConflictDoNothing()
+    await recordStoryTopics(newStory.id, orderedTopics.map((t) => t.id))
 
     await setStoryUniverses(newStory.id, [universeId])
     await dispatchAutoPipeline({ storyId: newStory.id, seed: storySeed, universeIds: [universeId] })
