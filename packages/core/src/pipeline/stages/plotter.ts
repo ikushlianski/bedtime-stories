@@ -1,6 +1,7 @@
 import { aiRunner } from '../../ai'
 import { resolvePrompt, type ResolvedPrompt } from '../prompt-resolver'
 import { buildFragmentsBlock, type EligibleFragment } from '../load-fragments'
+import { buildTopicsBlock, type EligibleTopic } from '../load-topics'
 import { selectStoryStructure, buildStructureBlock, type StoryStructure } from './story-structures'
 import { selectStorySetting, buildSettingBlock } from './story-settings'
 import { selectCharacterLens, buildCharacterLensBlock, type CharacterLens } from './character-lenses'
@@ -94,6 +95,7 @@ export async function runPlotter(options: {
   styleGuide?: string
   sashaContext?: string | null
   eligibleFragments?: EligibleFragment[]
+  eligibleTopics?: EligibleTopic[]
   bibleCharacters?: CharacterBibleEntry[]
   reactionSummary?: ReactionSummary
   memorableMoments?: MemorableMomentRow[]
@@ -127,6 +129,10 @@ export async function runPlotter(options: {
     ? buildFragmentsBlock(options.eligibleFragments)
     : ''
 
+  const topicsBlock = options.eligibleTopics && options.eligibleTopics.length > 0
+    ? buildTopicsBlock(options.eligibleTopics)
+    : ''
+
   const structureBlock = buildStructureBlock(options.structure ?? selectStoryStructure(options.storyId))
   const settingBlock = buildSettingBlock(selectStorySetting(options.storyId))
   const characterLensBlock = buildCharacterLensBlock(options.characterLens ?? selectCharacterLens(options.storyId))
@@ -135,7 +141,7 @@ export async function runPlotter(options: {
   const memorableMomentsBlock = buildMemorableMomentsBlock(options.memorableMoments ?? [])
 
   const parts: string[] = [
-    `${basePrompt}${structureBlock}${settingBlock}${characterLensBlock}${characterBibleBlock}${reactionBlock}${memorableMomentsBlock}${universeContextBlock}${styleGuideBlock}${sashaContextBlock}${fragmentsBlock}`,
+    `${basePrompt}${structureBlock}${settingBlock}${characterLensBlock}${characterBibleBlock}${reactionBlock}${memorableMomentsBlock}${universeContextBlock}${styleGuideBlock}${sashaContextBlock}${fragmentsBlock}${topicsBlock}`,
     '',
     `SEED (real-life situation to base the story on):\n${seed}`,
   ]

@@ -4,6 +4,7 @@ import { runPlotterQuestions, type PlotterQuestionItem } from './stages/plotter-
 import { generateStoryTitle } from './stages/title-generator'
 import { resolvePrompt, type ResolvedPrompt } from './prompt-resolver'
 import { loadEligibleFragments, extractFragmentMarkers, MAX_FRAGMENTS_PER_STORY } from './load-fragments'
+import { loadEligibleTopics, extractTopicMarkers, MAX_TOPICS_PER_STORY } from './load-topics'
 import { loadReactionPreferences, MIN_REACTIONS } from './load-reaction-preferences'
 import { loadMemorableMoments } from './load-memorable-moments'
 import { loadRecentTitles } from './load-recent-titles'
@@ -39,6 +40,7 @@ export interface PlanPhaseResult {
   promptVersions: PipelinePromptVersions
   sashaContext: string | null
   usedFragmentIds: number[]
+  usedTopicIds: number[]
 }
 
 export interface PlotterOnlyResult {
@@ -48,6 +50,7 @@ export interface PlotterOnlyResult {
   promptVersions: PipelinePromptVersions
   sashaContext: string | null
   usedFragmentIds: number[]
+  usedTopicIds: number[]
 }
 
 export interface WriterOnlyResult {
@@ -85,6 +88,7 @@ export async function runPlanPhase(options: {
   userFeedback?: string
   universeIds?: number[]
   injectFragments?: boolean
+  injectTopics?: boolean
   bibleCharacters?: CharacterBibleEntry[]
   cwd?: string
   onStepChange?: (step: string) => void
@@ -116,14 +120,16 @@ export async function runPlanPhase(options: {
   const storyIdArg = { storyId: options.storyId }
   const universeIds = options.universeIds ?? []
 
-  const [eligibleFragments, reactionSummary, memorableMoments, structureChoice, recentTitles] = await Promise.all([
+  const [eligibleFragments, eligibleTopics, reactionSummary, memorableMoments, structureChoice, recentTitles] = await Promise.all([
     options.injectFragments ? loadEligibleFragments(universeIds) : Promise.resolve([]),
+    options.injectTopics ? loadEligibleTopics(universeIds, options.storyId) : Promise.resolve([]),
     loadReactionPreferences(universeIds),
     loadMemorableMoments(universeIds, options.storyId),
     resolveStoryStructureChoice(options.storyId),
     loadRecentTitles(universeIds[0] ?? null, options.storyId),
   ])
   const fragmentsArg = eligibleFragments.length > 0 ? { eligibleFragments } : {}
+  const topicsArg = eligibleTopics.length > 0 ? { eligibleTopics } : {}
   const reactionArg = reactionSummary && reactionSummary.sampleSize >= MIN_REACTIONS ? { reactionSummary } : {}
   const bibleArg = options.bibleCharacters && options.bibleCharacters.length > 0 ? { bibleCharacters: options.bibleCharacters } : {}
   const memorableMomentsArg = memorableMoments.length > 0 ? { memorableMoments } : {}
@@ -141,6 +147,7 @@ export async function runPlanPhase(options: {
     ...styleGuideArg,
     ...sashaContextArg,
     ...fragmentsArg,
+    ...topicsArg,
     ...reactionArg,
     ...bibleArg,
     ...memorableMomentsArg,
@@ -148,10 +155,13 @@ export async function runPlanPhase(options: {
     ...storyIdArg,
   })
 
-  const marker = extractFragmentMarkers(planRaw)
-  const planV1 = marker.cleanedText
-  const eligibleIds = new Set(eligibleFragments.map((f) => f.id))
-  const usedFragmentIds = marker.fragmentIds.filter((id) => eligibleIds.has(id)).slice(0, MAX_FRAGMENTS_PER_STORY)
+  const fragmentMarker = extractFragmentMarkers(planRaw)
+  const topicMarker = extractTopicMarkers(fragmentMarker.cleanedText)
+  const planV1 = topicMarker.cleanedText
+  const eligibleFragmentIds = new Set(eligibleFragments.map((f) => f.id))
+  const usedFragmentIds = fragmentMarker.fragmentIds.filter((id) => eligibleFragmentIds.has(id)).slice(0, MAX_FRAGMENTS_PER_STORY)
+  const eligibleTopicIds = new Set(eligibleTopics.map((t) => t.id))
+  const usedTopicIds = topicMarker.topicIds.filter((id) => eligibleTopicIds.has(id)).slice(0, MAX_TOPICS_PER_STORY)
 
   notify('TitleGenerator')
   const titleSuggested = await generateStoryTitle({
@@ -172,6 +182,7 @@ export async function runPlanPhase(options: {
     promptVersions: resolvedVersions,
     sashaContext: options.sashaContext ?? null,
     usedFragmentIds,
+    usedTopicIds,
   }
 }
 
@@ -267,6 +278,7 @@ export async function runPlotterOnly(options: {
   userFeedback?: string
   universeIds?: number[]
   injectFragments?: boolean
+  injectTopics?: boolean
   bibleCharacters?: CharacterBibleEntry[]
   cwd?: string
   onStepChange?: (step: string) => void
@@ -290,14 +302,16 @@ export async function runPlotterOnly(options: {
   const storyIdArg = { storyId: options.storyId }
   const universeIds = options.universeIds ?? []
 
-  const [eligibleFragments, reactionSummary, memorableMoments, structureChoice, recentTitles] = await Promise.all([
+  const [eligibleFragments, eligibleTopics, reactionSummary, memorableMoments, structureChoice, recentTitles] = await Promise.all([
     options.injectFragments ? loadEligibleFragments(universeIds) : Promise.resolve([]),
+    options.injectTopics ? loadEligibleTopics(universeIds, options.storyId) : Promise.resolve([]),
     loadReactionPreferences(universeIds),
     loadMemorableMoments(universeIds, options.storyId),
     resolveStoryStructureChoice(options.storyId),
     loadRecentTitles(universeIds[0] ?? null, options.storyId),
   ])
   const fragmentsArg = eligibleFragments.length > 0 ? { eligibleFragments } : {}
+  const topicsArg = eligibleTopics.length > 0 ? { eligibleTopics } : {}
   const reactionArg = reactionSummary && reactionSummary.sampleSize >= MIN_REACTIONS ? { reactionSummary } : {}
   const bibleArg = options.bibleCharacters && options.bibleCharacters.length > 0 ? { bibleCharacters: options.bibleCharacters } : {}
   const memorableMomentsArg = memorableMoments.length > 0 ? { memorableMoments } : {}
@@ -315,6 +329,7 @@ export async function runPlotterOnly(options: {
     ...styleGuideArg,
     ...sashaContextArg,
     ...fragmentsArg,
+    ...topicsArg,
     ...reactionArg,
     ...bibleArg,
     ...memorableMomentsArg,
@@ -322,10 +337,13 @@ export async function runPlotterOnly(options: {
     ...storyIdArg,
   })
 
-  const marker = extractFragmentMarkers(planRaw)
-  const planV1 = marker.cleanedText
-  const eligibleIds = new Set(eligibleFragments.map((f) => f.id))
-  const usedFragmentIds = marker.fragmentIds.filter((id) => eligibleIds.has(id)).slice(0, MAX_FRAGMENTS_PER_STORY)
+  const fragmentMarker = extractFragmentMarkers(planRaw)
+  const topicMarker = extractTopicMarkers(fragmentMarker.cleanedText)
+  const planV1 = topicMarker.cleanedText
+  const eligibleFragmentIds = new Set(eligibleFragments.map((f) => f.id))
+  const usedFragmentIds = fragmentMarker.fragmentIds.filter((id) => eligibleFragmentIds.has(id)).slice(0, MAX_FRAGMENTS_PER_STORY)
+  const eligibleTopicIds = new Set(eligibleTopics.map((t) => t.id))
+  const usedTopicIds = topicMarker.topicIds.filter((id) => eligibleTopicIds.has(id)).slice(0, MAX_TOPICS_PER_STORY)
 
   notify('TitleGenerator')
   const titleSuggested = await generateStoryTitle({
@@ -343,6 +361,7 @@ export async function runPlotterOnly(options: {
     promptVersions: resolvedVersions,
     sashaContext: options.sashaContext ?? null,
     usedFragmentIds,
+    usedTopicIds,
   }
 }
 
