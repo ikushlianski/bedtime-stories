@@ -111,7 +111,7 @@ function TextAnnotationPanel({ storyId, text, onChatAboutThis }: { storyId: numb
     <div className="space-y-4">
       {onChatAboutThis && (
         <p className="text-xs text-base-content/50">
-          Наведи на абзац и нажми ✎, чтобы переписать только его.
+          Нажми ✎ у любого абзаца, чтобы переписать только его.
         </p>
       )}
 
@@ -124,7 +124,7 @@ function TextAnnotationPanel({ storyId, text, onChatAboutThis }: { storyId: numb
                 {onChatAboutThis && (
                   <button
                     type="button"
-                    className="btn btn-ghost btn-xs shrink-0"
+                    className="btn btn-ghost btn-xs shrink-0 select-none"
                     title="Переписать этот абзац"
                     data-testid={`rewrite-block-${line.index}`}
                     onMouseUp={(e) => e.stopPropagation()}
