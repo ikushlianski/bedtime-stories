@@ -64,6 +64,14 @@ describe('extractTopicMarkers', () => {
     expect(result.topicIds).toEqual([2, 3])
     expect(result.cleanedText).toBe('план\nФРАГМЕНТЫ: 1')
   })
+
+  it('extracts the topics marker when it is the very last line after the fragments footer', () => {
+    const plan = 'план\nФРАГМЕНТЫ: 1\nТЕМЫ: 2, 3\n'
+    const result = extractTopicMarkers(plan)
+
+    expect(result.topicIds).toEqual([2, 3])
+    expect(result.cleanedText).toBe('план\nФРАГМЕНТЫ: 1')
+  })
 })
 
 describe('buildTopicsBlock', () => {
