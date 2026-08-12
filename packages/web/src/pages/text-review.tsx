@@ -4,6 +4,7 @@ import { api, type Story, type Annotation } from '../lib/api'
 import { PageHeader, StatusCallout } from '../components'
 import { StoryChatPanel } from './story-chat-panel'
 import { TextVersionHistory } from '../components/text-version-history'
+import { splitTextIntoLines } from './text-blocks'
 
 function useTextReviewStory(id: number) {
   const [story, setStory] = useState<Story | null>(null)
@@ -108,13 +109,41 @@ function TextAnnotationPanel({ storyId, text, onChatAboutThis }: { storyId: numb
 
   return (
     <div className="space-y-4">
+      {onChatAboutThis && (
+        <p className="text-xs text-base-content/50">
+          Наведи на абзац и нажми ✎, чтобы переписать только его.
+        </p>
+      )}
+
       <div className="relative" ref={containerRef} onMouseUp={handleMouseUp}>
         <div className="select-text cursor-text leading-relaxed text-base-content">
-          {text.split('\n').map((line, i) => (
-            <p key={i} className={line.trim() === '' ? 'mb-4' : 'mb-1'}>
-              {line || '\u00A0'}
-            </p>
-          ))}
+          {splitTextIntoLines(text).map((line) =>
+            line.isBlock ? (
+              <div key={line.index} className="mb-1 flex items-start gap-2">
+                <p className="flex-1">{line.text}</p>
+                {onChatAboutThis && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-xs shrink-0"
+                    title="Переписать этот абзац"
+                    data-testid={`rewrite-block-${line.index}`}
+                    onMouseUp={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      window.getSelection()?.removeAllRanges()
+                      onChatAboutThis(line.text)
+                    }}
+                  >
+                    ✎
+                  </button>
+                )}
+              </div>
+            ) : (
+              <p key={line.index} className="mb-4">
+                {line.text || '\u00A0'}
+              </p>
+            ),
+          )}
         </div>
 
         {popover && (
@@ -346,6 +375,7 @@ export function TextReviewPage() {
       {chatSelectedText !== null && (
         <div className="mt-6">
           <StoryChatPanel
+            key={chatSelectedText}
             storyId={storyId}
             context="text"
             selectedText={chatSelectedText}
