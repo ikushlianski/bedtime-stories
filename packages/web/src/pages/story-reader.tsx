@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, type RefObject } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { api, isReactionAnnotation, type Story, type Annotation, type AnnotationType, type PipelineStatusValue } from '../lib/api'
-import { AnnotationToolbar, PageHeader, StatusCallout, Toast, StoryTagEditor } from '../components'
+import { AnnotationToolbar, PageHeader, StatusCallout, Toast, StoryTagEditor, EditableStoryTitle } from '../components'
 import { TextVersionHistory } from '../components/text-version-history'
 import ParentReviewForm from '../components/parent-review-form'
 import ChildReactionForm from '../components/child-reaction-form'
@@ -378,7 +378,7 @@ setStoryTags((story.tags as string[] | null) ?? [])
 
       <PageHeader
         eyebrow="Чтение"
-        title={story.title}
+        title={<EditableStoryTitle storyId={storyId} initialTitle={story.title} onTitleUpdated={(newTitle) => setStory(prev => prev ? { ...prev, title: newTitle } : prev)} />}
         description="Читай финальную историю, отмечай понравившиеся отрывки и оставь отзыв после прочтения."
         backAction={
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>

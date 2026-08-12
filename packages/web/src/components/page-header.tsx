@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 
 interface PageHeaderProps {
-  title: string
+  title: ReactNode
   description?: string
   eyebrow?: string
   action?: ReactNode
@@ -20,7 +20,7 @@ function PageHeader({ title, description, eyebrow, action, backAction }: PageHea
 
         <div className="space-y-2">
           {backAction}
-          <h1 className="font-serif text-4xl leading-none text-base-content sm:text-5xl">{title}</h1>
+          <h1 className="font-serif text-4xl leading-none text-base-content sm:text-5xl inline-block">{title}</h1>
           {description && (
             <p className="max-w-3xl text-sm text-base-content/65 sm:text-base">{description}</p>
           )}

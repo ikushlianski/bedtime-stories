@@ -402,6 +402,10 @@ const updateTagsSchema = z.object({
   tags: z.array(z.string()),
 })
 
+const updateTitleSchema = z.object({
+  title: z.string().trim().min(1),
+})
+
 router.patch('/:id/tags', validate(updateTagsSchema), async (req, res) => {
   try {
     const storyId = parseIntParam(req.params['id'])
@@ -427,6 +431,34 @@ router.patch('/:id/tags', validate(updateTagsSchema), async (req, res) => {
   } catch (err) {
     console.error('PATCH /stories/:id/tags failed:', err)
     res.status(500).json({ error: 'Failed to update tags' })
+  }
+})
+
+router.patch('/:id/title', validate(updateTitleSchema), async (req, res) => {
+  try {
+    const storyId = parseIntParam(req.params['id'])
+
+    if (isNaN(storyId)) {
+      res.status(400).json({ error: 'Invalid story id' })
+      return
+    }
+
+    const { title } = req.body as z.infer<typeof updateTitleSchema>
+    const [story] = await db
+      .update(stories)
+      .set({ title, updatedAt: new Date() })
+      .where(eq(stories.id, storyId))
+      .returning()
+
+    if (!story) {
+      res.status(404).json({ error: 'Story not found' })
+      return
+    }
+
+    res.json(toSnakeCase(story as Story))
+  } catch (err) {
+    console.error('PATCH /stories/:id/title failed:', err)
+    res.status(500).json({ error: 'Failed to update story title' })
   }
 })
 
