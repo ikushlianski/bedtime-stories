@@ -1,4 +1,4 @@
-import { eq, inArray, isNull, or, sql } from 'drizzle-orm'
+import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm'
 import { db } from '../db/client'
 import { topics, storyTopics } from '../db/schema'
 import type { EligibleTopic } from './topics-prompt'
@@ -24,9 +24,12 @@ export async function loadEligibleTopics(
 
   if (existing && existing.count > 0) return []
 
-  const scopeFilter = universeIds.length > 0
-    ? or(isNull(topics.universeId), inArray(topics.universeId, universeIds))
-    : isNull(topics.universeId)
+  const scopeFilter = and(
+    eq(topics.status, 'active'),
+    universeIds.length > 0
+      ? or(isNull(topics.universeId), inArray(topics.universeId, universeIds))
+      : isNull(topics.universeId),
+  )
 
   const rows = await db
     .select({

@@ -102,6 +102,7 @@ The workflow uses both **variables** (non-secret config) and **secrets** (sensit
 | `PROD_LANGFUSE_SECRET_KEY` | Langfuse secret key |
 | `PROD_LANGFUSE_PUBLIC_KEY` | Langfuse public key |
 | `PROD_UNIVERSE_MEMORY_SYNC_SECRET` | Header secret for the nightly `universe-memory-sync` Cloud Scheduler job → `/api/internal/universe-memory-sync` |
+| `PROD_DAILY_SUGGESTIONS_SECRET` | Header secret for the daily `daily-suggestions` Cloud Scheduler job → `/api/internal/daily-suggestions` |
 
 ---
 

@@ -264,6 +264,7 @@ export interface Topic {
   note: string | null
   universeId: number | null
   rank: number
+  status: 'active' | 'suggested'
   usedCount: number
   createdAt: string | null
   updatedAt: string | null
@@ -728,13 +729,14 @@ export const api = {
   },
 
   topics: {
-    list: () => request<Topic[]>('/api/topics'),
+    list: (status?: 'active' | 'suggested' | 'all') =>
+      request<Topic[]>(`/api/topics${status ? `?status=${status}` : ''}`),
     create: (data: { title: string; note?: string | null; universeId?: number | null; rank?: number }) =>
       request<Topic>('/api/topics', {
         method: 'POST',
         body: JSON.stringify(data),
       }),
-    update: (id: number, data: Partial<{ title: string; note: string | null; universeId: number | null; rank: number }>) =>
+    update: (id: number, data: Partial<{ title: string; note: string | null; universeId: number | null; rank: number; status: 'active' | 'suggested' }>) =>
       request<Topic>(`/api/topics/${id}`, {
         method: 'PATCH',
         body: JSON.stringify(data),

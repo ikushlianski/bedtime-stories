@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { z } from 'zod'
-import { desc, eq, inArray, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, sql } from 'drizzle-orm'
 import { db } from '@bedtime/core/db/client'
 import { topics, storyTopics, stories, storyGroups } from '@bedtime/core/db/schema'
 import { recordStoryTopics } from '@bedtime/core/pipeline/load-topics'
@@ -26,6 +26,7 @@ const updateTopicSchema = z.object({
   note: z.string().max(2000).nullable().optional(),
   universeId: z.number().int().positive().nullable().optional(),
   rank: z.number().int().optional(),
+  status: z.enum(['active', 'suggested']).optional(),
 })
 
 const suggestCombosSchema = z.object({
@@ -48,8 +49,10 @@ const usedCount = sql<number>`(
     and s.status in ('proofreading', 'ready', 'read')
 )`
 
-router.get('/', async (_req, res) => {
+router.get('/', async (req, res) => {
   try {
+    const status = (req.query.status as string) || 'active'
+
     const rows = await db
       .select({
         id: topics.id,
@@ -57,11 +60,13 @@ router.get('/', async (_req, res) => {
         note: topics.note,
         universeId: topics.universeId,
         rank: topics.rank,
+        status: topics.status,
         usedCount,
         createdAt: topics.createdAt,
         updatedAt: topics.updatedAt,
       })
       .from(topics)
+      .where(status === 'all' ? undefined : eq(topics.status, status as 'active' | 'suggested'))
       .orderBy(desc(topics.rank), desc(topics.createdAt))
 
     res.json(rows)
@@ -102,7 +107,7 @@ router.patch('/:id', validate(updateTopicSchema), async (req, res) => {
       return
     }
 
-    const { title, note, universeId, rank } = req.body as z.infer<typeof updateTopicSchema>
+    const { title, note, universeId, rank, status } = req.body as z.infer<typeof updateTopicSchema>
 
     const [updated] = await db
       .update(topics)
@@ -111,6 +116,7 @@ router.patch('/:id', validate(updateTopicSchema), async (req, res) => {
         ...(note !== undefined ? { note } : {}),
         ...(universeId !== undefined ? { universeId } : {}),
         ...(rank !== undefined ? { rank } : {}),
+        ...(status !== undefined ? { status } : {}),
         updatedAt: new Date(),
       })
       .where(eq(topics.id, id))
@@ -160,6 +166,7 @@ router.post('/suggest-combos', validate(suggestCombosSchema), async (req, res) =
         usedCount,
       })
       .from(topics)
+      .where(eq(topics.status, 'active'))
       .orderBy(desc(topics.rank), desc(topics.createdAt))
 
     if (pool.length < 2) {
@@ -199,7 +206,10 @@ router.post('/generate', validate(generateSchema), async (req, res) => {
   try {
     const { topicIds, universeId, seed, model } = req.body as z.infer<typeof generateSchema>
 
-    const selected = await db.select().from(topics).where(inArray(topics.id, topicIds))
+    const selected = await db
+      .select()
+      .from(topics)
+      .where(and(inArray(topics.id, topicIds), eq(topics.status, 'active')))
 
     if (!isValidComboSelection(selected.map((t) => t.id), topicIds)) {
       res.status(422).json({ error: 'Selection must be 2-3 existing topics' })

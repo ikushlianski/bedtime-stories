@@ -140,6 +140,7 @@ export const topics = pgTable('topics', {
   note: text('note'),
   universeId: integer('universe_id').references(() => storyGroups.id),
   rank: integer('rank').notNull().default(0),
+  status: text('status').$type<'active' | 'suggested'>().notNull().default('active'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 })

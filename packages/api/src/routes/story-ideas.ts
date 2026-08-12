@@ -1,9 +1,9 @@
 import { Router } from 'express'
 import { z } from 'zod'
-import { eq, and, or, count } from 'drizzle-orm'
+import { eq, and, count } from 'drizzle-orm'
 import { db } from '@bedtime/core/db/client'
 import { storyIdeas, storyGroups, stories } from '@bedtime/core/db/schema'
-import { runIdeaSuggester } from '@bedtime/core/pipeline/stages/idea-suggester'
+import { generateStoryIdeasForUniverse, UniverseNotFoundError } from '@bedtime/core/pipeline/generate-story-ideas'
 import { validate } from '../middleware/validate'
 import { DEFAULT_STAGE_MODELS } from '@bedtime/core/pipeline/derivers/stage-defaults'
 import { dispatchAutoPipeline } from './pipeline-dispatch'
@@ -66,80 +66,16 @@ router.post('/suggest', validate(suggestSchema), async (req, res) => {
       return
     }
 
-    const [universe] = await db.select().from(storyGroups).where(eq(storyGroups.id, universeId))
+    const body = req.body as z.infer<typeof suggestSchema>
+    const result = await generateStoryIdeasForUniverse(universeId, body.model)
 
-    if (!universe) {
+    res.json(result)
+  } catch (err) {
+    if (err instanceof UniverseNotFoundError) {
       res.status(404).json({ error: 'Universe not found' })
       return
     }
 
-    const body = req.body as z.infer<typeof suggestSchema>
-    const model = body.model || DEFAULT_STAGE_MODELS.ideaSuggester.model
-
-    const previousStories = await db
-      .select({ title: stories.title, seed: stories.seed, planFinal: stories.planFinal })
-      .from(stories)
-      .where(and(eq(stories.groupId, universeId), or(eq(stories.status, 'read'), eq(stories.status, 'ready'))))
-
-    const approvedIdeas = await db
-      .select()
-      .from(storyIdeas)
-      .where(and(eq(storyIdeas.universeId, universeId), eq(storyIdeas.status, 'approved')))
-
-    const rejectedIdeas = await db
-      .select()
-      .from(storyIdeas)
-      .where(and(eq(storyIdeas.universeId, universeId), eq(storyIdeas.status, 'rejected')))
-
-    const approvedIdeasSummary =
-      approvedIdeas.length > 0
-        ? approvedIdeas.map((idea) => `- ${idea.topic}: ${idea.seedText}`).join('\n')
-        : undefined
-
-    const rejectedIdeasSummary =
-      rejectedIdeas.length > 0
-        ? rejectedIdeas
-            .map((idea) => `- ${idea.topic}: ${idea.seedText}${idea.rejectionReason ? ` (причина: ${idea.rejectionReason})` : ''}`)
-            .join('\n')
-        : undefined
-
-    const output = await runIdeaSuggester({
-      universeContext: universe.universeContext || '',
-      universeStyleGuide: universe.styleGuide ? universe.styleGuide : undefined,
-      previousStories: previousStories.map((s) => ({
-        title: s.title || '(без названия)',
-        seed: s.seed || '',
-        ...(s.planFinal ? { planFinal: s.planFinal } : {}),
-      })),
-      approvedIdeasSummary,
-      rejectedIdeasSummary,
-      universeId,
-      model,
-    })
-
-    const createdIds: number[] = []
-    for (const topicGroup of output.topics) {
-      for (const idea of topicGroup.ideas) {
-        const [created] = await db
-          .insert(storyIdeas)
-          .values({
-            universeId,
-            topic: topicGroup.topic,
-            seedText: idea.seed,
-            rationale: idea.rationale,
-            status: 'pending',
-            ideaSuggesterModel: model,
-          })
-          .returning({ id: storyIdeas.id })
-
-        if (created) {
-          createdIds.push(created.id)
-        }
-      }
-    }
-
-    res.json({ ideaCount: createdIds.length, createdIds })
-  } catch (err) {
     console.error('POST /universes/:universeId/ideas/suggest failed:', err)
     res.status(500).json({ error: 'Failed to generate ideas' })
   }

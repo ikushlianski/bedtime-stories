@@ -242,6 +242,38 @@ new gcp.cloudscheduler.Job(
   { dependsOn: enabledApis },
 )
 
+const dailySuggestionsSecret = config.requireSecret('dailySuggestionsSecret')
+
+new gcp.cloudscheduler.Job(
+  'daily-suggestions',
+  {
+    project: project.projectId,
+    region,
+    name: 'daily-suggestions',
+    description: 'Daily AI suggestions for pending topics and story ideas',
+    schedule: '0 5 * * *',
+    timeZone: 'UTC',
+    attemptDeadline: '300s',
+    retryConfig: {
+      retryCount: 3,
+      maxRetryDuration: '3600s',
+      minBackoffDuration: '60s',
+      maxBackoffDuration: '600s',
+      maxDoublings: 3,
+    },
+    httpTarget: {
+      uri: 'https://bedtime-agent.ilya.online/api/internal/daily-suggestions',
+      httpMethod: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Daily-Suggestions-Secret': dailySuggestionsSecret,
+      },
+      body: Buffer.from('{}').toString('base64'),
+    },
+  },
+  { dependsOn: enabledApis },
+)
+
 export const projectId = project.projectId
 export const apiUrl = apiService.statuses[0].url
 export const registryUrl = pulumi.interpolate`${region}-docker.pkg.dev/${project.projectId}/${registry.repositoryId}`

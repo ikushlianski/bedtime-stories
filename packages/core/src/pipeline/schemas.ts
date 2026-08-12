@@ -83,6 +83,13 @@ export const TopicCombinerOutputSchema = z.object({
   })),
 })
 
+export const TopicCandidateSuggesterOutputSchema = z.object({
+  topics: z.array(z.object({
+    title: z.string(),
+    note: z.string().optional(),
+  })),
+})
+
 export type PsychologistOutput = z.infer<typeof PsychologistOutputSchema>
 export type CriticOutput = z.infer<typeof CriticOutputSchema>
 export type ImproverOutput = z.infer<typeof ImproverOutputSchema>
@@ -90,3 +97,4 @@ export type StoryAnalysisOutput = z.infer<typeof StoryAnalysisOutputSchema>
 export type UniverseFactExtractorOutput = z.infer<typeof UniverseFactExtractorOutputSchema>
 export type IdeaSuggesterOutput = z.infer<typeof IdeaSuggesterOutputSchema>
 export type TopicCombinerOutput = z.infer<typeof TopicCombinerOutputSchema>
+export type TopicCandidateSuggesterOutput = z.infer<typeof TopicCandidateSuggesterOutputSchema>
