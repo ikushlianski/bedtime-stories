@@ -101,4 +101,51 @@ describe('StoryCard', () => {
     expect(onToggleFavorite).toHaveBeenCalledTimes(1)
     expect(onTitleClick).not.toHaveBeenCalled()
   })
+
+  it('renders no reaction badge when reactionCounts is undefined', () => {
+    render(
+      <StoryCard title="The Dragon Who Lost His Fire" status="ready" createdAt="2026-03-01T10:00:00Z" />,
+    )
+
+    expect(screen.queryByText(/☺|♥|☹|✦|✎/)).not.toBeInTheDocument()
+  })
+
+  it('renders no reaction badge when reactionCounts is provided but every count is 0', () => {
+    render(
+      <StoryCard
+        title="The Dragon Who Lost His Fire"
+        status="ready"
+        createdAt="2026-03-01T10:00:00Z"
+        reactionCounts={{ sasha_reaction: 0, my_note: 0, sasha_laughed: 0, sasha_loved: 0, sasha_disliked: 0 }}
+      />,
+    )
+
+    expect(screen.queryByText(/☺|♥|☹|✦|✎/)).not.toBeInTheDocument()
+  })
+
+  it('renders "☺ 3 · ✎ 2"-shaped text when two of five types are nonzero, ordered by glyph precedence', () => {
+    render(
+      <StoryCard
+        title="The Dragon Who Lost His Fire"
+        status="ready"
+        createdAt="2026-03-01T10:00:00Z"
+        reactionCounts={{ sasha_reaction: 0, my_note: 2, sasha_laughed: 3, sasha_loved: 0, sasha_disliked: 0 }}
+      />,
+    )
+
+    expect(screen.getByText('☺ 3 · ✎ 2')).toBeInTheDocument()
+  })
+
+  it('renders only the disliked glyph+count when it is the sole nonzero type', () => {
+    render(
+      <StoryCard
+        title="The Dragon Who Lost His Fire"
+        status="ready"
+        createdAt="2026-03-01T10:00:00Z"
+        reactionCounts={{ sasha_reaction: 0, my_note: 0, sasha_laughed: 0, sasha_loved: 0, sasha_disliked: 4 }}
+      />,
+    )
+
+    expect(screen.getByText('☹ 4')).toBeInTheDocument()
+  })
 })

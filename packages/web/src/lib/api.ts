@@ -152,6 +152,7 @@ export interface Story {
   structure_key?: string | null
   lens_key?: string | null
   favorite: boolean
+  reaction_counts?: Record<AnnotationType, number>
 }
 
 export interface TextVersion {

@@ -1,7 +1,31 @@
 import type { HTMLAttributes } from 'react'
-import type { StoryStatus } from './types'
+import type { StoryStatus, AnnotationType } from './types'
+import { annotationTypeLabel } from './types'
 import { formatMicros } from '@bedtime/shared/money/micros'
 import { deriveTitlePreview } from './derive-title-preview'
+
+const REACTION_GLYPHS: Array<{ type: AnnotationType; glyph: string }> = [
+  { type: 'sasha_laughed', glyph: '☺' },
+  { type: 'sasha_loved', glyph: '♥' },
+  { type: 'sasha_disliked', glyph: '☹' },
+  { type: 'sasha_reaction', glyph: '✦' },
+  { type: 'my_note', glyph: '✎' },
+]
+
+function renderReactionBadge(reactionCounts: Record<AnnotationType, number>) {
+  const nonzero = REACTION_GLYPHS.filter(({ type }) => reactionCounts[type] > 0)
+
+  if (nonzero.length === 0) return null
+
+  const text = nonzero.map(({ type, glyph }) => `${glyph} ${reactionCounts[type]}`).join(' · ')
+  const title = nonzero.map(({ type }) => `${reactionCounts[type]} ${annotationTypeLabel(type)}`).join(', ')
+
+  return (
+    <span className="badge badge-sm badge-outline" title={title}>
+      {text}
+    </span>
+  )
+}
 
 const PROMPT_PREVIEW_MAX_LENGTH = 100
 
@@ -24,6 +48,7 @@ interface StoryCardProps {
   universeNames?: string[]
   seed?: string | null
   favorite?: boolean
+  reactionCounts?: Record<AnnotationType, number>
   actions?: StoryCardAction[]
   onTitleClick?: () => void
   onToggleFavorite?: () => void
@@ -99,7 +124,7 @@ function StarIcon({ filled }: { filled: boolean }) {
   )
 }
 
-function StoryCard({ title, status, createdAt, rating, seriesId, totalUsdMicros, universeNames = [], seed, favorite = false, actions = [], onTitleClick, onToggleFavorite, dragHandleProps }: StoryCardProps) {
+function StoryCard({ title, status, createdAt, rating, seriesId, totalUsdMicros, universeNames = [], seed, favorite = false, reactionCounts, actions = [], onTitleClick, onToggleFavorite, dragHandleProps }: StoryCardProps) {
   const config = statusConfig[status]
   const isArchived = status === 'archived'
   const regularActions = actions.filter((action) => action.tone !== 'destructive')
@@ -137,7 +162,7 @@ function StoryCard({ title, status, createdAt, rating, seriesId, totalUsdMicros,
             ) : (
               <h3 className="font-serif text-base leading-tight text-base-content">{title}</h3>
             )}
-            <div className="flex shrink-0 items-center gap-1">
+            <div className="flex shrink-0 flex-wrap items-center gap-1">
               {onToggleFavorite && (
                 <button
                   type="button"
@@ -159,6 +184,7 @@ function StoryCard({ title, status, createdAt, rating, seriesId, totalUsdMicros,
               {isMixed && (
                 <span className="badge badge-sm badge-outline" title={universeNames.join(' + ')}>Микс</span>
               )}
+              {reactionCounts && renderReactionBadge(reactionCounts)}
               <span className={`badge badge-sm ${config.tone}`}>{config.label}</span>
             </div>
           </div>

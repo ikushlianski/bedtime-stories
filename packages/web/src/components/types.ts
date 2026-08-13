@@ -20,6 +20,21 @@ export type AnnotationType =
   | "sasha_loved"
   | "sasha_disliked";
 
+export function annotationTypeLabel(type: AnnotationType): string {
+  switch (type) {
+    case "sasha_reaction":
+      return "Реакция Саши";
+    case "sasha_laughed":
+      return "Саша смеялся";
+    case "sasha_loved":
+      return "Саше понравилось";
+    case "sasha_disliked":
+      return "Слабое место";
+    case "my_note":
+      return "Моя заметка";
+  }
+}
+
 export interface PsychologistOutput {
   safety: {
     verdict: SafetyVerdict;

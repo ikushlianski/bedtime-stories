@@ -1,19 +1,6 @@
 import type { Annotation, AnnotationType } from '../lib/api'
 
-export function annotationTypeLabel(type: AnnotationType): string {
-  switch (type) {
-    case 'sasha_reaction':
-      return 'Реакция Саши'
-    case 'sasha_laughed':
-      return 'Саша смеялся'
-    case 'sasha_loved':
-      return 'Саше понравилось'
-    case 'sasha_disliked':
-      return 'Слабое место'
-    case 'my_note':
-      return 'Моя заметка'
-  }
-}
+export { annotationTypeLabel } from '../components/types'
 
 export function sortAnnotationsByPosition(list: Annotation[]): Annotation[] {
   return [...list].sort((a, b) => {

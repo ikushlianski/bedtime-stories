@@ -17,6 +17,7 @@ import { analyzeStoryAndLearn } from './story-analysis'
 import { dispatchAnalysis } from './pipeline-dispatch'
 import { loadUniverseContext } from './load-universe-context'
 import { getStoryUniverseIds, getStoryUniverseIdsBatch, setStoryUniverses } from './story-universe-links'
+import { getReactionCountsBatch } from './story-reaction-counts'
 import { loadStoryFragmentTexts } from '@bedtime/core/pipeline/load-fragments'
 import { syncUniverseMemory } from '@bedtime/core/pipeline/synthesize-universe-memory'
 import { notifyStoryReady } from './pipeline-notifications'
@@ -304,24 +305,31 @@ router.get('/', async (req, res) => {
       ? await db.select().from(stories).where(whereClause).orderBy(orderExpr) as Story[]
       : await db.select().from(stories).orderBy(orderExpr) as Story[]
 
-    const totals = await db
-      .select({
-        storyId: modelCalls.storyId,
-        totalUsdMicros: sql<number>`COALESCE(SUM(${modelCalls.usdMicros}), 0)::bigint`,
-      })
-      .from(modelCalls)
-      .groupBy(modelCalls.storyId)
+    const [totals, universeIdsByStory, reactionCountsByStory] = await Promise.all([
+      db
+        .select({
+          storyId: modelCalls.storyId,
+          totalUsdMicros: sql<number>`COALESCE(SUM(${modelCalls.usdMicros}), 0)::bigint`,
+        })
+        .from(modelCalls)
+        .groupBy(modelCalls.storyId),
+      getStoryUniverseIdsBatch(result.map((row) => ({ id: row.id, groupId: row.groupId }))),
+      getReactionCountsBatch(result.map((row) => row.id)),
+    ])
 
     const totalById = new Map<number, number>()
     for (const t of totals) {
       if (t.storyId !== null) totalById.set(t.storyId, Number(t.totalUsdMicros ?? 0))
     }
 
-    const universeIdsByStory = await getStoryUniverseIdsBatch(result.map((row) => ({ id: row.id, groupId: row.groupId })))
-
     res.json(result.map((row) => {
       const total = totalById.get(row.id)
-      return { ...toSnakeCase(row), total_usd_micros: total ?? null, group_ids: universeIdsByStory.get(row.id) ?? [] }
+      return {
+        ...toSnakeCase(row),
+        total_usd_micros: total ?? null,
+        group_ids: universeIdsByStory.get(row.id) ?? [],
+        reaction_counts: reactionCountsByStory.get(row.id)!,
+      }
     }))
   } catch (err) {
     console.error('GET /stories failed:', err)

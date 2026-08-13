@@ -74,6 +74,7 @@ function SortableStoryCard({ story, universeNames, onTitleClick, onDelete, onTog
         universeNames={universeNames}
         seed={story.seed}
         favorite={story.favorite}
+        reactionCounts={story.reaction_counts}
         onTitleClick={onTitleClick}
         onToggleFavorite={onToggleFavorite}
         dragHandleProps={{ ...listeners, ...attributes }}
