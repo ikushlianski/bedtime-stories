@@ -1,5 +1,9 @@
-import { describe, it, expect } from 'vitest'
-import { isPlausibleTopicTitle } from './generate-topic-candidates'
+import { describe, it, expect, vi } from 'vitest'
+
+vi.mock('../db/client', () => ({ db: {} }))
+vi.mock('./stages/topic-candidate-suggester', () => ({ suggestTopicCandidates: vi.fn() }))
+
+const { isPlausibleTopicTitle } = await import('./generate-topic-candidates')
 
 describe('isPlausibleTopicTitle', () => {
   it('accepts a normal short title', () => {
