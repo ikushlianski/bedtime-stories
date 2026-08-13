@@ -82,6 +82,7 @@ export const WithSelectedFilters: Story = {
         tag: 'спокойная',
         sort: 'custom',
         mixedOnly: false,
+        favoriteOnly: false,
       }}
     />
   ),
