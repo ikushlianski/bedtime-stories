@@ -7,6 +7,7 @@ import { ImproverOutputSchema, type ImproverOutput } from '../schemas'
 import { resolveStageModel } from '../derivers/resolve-stage-model'
 
 const RECENT_FEEDBACK_LIMIT = 10
+const MAX_FETCHED_FEEDBACK_ROWS = 100
 const FREE_TEXT_FIELD_MAX_LENGTH = 200
 
 type StructuredFeedbackShape = NonNullable<Feedback['structuredFeedback']>
@@ -105,12 +106,13 @@ export function formatHistoricalFeedbackLines(feedbacks: Feedback[]): string {
     .join('\n')
 }
 
-async function fetchAgentRunFeedbacks(): Promise<Feedback[]> {
+export async function fetchAgentRunFeedbacks(): Promise<Feedback[]> {
   return db
     .select()
     .from(feedback)
     .where(eq(feedback.feedbackType, 'agent_run'))
     .orderBy(desc(feedback.createdAt))
+    .limit(MAX_FETCHED_FEEDBACK_ROWS)
 }
 
 async function fetchCurrentPrompts(): Promise<Prompt[]> {

@@ -1,12 +1,27 @@
 import { describe, it, expect, vi } from 'vitest'
 import type { Feedback } from '../../db/types'
 
-vi.mock('../../db/client', () => ({ db: {} }))
+let mockRows: Feedback[] = []
+
+vi.mock('../../db/client', () => ({
+  db: {
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          orderBy: vi.fn(() => ({
+            limit: vi.fn(async (n: number) => mockRows.slice(0, n)),
+          })),
+        })),
+      })),
+    })),
+  },
+}))
 
 const {
   formatStructuredFeedback,
   formatHistoricalFeedbackLines,
   buildPass2Prompt,
+  fetchAgentRunFeedbacks,
   PASS_1_PROMPT_PREFIX,
   PASS_2_PROMPT_PREFIX,
 } = await import('./improver')
@@ -186,6 +201,26 @@ describe('buildPass2Prompt', () => {
     const prompt = buildPass2Prompt('Parents want shorter stories', [], [])
 
     expect(prompt).toContain('HISTORICAL PATTERNS (compressed from older feedbacks):\nParents want shorter stories')
+  })
+})
+
+describe('fetchAgentRunFeedbacks', () => {
+  it('caps the number of rows returned at 100 even when more rows exist', async () => {
+    mockRows = Array.from({ length: 150 }, (_, i) =>
+      makeFeedback({ id: i + 1, createdAt: new Date(2026, 0, 150 - i) }),
+    )
+
+    const result = await fetchAgentRunFeedbacks()
+
+    expect(result).toHaveLength(100)
+  })
+
+  it('returns every row when fewer than the cap exist', async () => {
+    mockRows = Array.from({ length: 3 }, (_, i) => makeFeedback({ id: i + 1 }))
+
+    const result = await fetchAgentRunFeedbacks()
+
+    expect(result).toHaveLength(3)
   })
 })
 
