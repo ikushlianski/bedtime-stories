@@ -38,6 +38,10 @@ describe('activeFilterCount', () => {
   it('does not count all status as active', () => {
     expect(activeFilterCount(filtersWith({ status: 'all' }))).toBe(0)
   })
+
+  it('counts favoriteOnly as an active filter', () => {
+    expect(activeFilterCount(filtersWith({ favoriteOnly: true }))).toBe(2)
+  })
 })
 
 describe('hasCustomFilters', () => {
@@ -47,6 +51,10 @@ describe('hasCustomFilters', () => {
 
   it('detects changes from default filters', () => {
     expect(hasCustomFilters(filtersWith({ tag: 'bedtime' }))).toBe(true)
+  })
+
+  it('detects favoriteOnly as a custom filter', () => {
+    expect(hasCustomFilters(filtersWith({ favoriteOnly: true }))).toBe(true)
   })
 })
 
@@ -61,6 +69,14 @@ describe('stored filter persistence', () => {
 
   it('round-trips a saved filter state', () => {
     const saved = filtersWith({ status: 'read', groupId: 7, tag: 'calm' })
+
+    saveStoredFilters(saved)
+
+    expect(loadStoredFilters()).toEqual(saved)
+  })
+
+  it('round-trips favoriteOnly through persisted storage', () => {
+    const saved = filtersWith({ favoriteOnly: true })
 
     saveStoredFilters(saved)
 

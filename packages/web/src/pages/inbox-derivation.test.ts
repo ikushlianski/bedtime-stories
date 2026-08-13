@@ -43,6 +43,7 @@ function mkStory(overrides: Partial<Story>): Story {
     series_id: null,
     updated_at: null,
     ready_at: null,
+    favorite: false,
     ...overrides,
   }
 }

@@ -151,6 +151,7 @@ export interface Story {
   used_fragment_texts?: string[] | null
   structure_key?: string | null
   lens_key?: string | null
+  favorite: boolean
 }
 
 export interface TextVersion {
@@ -475,7 +476,7 @@ export interface PipelineStatus {
 
 export const api = {
   stories: {
-    list: (filters?: { status?: string; groupId?: number; tag?: string; sort?: string; mixedOnly?: boolean }) => {
+    list: (filters?: { status?: string; groupId?: number; tag?: string; sort?: string; mixedOnly?: boolean; favoriteOnly?: boolean }) => {
       const params = new URLSearchParams()
 
       if (filters?.status) params.set('status', filters.status)
@@ -483,6 +484,7 @@ export const api = {
       if (filters?.tag) params.set('tag', filters.tag)
       if (filters?.sort && filters.sort !== 'custom') params.set('sort', filters.sort)
       if (filters?.mixedOnly) params.set('mixedOnly', 'true')
+      if (filters?.favoriteOnly) params.set('favoriteOnly', 'true')
 
       const query = params.toString() ? `?${params.toString()}` : ''
 
@@ -576,6 +578,12 @@ export const api = {
       request<Story>(`/api/stories/${id}/title`, {
         method: 'PATCH',
         body: JSON.stringify({ title }),
+      }),
+
+    updateFavorite: (id: number, favorite: boolean) =>
+      request<Story>(`/api/stories/${id}/favorite`, {
+        method: 'PATCH',
+        body: JSON.stringify({ favorite }),
       }),
 
     updateText: (id: number, text: string) =>

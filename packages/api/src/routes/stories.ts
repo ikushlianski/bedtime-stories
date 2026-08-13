@@ -69,6 +69,7 @@ function toSnakeCase(row: Story) {
     active_text_version_id: row.activeTextVersionId ?? null,
     structure_key: row.structureKey ?? null,
     lens_key: row.lensKey ?? null,
+    favorite: row.favorite,
   }
 }
 
@@ -247,7 +248,7 @@ router.get('/search', async (req, res) => {
 
 router.get('/', async (req, res) => {
   try {
-    const { status, groupId, tag, sort, mixedOnly } = req.query
+    const { status, groupId, tag, sort, mixedOnly, favoriteOnly } = req.query
 
     if (status !== undefined && typeof status !== 'string') {
       res.status(400).json({ error: 'Invalid status filter' })
@@ -274,6 +275,10 @@ router.get('/', async (req, res) => {
 
     if (mixedOnly === 'true') {
       conditions.push(sql`(select count(*) from story_universes where story_universes.story_id = stories.id) >= 2`)
+    }
+
+    if (favoriteOnly === 'true') {
+      conditions.push(eq(stories.favorite, true))
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined
@@ -455,6 +460,10 @@ const updateTitleSchema = z.object({
   title: z.string().trim().min(1),
 })
 
+const updateFavoriteSchema = z.object({
+  favorite: z.boolean(),
+})
+
 router.patch('/:id/tags', validate(updateTagsSchema), async (req, res) => {
   try {
     const storyId = parseIntParam(req.params['id'])
@@ -508,6 +517,34 @@ router.patch('/:id/title', validate(updateTitleSchema), async (req, res) => {
   } catch (err) {
     console.error('PATCH /stories/:id/title failed:', err)
     res.status(500).json({ error: 'Failed to update story title' })
+  }
+})
+
+router.patch('/:id/favorite', validate(updateFavoriteSchema), async (req, res) => {
+  try {
+    const storyId = parseIntParam(req.params['id'])
+
+    if (isNaN(storyId)) {
+      res.status(400).json({ error: 'Invalid story id' })
+      return
+    }
+
+    const { favorite } = req.body as z.infer<typeof updateFavoriteSchema>
+    const [story] = await db
+      .update(stories)
+      .set({ favorite, updatedAt: new Date() })
+      .where(eq(stories.id, storyId))
+      .returning()
+
+    if (!story) {
+      res.status(404).json({ error: 'Story not found' })
+      return
+    }
+
+    res.json(toSnakeCase(story as Story))
+  } catch (err) {
+    console.error('PATCH /stories/:id/favorite failed:', err)
+    res.status(500).json({ error: 'Failed to update story favorite' })
   }
 })
 

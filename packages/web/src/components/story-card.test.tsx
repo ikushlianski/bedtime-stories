@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest'
-import { cleanup, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import StoryCard from './story-card'
 
 describe('StoryCard', () => {
@@ -43,5 +43,62 @@ describe('StoryCard', () => {
 
     expect(screen.queryByText(/…$/)).not.toBeInTheDocument()
     expect(screen.getByText('An Old Tale')).toBeInTheDocument()
+  })
+
+  it('renders an outline favorite star when favorite is false', () => {
+    render(
+      <StoryCard
+        title="The Dragon Who Lost His Fire"
+        status="ready"
+        createdAt="2026-03-01T10:00:00Z"
+        favorite={false}
+        onToggleFavorite={() => undefined}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: 'Добавить в избранное' })).toBeInTheDocument()
+  })
+
+  it('renders a filled favorite star when favorite is true', () => {
+    render(
+      <StoryCard
+        title="The Dragon Who Lost His Fire"
+        status="ready"
+        createdAt="2026-03-01T10:00:00Z"
+        favorite
+        onToggleFavorite={() => undefined}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: 'Убрать из избранного' })).toBeInTheDocument()
+  })
+
+  it('does not render a favorite star when onToggleFavorite is not passed', () => {
+    render(
+      <StoryCard title="The Dragon Who Lost His Fire" status="ready" createdAt="2026-03-01T10:00:00Z" />,
+    )
+
+    expect(screen.queryByRole('button', { name: 'Добавить в избранное' })).not.toBeInTheDocument()
+  })
+
+  it('calls onToggleFavorite and not onTitleClick when the star is clicked', () => {
+    const onToggleFavorite = vi.fn()
+    const onTitleClick = vi.fn()
+
+    render(
+      <StoryCard
+        title="The Dragon Who Lost His Fire"
+        status="ready"
+        createdAt="2026-03-01T10:00:00Z"
+        favorite={false}
+        onToggleFavorite={onToggleFavorite}
+        onTitleClick={onTitleClick}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить в избранное' }))
+
+    expect(onToggleFavorite).toHaveBeenCalledTimes(1)
+    expect(onTitleClick).not.toHaveBeenCalled()
   })
 })

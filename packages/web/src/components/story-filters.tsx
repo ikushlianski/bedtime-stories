@@ -19,6 +19,7 @@ export interface StoryFilterState {
   tag: string | null
   sort: SortOption
   mixedOnly: boolean
+  favoriteOnly: boolean
 }
 
 export const DEFAULT_FILTERS: StoryFilterState = {
@@ -27,6 +28,7 @@ export const DEFAULT_FILTERS: StoryFilterState = {
   tag: null,
   sort: 'custom',
   mixedOnly: false,
+  favoriteOnly: false,
 }
 
 const STORED_FILTERS_KEY = 'story-list-filters-v2'
@@ -39,6 +41,7 @@ const storedFiltersSchema = z.object({
     .enum(['custom', 'created_desc', 'created_asc', 'updated_desc', 'ready_desc', 'newest_read', 'oldest_read'])
     .default('custom'),
   mixedOnly: z.boolean().default(false),
+  favoriteOnly: z.boolean().default(false),
 })
 
 export function loadStoredFilters(): StoryFilterState {
@@ -83,6 +86,8 @@ export function activeFilterCount(f: StoryFilterState): number {
 
   if (f.mixedOnly) count++
 
+  if (f.favoriteOnly) count++
+
   return count
 }
 
@@ -92,7 +97,8 @@ export function hasCustomFilters(f: StoryFilterState): boolean {
     f.groupId !== DEFAULT_FILTERS.groupId ||
     f.tag !== DEFAULT_FILTERS.tag ||
     f.sort !== DEFAULT_FILTERS.sort ||
-    f.mixedOnly !== DEFAULT_FILTERS.mixedOnly
+    f.mixedOnly !== DEFAULT_FILTERS.mixedOnly ||
+    f.favoriteOnly !== DEFAULT_FILTERS.favoriteOnly
   )
 }
 
@@ -158,10 +164,10 @@ function StoryFilters({ value, onChange, universes, availableTags, lockedStatus 
   }, [])
 
   const count = lockedStatus
-    ? (value.groupId !== null ? 1 : 0) + (value.tag !== null ? 1 : 0) + (value.sort !== 'custom' ? 1 : 0) + (value.mixedOnly ? 1 : 0)
+    ? (value.groupId !== null ? 1 : 0) + (value.tag !== null ? 1 : 0) + (value.sort !== 'custom' ? 1 : 0) + (value.mixedOnly ? 1 : 0) + (value.favoriteOnly ? 1 : 0)
     : activeFilterCount(value)
   const hasActive = lockedStatus
-    ? value.groupId !== null || value.tag !== null || value.sort !== 'custom' || value.mixedOnly
+    ? value.groupId !== null || value.tag !== null || value.sort !== 'custom' || value.mixedOnly || value.favoriteOnly
     : hasCustomFilters(value)
   const activeUniverse = value.groupId !== null ? universes.find((u) => u.id === value.groupId) : null
 
@@ -237,6 +243,18 @@ function StoryFilters({ value, onChange, universes, availableTags, lockedStatus 
               </label>
             </div>
 
+            <div className="mb-4">
+              <label className="label cursor-pointer justify-start gap-2 px-0">
+                <input
+                  type="checkbox"
+                  className="checkbox checkbox-sm"
+                  checked={value.favoriteOnly}
+                  onChange={(e) => onChange({ ...value, favoriteOnly: e.target.checked })}
+                />
+                <span className="label-text">Только избранное</span>
+              </label>
+            </div>
+
             {availableTags.length > 0 && (
               <div className="mb-4">
                 <p className="mb-2 text-xs font-medium uppercase tracking-wide text-base-content/50">Категория</p>
@@ -297,6 +315,13 @@ function StoryFilters({ value, onChange, universes, availableTags, lockedStatus 
         <FilterChip
           label="Миксы"
           onRemove={() => onChange({ ...value, mixedOnly: false })}
+        />
+      )}
+
+      {value.favoriteOnly && (
+        <FilterChip
+          label="Избранное"
+          onRemove={() => onChange({ ...value, favoriteOnly: false })}
         />
       )}
 

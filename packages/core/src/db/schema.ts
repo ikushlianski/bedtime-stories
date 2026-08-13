@@ -92,6 +92,7 @@ export const stories = pgTable('stories', {
   activeTextVersionId: integer('active_text_version_id'),
   structureKey: text('structure_key'),
   lensKey: text('lens_key'),
+  favorite: boolean('favorite').notNull().default(false),
 })
 
 export const storyUniverses = pgTable('story_universes', {

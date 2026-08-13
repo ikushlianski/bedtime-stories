@@ -23,8 +23,10 @@ interface StoryCardProps {
   totalUsdMicros?: number | null
   universeNames?: string[]
   seed?: string | null
+  favorite?: boolean
   actions?: StoryCardAction[]
   onTitleClick?: () => void
+  onToggleFavorite?: () => void
   dragHandleProps?: HTMLAttributes<HTMLDivElement>
 }
 
@@ -80,7 +82,24 @@ function GripIcon() {
   )
 }
 
-function StoryCard({ title, status, createdAt, rating, seriesId, totalUsdMicros, universeNames = [], seed, actions = [], onTitleClick, dragHandleProps }: StoryCardProps) {
+function StarIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="14"
+      height="14"
+      viewBox="0 0 20 20"
+      fill={filled ? 'currentColor' : 'none'}
+      stroke="currentColor"
+      strokeWidth={filled ? 0 : 1.5}
+      aria-hidden="true"
+    >
+      <path d="M10 1.5l2.472 5.008 5.528.803-4 3.899.944 5.507L10 14.25l-4.944 2.467.944-5.507-4-3.899 5.528-.803L10 1.5z" />
+    </svg>
+  )
+}
+
+function StoryCard({ title, status, createdAt, rating, seriesId, totalUsdMicros, universeNames = [], seed, favorite = false, actions = [], onTitleClick, onToggleFavorite, dragHandleProps }: StoryCardProps) {
   const config = statusConfig[status]
   const isArchived = status === 'archived'
   const regularActions = actions.filter((action) => action.tone !== 'destructive')
@@ -118,7 +137,22 @@ function StoryCard({ title, status, createdAt, rating, seriesId, totalUsdMicros,
             ) : (
               <h3 className="font-serif text-base leading-tight text-base-content">{title}</h3>
             )}
-            <div className="flex shrink-0 gap-1">
+            <div className="flex shrink-0 items-center gap-1">
+              {onToggleFavorite && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onToggleFavorite()
+                  }}
+                  className={`flex h-5 w-5 items-center justify-center rounded text-warning hover:text-warning ${
+                    favorite ? '' : 'text-base-content/30'
+                  }`}
+                  aria-label={favorite ? 'Убрать из избранного' : 'Добавить в избранное'}
+                >
+                  <StarIcon filled={favorite} />
+                </button>
+              )}
               {seriesId && (
                 <span className="badge badge-sm badge-outline" title="Часть серии историй">Серия</span>
               )}

@@ -47,9 +47,10 @@ interface SortableStoryCardProps {
   universeNames?: string[]
   onTitleClick: () => void
   onDelete: () => void
+  onToggleFavorite: () => void
 }
 
-function SortableStoryCard({ story, universeNames, onTitleClick, onDelete }: SortableStoryCardProps) {
+function SortableStoryCard({ story, universeNames, onTitleClick, onDelete, onToggleFavorite }: SortableStoryCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: story.id,
   })
@@ -72,7 +73,9 @@ function SortableStoryCard({ story, universeNames, onTitleClick, onDelete }: Sor
         totalUsdMicros={story.total_usd_micros ?? null}
         universeNames={universeNames}
         seed={story.seed}
+        favorite={story.favorite}
         onTitleClick={onTitleClick}
+        onToggleFavorite={onToggleFavorite}
         dragHandleProps={{ ...listeners, ...attributes }}
         actions={[
           {
@@ -145,6 +148,7 @@ export function StoryListPage({ lockedStatus }: { lockedStatus?: StatusFilter })
         tag: effectiveFilters.tag ?? undefined,
         sort: effectiveFilters.sort !== 'custom' ? effectiveFilters.sort : undefined,
         mixedOnly: effectiveFilters.mixedOnly || undefined,
+        favoriteOnly: effectiveFilters.favoriteOnly || undefined,
       })
 
       setStories(data)
@@ -185,6 +189,17 @@ export function StoryListPage({ lockedStatus }: { lockedStatus?: StatusFilter })
       .then(() => setStories((prev) => prev.filter((s) => s.id !== story.id)))
       .catch((err) =>
         setError(err instanceof Error ? err.message : 'Не удалось удалить историю'),
+      )
+  }, [])
+
+  const handleToggleFavorite = useCallback((story: Story) => {
+    const nextFavorite = !story.favorite
+
+    api.stories
+      .updateFavorite(story.id, nextFavorite)
+      .then((updated) => setStories((prev) => prev.map((s) => (s.id === story.id ? updated : s))))
+      .catch((err) =>
+        setError(err instanceof Error ? err.message : 'Не удалось обновить избранное'),
       )
   }, [])
 
@@ -271,6 +286,7 @@ export function StoryListPage({ lockedStatus }: { lockedStatus?: StatusFilter })
                   universeNames={story.group_ids.map((id) => universes.find((u) => u.id === id)?.name).filter((n): n is string => n != null)}
                   onTitleClick={() => navigate(`/stories/${story.id}`)}
                   onDelete={() => handleDeleteStory(story)}
+                  onToggleFavorite={() => handleToggleFavorite(story)}
                 />
               ))}
             </div>
