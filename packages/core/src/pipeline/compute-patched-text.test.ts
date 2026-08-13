@@ -37,4 +37,57 @@ describe('computePatchedText', () => {
 
     expect(result).toEqual({ ok: false, reason: 'not_found' })
   })
+
+  it('inserts the replacement literally when it contains $-substitution patterns', () => {
+    const result = computePatchedText({
+      currentText: 'Дракон зарычал и напугал всех.',
+      find: 'зарычал',
+      replace: 'сказал $& тихо, а $$ не при чём',
+    })
+
+    expect(result).toEqual({
+      ok: true,
+      text: 'Дракон сказал $& тихо, а $$ не при чём и напугал всех.',
+    })
+  })
+
+  it('replaces the exact line at lineIndex, ignoring earlier duplicate text', () => {
+    const currentText = 'Кот спал.\n\nПёс лаял.\n\nКот спал.'
+
+    const result = computePatchedText({
+      currentText,
+      find: 'Кот спал.',
+      replace: 'Кот проснулся.',
+      lineIndex: 4,
+    })
+
+    expect(result).toEqual({
+      ok: true,
+      text: 'Кот спал.\n\nПёс лаял.\n\nКот проснулся.',
+    })
+  })
+
+  it('returns not_found when lineIndex text no longer matches find', () => {
+    const currentText = 'Кот спал.\n\nПёс лаял.'
+
+    const result = computePatchedText({
+      currentText,
+      find: 'Кот спал.',
+      replace: 'Кот проснулся.',
+      lineIndex: 2,
+    })
+
+    expect(result).toEqual({ ok: false, reason: 'not_found' })
+  })
+
+  it('returns not_found when lineIndex is out of range', () => {
+    const result = computePatchedText({
+      currentText: 'Кот спал.',
+      find: 'Кот спал.',
+      replace: 'Кот проснулся.',
+      lineIndex: 5,
+    })
+
+    expect(result).toEqual({ ok: false, reason: 'not_found' })
+  })
 })

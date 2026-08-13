@@ -37,7 +37,7 @@ interface SelectionPopover {
   end: number
 }
 
-function TextAnnotationPanel({ storyId, text, onChatAboutThis }: { storyId: number; text: string; onChatAboutThis?: (selectedText: string) => void }) {
+function TextAnnotationPanel({ storyId, text, onChatAboutThis }: { storyId: number; text: string; onChatAboutThis?: (selectedText: string, lineIndex?: number) => void }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [popover, setPopover] = useState<SelectionPopover | null>(null)
   const [comment, setComment] = useState('')
@@ -131,7 +131,7 @@ function TextAnnotationPanel({ storyId, text, onChatAboutThis }: { storyId: numb
                     onClick={(e) => {
                       e.stopPropagation()
                       window.getSelection()?.removeAllRanges()
-                      onChatAboutThis(line.text)
+                      onChatAboutThis(line.text, line.index)
                     }}
                   >
                     ✎
@@ -226,7 +226,7 @@ export function TextReviewPage() {
   const [redoReason, setRedoReason] = useState('')
   const [redoModel, setRedoModel] = useState('')
   const [showModelInput, setShowModelInput] = useState(false)
-  const [chatSelectedText, setChatSelectedText] = useState<string | null>(null)
+  const [chatSelection, setChatSelection] = useState<{ text: string; lineIndex?: number } | null>(null)
   const [localText, setLocalText] = useState<string | null>(null)
 
   const handleApprove = async () => {
@@ -358,7 +358,7 @@ export function TextReviewPage() {
           <TextAnnotationPanel
             storyId={storyId}
             text={textToReview}
-            onChatAboutThis={(text) => setChatSelectedText(text)}
+            onChatAboutThis={(text, lineIndex) => setChatSelection({ text, lineIndex })}
           />
 
           <div className="flex flex-wrap justify-end gap-2 border-t border-base-300 pt-4">
@@ -372,24 +372,25 @@ export function TextReviewPage() {
         </div>
       </section>
 
-      {chatSelectedText !== null && (
+      {chatSelection !== null && (
         <div className="mt-6">
           <StoryChatPanel
-            key={chatSelectedText}
+            key={`${chatSelection.lineIndex ?? 'sel'}:${chatSelection.text}`}
             storyId={storyId}
             context="text"
-            selectedText={chatSelectedText}
+            selectedText={chatSelection.text}
+            selectedTextLineIndex={chatSelection.lineIndex}
             onPatchApplied={() => {
               setLocalText(null)
-              setChatSelectedText(null)
+              setChatSelection(null)
               reload()
             }}
-            onClose={() => setChatSelectedText(null)}
+            onClose={() => setChatSelection(null)}
           />
         </div>
       )}
 
-      {chatSelectedText === null && (
+      {chatSelection === null && (
         <div className="mt-6">
           <StoryChatPanel storyId={storyId} context="text" />
         </div>

@@ -1071,6 +1071,7 @@ const applyTextPatchSchema = z.object({
   find: z.string().min(1),
   replace: z.string().min(1),
   summary: z.string(),
+  lineIndex: z.number().int().nonnegative().optional(),
 })
 
 router.post('/:id/apply-text-patch', validate(applyTextPatchSchema), async (req, res) => {
@@ -1082,7 +1083,7 @@ router.post('/:id/apply-text-patch', validate(applyTextPatchSchema), async (req,
       return
     }
 
-    const { find, replace, summary } = req.body as z.infer<typeof applyTextPatchSchema>
+    const { find, replace, summary, lineIndex } = req.body as z.infer<typeof applyTextPatchSchema>
 
     const [storyRow] = await db.select().from(stories).where(eq(stories.id, storyId))
 
@@ -1109,7 +1110,7 @@ router.post('/:id/apply-text-patch', validate(applyTextPatchSchema), async (req,
       if (version) currentText = version.text
     }
 
-    const patched = computePatchedText({ currentText, find, replace })
+    const patched = computePatchedText({ currentText, find, replace, ...(lineIndex !== undefined ? { lineIndex } : {}) })
 
     if (!patched.ok) {
       res.status(422).json({ error: 'Patch target not found in text — text may have changed' })

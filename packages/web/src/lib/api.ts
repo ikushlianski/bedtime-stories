@@ -591,7 +591,7 @@ export const api = {
         body: JSON.stringify(data),
       }),
 
-    applyTextPatch: (id: number, data: { find: string; replace: string; summary: string }) =>
+    applyTextPatch: (id: number, data: { find: string; replace: string; summary: string; lineIndex?: number }) =>
       request<Story>(`/api/stories/${id}/apply-text-patch`, {
         method: 'POST',
         body: JSON.stringify(data),
