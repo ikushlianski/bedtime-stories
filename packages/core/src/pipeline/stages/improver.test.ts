@@ -3,6 +3,20 @@ import type { Feedback } from '../../db/types'
 
 let mockRows: Feedback[] = []
 
+vi.mock('../../ai', () => ({
+  aiRunner: { runText: vi.fn() },
+  AiValidationError: class AiValidationError extends Error {},
+  parseJsonWithSchema: vi.fn(),
+}))
+
+vi.mock('../prompt-resolver', () => ({
+  resolvePrompt: vi.fn().mockResolvedValue({ text: 'resolved prompt', version: 1 }),
+}))
+
+vi.mock('../derivers/resolve-stage-model', () => ({
+  resolveStageModel: vi.fn(),
+}))
+
 vi.mock('../../db/client', () => ({
   db: {
     select: vi.fn(() => ({
