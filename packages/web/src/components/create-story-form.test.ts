@@ -82,6 +82,30 @@ describe('validateCreateStoryForm', () => {
       },
     })
   })
+
+  it('omits manualTopicIds when none are selected', () => {
+    const result = validateCreateStoryForm(formWith({ seed: 'valid seed', groupIds: [1] }))
+
+    if (!result.valid) {
+      throw new Error('expected valid result')
+    }
+
+    expect(result.input).not.toHaveProperty('manualTopicIds')
+  })
+
+  it('forwards manually selected topic ids', () => {
+    const result = validateCreateStoryForm(formWith({ seed: 'valid seed', groupIds: [1], manualTopicIds: [3, 7] }))
+
+    expect(result).toEqual({
+      valid: true,
+      input: {
+        seed: 'valid seed',
+        pipelineMode: 'auto',
+        groupIds: [1],
+        manualTopicIds: [3, 7],
+      },
+    })
+  })
 })
 
 describe('buildAccumulatedSeed', () => {

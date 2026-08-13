@@ -393,5 +393,6 @@ export const storyTextVersions = pgTable('story_text_versions', {
 export const appSettings = pgTable('app_settings', {
   id: integer('id').primaryKey().default(1),
   stageModels: jsonb('stage_models').$type<Record<string, { model?: string; fallback?: string }>>(),
+  featureFlags: jsonb('feature_flags').$type<Record<string, boolean>>(),
   updatedAt: timestamp('updated_at').defaultNow(),
 })

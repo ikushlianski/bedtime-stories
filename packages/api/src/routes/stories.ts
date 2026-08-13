@@ -1,8 +1,9 @@
 import { Router } from 'express'
 import { z } from 'zod'
-import { eq, desc, and, sql } from 'drizzle-orm'
+import { eq, desc, and, sql, inArray } from 'drizzle-orm'
 import { db } from '@bedtime/core/db/client'
-import { stories, annotations, feedback, runSnapshots, storyGroups, planQuestions, planConversations, parentReviews, childReactions, storyReadings, modelCalls, storyTextVersions, storyUniverses } from '@bedtime/core/db/schema'
+import { stories, annotations, feedback, runSnapshots, storyGroups, planQuestions, planConversations, parentReviews, childReactions, storyReadings, modelCalls, storyTextVersions, storyUniverses, topics } from '@bedtime/core/db/schema'
+import { recordStoryTopics } from '@bedtime/core/pipeline/load-topics'
 import { deriveStoryCostBreakdown } from '@bedtime/core/cost/aggregations/derive-story-cost-breakdown'
 import type { Story, NewStory, NewAnnotation, ParentReview, ChildReaction } from '@bedtime/core/db/types'
 import { validate } from '../middleware/validate'
@@ -143,6 +144,17 @@ router.post('/', validate(createStorySchema), async (req, res) => {
 
     if (resolved.groupIds !== undefined && resolved.groupIds.length > 0) {
       await setStoryUniverses((story as Story).id, resolved.groupIds)
+    }
+
+    if (resolved.manualTopicIds !== undefined && resolved.manualTopicIds.length > 0) {
+      const validTopics = await db
+        .select({ id: topics.id })
+        .from(topics)
+        .where(and(inArray(topics.id, resolved.manualTopicIds), eq(topics.status, 'active')))
+
+      if (validTopics.length > 0) {
+        await recordStoryTopics((story as Story).id, validTopics.map((t) => t.id))
+      }
     }
 
     res.status(201).json(toSnakeCase(story as Story))

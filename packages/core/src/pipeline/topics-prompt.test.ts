@@ -95,4 +95,16 @@ describe('buildTopicsBlock', () => {
   it('exposes a 3-topic per-story cap', () => {
     expect(MAX_TOPICS_PER_STORY).toBe(3)
   })
+
+  it('instructs the plotter to weave in every topic, not pick a subset, in manual mode', () => {
+    const block = buildTopicsBlock(
+      [{ id: 1, title: 'терпение', note: null, rank: 0, usedCount: 0 }],
+      'manual',
+    )
+
+    expect(block).toContain('вплети в сюжет КАЖДУЮ из них')
+    expect(block).not.toContain('Выбери 2–3 темы')
+    expect(block).not.toContain('можно взять меньше, вплоть до нуля')
+    expect(block).toContain('ТЕМЫ: <id выбранных тем через запятую или слово нет>')
+  })
 })

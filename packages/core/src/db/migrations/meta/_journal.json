@@ -330,6 +330,13 @@
       "when": 1786576894713,
       "tag": "0046_add-topics-status",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1786578389044,
+      "tag": "0047_add-app-settings-feature-flags",
+      "breakpoints": true
     }
   ]
 }

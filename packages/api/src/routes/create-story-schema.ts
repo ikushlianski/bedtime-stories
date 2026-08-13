@@ -34,6 +34,7 @@ export const createStorySchema = z
     perStageOverrides: perStageOverridesSchema.optional(),
     structureKey: z.string().min(1).optional(),
     lensKey: z.string().min(1).optional(),
+    manualTopicIds: z.array(z.number().int().positive()).max(10).optional(),
   })
   .refine(
     (value) => {
@@ -71,6 +72,7 @@ export type CreateStoryMode =
       perStageOverrides?: PerStageOverrides
       structureKey?: string
       lensKey?: string
+      manualTopicIds?: number[]
     }
   | { mode: 'user'; title: string; textFinal: string; groupId?: number }
   | { mode: 'legacy'; title: string; textFinal: string; groupId?: number; addToReadingList?: boolean }
@@ -129,6 +131,10 @@ export function resolveCreateStoryMode(input: CreateStoryInput): CreateStoryMode
 
   if (input.lensKey !== undefined) {
     result.lensKey = input.lensKey
+  }
+
+  if (input.manualTopicIds !== undefined && input.manualTopicIds.length > 0) {
+    result.manualTopicIds = Array.from(new Set(input.manualTopicIds))
   }
 
   return result

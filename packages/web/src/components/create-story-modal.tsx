@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { api, type CreateStoryInput, type StoryGroup } from '../lib/api'
+import { useState, useEffect, useRef } from 'react'
+import { api, type CreateStoryInput, type StoryGroup, type LiveTopicSuggestion } from '../lib/api'
 import {
   validateCreateStoryForm,
   buildAccumulatedSeed,
@@ -9,6 +9,9 @@ import {
 import FormField from './form-field'
 import { STORY_STRUCTURES } from '@bedtime/core/pipeline/stages/story-structures'
 import { CHARACTER_LENSES } from '@bedtime/core/pipeline/stages/character-lenses'
+
+const LIVE_TOPIC_SUGGESTION_DEBOUNCE_MS = 700
+const LIVE_TOPIC_SUGGESTION_MIN_LENGTH = 20
 
 interface CreateStoryModalProps {
   open: boolean
@@ -60,6 +63,7 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
     groupIds: initialGroupId != null ? [initialGroupId] : loadLastUniverseIds(),
     structureKey: null,
     lensKey: null,
+    manualTopicIds: [],
   })
   const [contextMessages, setContextMessages] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
@@ -69,6 +73,10 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
   const [showCreateUniverse, setShowCreateUniverse] = useState(false)
   const [newUniverseName, setNewUniverseName] = useState('')
   const [creatingUniverse, setCreatingUniverse] = useState(false)
+  const [liveTopicSuggestionsEnabled, setLiveTopicSuggestionsEnabled] = useState(false)
+  const [suggestedTopics, setSuggestedTopics] = useState<LiveTopicSuggestion[]>([])
+  const [suggestingTopics, setSuggestingTopics] = useState(false)
+  const topicCacheRef = useRef<Map<number, LiveTopicSuggestion>>(new Map())
 
   useEffect(() => {
     if (open) {
@@ -77,11 +85,15 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
         groupIds: initialGroupId != null ? [initialGroupId] : loadLastUniverseIds(),
         structureKey: null,
         lensKey: null,
+        manualTopicIds: [],
       })
       setContextMessages([])
       setError(null)
       setShowCreateUniverse(false)
       setNewUniverseName('')
+      setSuggestedTopics([])
+      setSuggestingTopics(false)
+      topicCacheRef.current = new Map()
 
       api.universes.list().then((list) => {
         setUniverses(list)
@@ -90,12 +102,68 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
           setShowCreateUniverse(true)
         }
       }).catch(() => setUniverses([]))
+
+      api.settings
+        .get()
+        .then((data) => setLiveTopicSuggestionsEnabled(data.featureFlags?.liveTopicSuggestions ?? false))
+        .catch(() => setLiveTopicSuggestionsEnabled(false))
     }
   }, [open, initialSeed, initialGroupId])
+
+  const outlineForSuggestions = buildAccumulatedSeed(contextMessages, form.seed)
+  const primaryUniverseId = form.groupIds[0]
+
+  useEffect(() => {
+    if (!open || !liveTopicSuggestionsEnabled) return
+    if (primaryUniverseId === undefined) return
+    if (outlineForSuggestions.trim().length < LIVE_TOPIC_SUGGESTION_MIN_LENGTH) return
+
+    const controller = new AbortController()
+
+    const timer = setTimeout(() => {
+      setSuggestingTopics(true)
+
+      api.topicLiveSuggestions
+        .suggest(primaryUniverseId, outlineForSuggestions, controller.signal)
+        .then((result) => {
+          for (const topic of result.suggestions) {
+            topicCacheRef.current.set(topic.id, topic)
+          }
+          setSuggestedTopics(result.suggestions)
+        })
+        .catch((err) => {
+          if (err instanceof DOMException && err.name === 'AbortError') return
+          console.warn('Live topic suggestion failed:', err)
+        })
+        .finally(() => setSuggestingTopics(false))
+    }, LIVE_TOPIC_SUGGESTION_DEBOUNCE_MS)
+
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
+  }, [open, liveTopicSuggestionsEnabled, primaryUniverseId, outlineForSuggestions])
+
+  function toggleManualTopic(topicId: number) {
+    setForm((prev) => ({
+      ...prev,
+      manualTopicIds: prev.manualTopicIds.includes(topicId)
+        ? prev.manualTopicIds.filter((id) => id !== topicId)
+        : [...prev.manualTopicIds, topicId],
+    }))
+  }
 
   if (!open) {
     return null
   }
+
+  const displayedTopicChips = [
+    ...suggestedTopics,
+    ...form.manualTopicIds
+      .filter((id) => !suggestedTopics.some((t) => t.id === id))
+      .map((id) => topicCacheRef.current.get(id))
+      .filter((t): t is LiveTopicSuggestion => t !== undefined),
+  ]
 
   function addContextMessage() {
     const message = form.seed.trim()
@@ -124,8 +192,10 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
 
     try {
       await onSubmit(validation.input)
-      setForm({ seed: '', groupIds: [], structureKey: null, lensKey: null })
+      setForm({ seed: '', groupIds: [], structureKey: null, lensKey: null, manualTopicIds: [] })
       setContextMessages([])
+      setSuggestedTopics([])
+      topicCacheRef.current = new Map()
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Не удалось создать историю')
     } finally {
@@ -186,8 +256,10 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
     try {
       const result = await api.stories.createSeries({ seed, groupId: primaryGroupId })
 
-      setForm({ seed: '', groupIds: [], structureKey: null, lensKey: null })
+      setForm({ seed: '', groupIds: [], structureKey: null, lensKey: null, manualTopicIds: [] })
       setContextMessages([])
+      setSuggestedTopics([])
+      topicCacheRef.current = new Map()
       onSeriesCreated?.(result.stories.length)
       onClose()
     } catch (seriesError) {
@@ -333,6 +405,28 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
                 Добавить
               </button>
             </div>
+            {liveTopicSuggestionsEnabled && (suggestingTopics || displayedTopicChips.length > 0) && (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {suggestingTopics && (
+                  <span className="text-xs text-base-content/50">Подбираем темы...</span>
+                )}
+                {displayedTopicChips.map((topic) => {
+                  const selected = form.manualTopicIds.includes(topic.id)
+
+                  return (
+                    <button
+                      key={topic.id}
+                      type="button"
+                      className={`badge badge-lg cursor-pointer ${selected ? 'badge-primary' : 'badge-outline'}`}
+                      title={topic.note ?? undefined}
+                      onClick={() => toggleManualTopic(topic.id)}
+                    >
+                      {topic.title}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </FormField>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

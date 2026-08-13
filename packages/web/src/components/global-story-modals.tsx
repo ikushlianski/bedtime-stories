@@ -29,7 +29,7 @@ export function GlobalStoryModals() {
 
     if ('seed' in input) {
       try {
-        await api.pipeline.run(created.id, input.seed)
+        await api.pipeline.run(created.id, input.seed, undefined, input.manualTopicIds)
       } catch (runError) {
         console.warn(`Failed to start pipeline for story ${created.id}:`, runError)
       }

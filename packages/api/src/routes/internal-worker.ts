@@ -15,6 +15,7 @@ const pipelineTaskSchema = z.object({
   universeContext: z.string().optional(),
   styleGuide: z.string().optional(),
   universeIds: z.array(z.number().int()).optional(),
+  manualTopicIds: z.array(z.number().int()).optional(),
 })
 
 const analyzeTaskSchema = z.object({

@@ -47,6 +47,23 @@ export async function loadEligibleTopics(
   return rows
 }
 
+export async function loadTopicsByIds(topicIds: number[]): Promise<EligibleTopic[]> {
+  if (topicIds.length === 0) return []
+
+  const rows = await db
+    .select({
+      id: topics.id,
+      title: topics.title,
+      note: topics.note,
+      rank: topics.rank,
+      usedCount: usedCountForFinishedStories,
+    })
+    .from(topics)
+    .where(and(eq(topics.status, 'active'), inArray(topics.id, topicIds)))
+
+  return rows
+}
+
 export async function recordStoryTopics(storyId: number, topicIds: number[]): Promise<void> {
   if (topicIds.length === 0) return
 

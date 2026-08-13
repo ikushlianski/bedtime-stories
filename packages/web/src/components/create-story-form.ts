@@ -7,6 +7,7 @@ export interface CreateStoryFormState {
   groupIds: number[]
   structureKey: string | null
   lensKey: string | null
+  manualTopicIds: number[]
 }
 
 export const INITIAL_CREATE_STORY_FORM: CreateStoryFormState = {
@@ -14,6 +15,7 @@ export const INITIAL_CREATE_STORY_FORM: CreateStoryFormState = {
   groupIds: [],
   structureKey: null,
   lensKey: null,
+  manualTopicIds: [],
 }
 
 export type CreateStoryFormValidation =
@@ -49,6 +51,7 @@ export function validateCreateStoryForm(state: CreateStoryFormState): CreateStor
       ...(state.groupIds.length > 0 ? { groupIds: state.groupIds } : {}),
       ...(state.structureKey ? { structureKey: state.structureKey } : {}),
       ...(state.lensKey ? { lensKey: state.lensKey } : {}),
+      ...(state.manualTopicIds.length > 0 ? { manualTopicIds: state.manualTopicIds } : {}),
     },
   }
 }

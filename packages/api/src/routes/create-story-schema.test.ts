@@ -220,6 +220,59 @@ describe('resolveCreateStoryMode', () => {
     })
   })
 
+  describe('manualTopicIds', () => {
+    it('accepts a list of positive topic ids', () => {
+      const result = createStorySchema.safeParse({
+        seed: 'hero learns patience',
+        manualTopicIds: [1, 2, 3],
+      })
+
+      expect(result.success).toBe(true)
+    })
+
+    it('rejects non-positive topic ids', () => {
+      const result = createStorySchema.safeParse({
+        seed: 'hero learns patience',
+        manualTopicIds: [1, -2],
+      })
+
+      expect(result.success).toBe(false)
+    })
+
+    it('forwards deduplicated manualTopicIds into agent mode', () => {
+      const resolved = resolveCreateStoryMode({
+        seed: 'hero learns patience',
+        manualTopicIds: [3, 1, 3, 2],
+      })
+
+      if (resolved.mode !== 'agent') {
+        throw new Error('expected agent mode')
+      }
+
+      expect(resolved.manualTopicIds).toEqual([3, 1, 2])
+    })
+
+    it('omits manualTopicIds from agent mode when not provided', () => {
+      const resolved = resolveCreateStoryMode({ seed: 'hero learns patience' })
+
+      if (resolved.mode !== 'agent') {
+        throw new Error('expected agent mode')
+      }
+
+      expect(resolved.manualTopicIds).toBeUndefined()
+    })
+
+    it('omits manualTopicIds from agent mode when the list is empty', () => {
+      const resolved = resolveCreateStoryMode({ seed: 'hero learns patience', manualTopicIds: [] })
+
+      if (resolved.mode !== 'agent') {
+        throw new Error('expected agent mode')
+      }
+
+      expect(resolved.manualTopicIds).toBeUndefined()
+    })
+  })
+
   describe('structureKey and lensKey', () => {
     it('forwards an explicit structureKey and lensKey into agent mode', () => {
       const resolved = resolveCreateStoryMode({

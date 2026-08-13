@@ -38,10 +38,11 @@ const runPipelineSchema = z.object({
   storyId: z.number().int().positive(),
   seed: z.string().min(1),
   model: z.string().optional(),
+  manualTopicIds: z.array(z.number().int().positive()).optional(),
 })
 
 router.post('/run', validate(runPipelineSchema), async (req, res) => {
-  const { storyId, seed, model } = req.body as z.infer<typeof runPipelineSchema>
+  const { storyId, seed, model, manualTopicIds } = req.body as z.infer<typeof runPipelineSchema>
 
   try {
     let [storyRow] = await db.select().from(stories).where(eq(stories.id, storyId))
@@ -89,7 +90,15 @@ router.post('/run', validate(runPipelineSchema), async (req, res) => {
     const mode = storyRow.mode ?? 'auto'
 
     if (mode === 'auto') {
-      await dispatchAutoPipeline({ storyId, seed, universeSystemPrompt, universeContext, styleGuide, universeIds })
+      await dispatchAutoPipeline({
+        storyId,
+        seed,
+        universeSystemPrompt,
+        universeContext,
+        styleGuide,
+        universeIds,
+        ...(manualTopicIds && manualTopicIds.length > 0 ? { manualTopicIds } : {}),
+      })
       res.json({ started: true, storyId, phase: 'auto' })
       return
     }

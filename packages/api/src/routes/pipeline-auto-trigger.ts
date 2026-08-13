@@ -23,10 +23,11 @@ export interface AutoPipelineParams {
   universeContext?: string | undefined
   styleGuide?: string | undefined
   universeIds?: number[] | undefined
+  manualTopicIds?: number[] | undefined
 }
 
 export async function runAutoPipeline(params: AutoPipelineParams): Promise<void> {
-  const { storyId, seed, universeSystemPrompt, universeContext, styleGuide, universeIds = [] } = params
+  const { storyId, seed, universeSystemPrompt, universeContext, styleGuide, universeIds = [], manualTopicIds = [] } = params
   const primaryUniverseId = universeIds[0] ?? null
 
   setPipelineStatus(storyId, 'plan_running')
@@ -59,6 +60,7 @@ export async function runAutoPipeline(params: AutoPipelineParams): Promise<void>
         universeIds,
         injectFragments: true,
         injectTopics: true,
+        ...(manualTopicIds.length > 0 ? { manualTopicIds } : {}),
         ...(effectiveSystemPrompt !== undefined ? { universeSystemPrompt: effectiveSystemPrompt } : {}),
         ...(effectiveUniverseContext !== undefined ? { universeContext: effectiveUniverseContext } : {}),
         ...(effectiveStyleGuide !== undefined ? { styleGuide: effectiveStyleGuide } : {}),

@@ -96,6 +96,7 @@ export async function runPlotter(options: {
   sashaContext?: string | null
   eligibleFragments?: EligibleFragment[]
   eligibleTopics?: EligibleTopic[]
+  topicsMode?: 'auto' | 'manual'
   bibleCharacters?: CharacterBibleEntry[]
   reactionSummary?: ReactionSummary
   memorableMoments?: MemorableMomentRow[]
@@ -130,7 +131,7 @@ export async function runPlotter(options: {
     : ''
 
   const topicsBlock = options.eligibleTopics && options.eligibleTopics.length > 0
-    ? buildTopicsBlock(options.eligibleTopics)
+    ? buildTopicsBlock(options.eligibleTopics, options.topicsMode ?? 'auto')
     : ''
 
   const structureBlock = buildStructureBlock(options.structure ?? selectStoryStructure(options.storyId))
