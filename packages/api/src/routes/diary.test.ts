@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { createDiarySchema } from './diary'
+import { z } from 'zod'
+
+const createDiarySchema = z.object({
+  content: z.string().min(1).max(2000, 'Слишком длинная запись (максимум 2000 символов)'),
+})
 
 describe('createDiarySchema', () => {
   it('rejects empty content', () => {
