@@ -10,6 +10,7 @@ import { aiRunner } from '@bedtime/core/ai'
 import { triggerPlanPhaseFromAnswers } from './pipeline-plan-trigger'
 import { resolveChatGate } from '@bedtime/core/pipeline/resolve-chat-gate'
 import { parsePatchBlock } from '@bedtime/core/pipeline/parse-patch-block'
+import { sendMessageSchema } from './send-message-schema'
 
 const router = Router()
 
@@ -195,12 +196,6 @@ router.get('/conversations/:storyId', async (req, res) => {
     console.error('GET /pipeline/conversations/:storyId failed:', err)
     res.status(500).json({ error: 'Failed to get conversations' })
   }
-})
-
-const sendMessageSchema = z.object({
-  message: z.string().min(1),
-  selectedText: z.string().optional(),
-  context: z.enum(['plan', 'text']).optional(),
 })
 
 router.post('/conversations/:storyId', validate(sendMessageSchema), async (req, res) => {

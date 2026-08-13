@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { api, type ConversationMessage, type StoryComment, type ChatContext } from '../lib/api'
 import { StatusCallout, PatchDiffView } from '../components'
+import { NOTE_TEXT_MAX_LENGTH, isNoteTextWithinLimit } from '../components/annotation-limits'
 
 interface PatchInfo {
   patch: string
@@ -109,7 +110,7 @@ function MutableChatPanel({ storyId, context, selectedText, selectedTextLineInde
   const handleSend = () => {
     const text = input.trim()
 
-    if (!text || thinking) return
+    if (!text || thinking || !isNoteTextWithinLimit(text)) return
 
     setInput('')
     void sendMessage(text)
@@ -235,30 +236,37 @@ function MutableChatPanel({ storyId, context, selectedText, selectedTextLineInde
           <StatusCallout tone="error" title="Ошибка отправки" message={sendError} />
         )}
 
-        <div className="flex gap-2">
-          <textarea
-            className="textarea textarea-bordered flex-1 resize-none"
-            rows={2}
-            placeholder={selectedText ? 'Что нужно изменить в этом фрагменте?' : `Общий комментарий о ${context === 'plan' ? 'плане' : 'тексте'}...`}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                handleSend()
-              }
-            }}
-          />
+        <div className="flex flex-col gap-1">
+          <div className="flex gap-2">
+            <textarea
+              className="textarea textarea-bordered flex-1 resize-none"
+              rows={2}
+              placeholder={selectedText ? 'Что нужно изменить в этом фрагменте?' : `Общий комментарий о ${context === 'plan' ? 'плане' : 'тексте'}...`}
+              value={input}
+              maxLength={NOTE_TEXT_MAX_LENGTH}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleSend()
+                }
+              }}
+            />
 
-          <div className="self-end">
-            <button
-              className="btn btn-primary"
-              onClick={handleSend}
-              disabled={!input.trim() || thinking}
-            >
-              Отправить
-            </button>
+            <div className="self-end">
+              <button
+                className="btn btn-primary"
+                onClick={handleSend}
+                disabled={!input.trim() || thinking || !isNoteTextWithinLimit(input)}
+              >
+                Отправить
+              </button>
+            </div>
           </div>
+
+          <span className="self-end text-xs text-base-content/50">
+            {input.length}/{NOTE_TEXT_MAX_LENGTH}
+          </span>
         </div>
       </div>
     </section>
