@@ -38,6 +38,36 @@ router.post('/', validate(createDiarySchema), async (req, res) => {
   }
 })
 
+router.patch('/:id', validate(createDiarySchema), async (req, res) => {
+  try {
+    const rawId = req.params['id']
+    const id = parseInt(Array.isArray(rawId) ? '' : rawId ?? '', 10)
+
+    if (isNaN(id)) {
+      res.status(400).json({ error: 'Invalid id' })
+      return
+    }
+
+    const { content } = req.body as z.infer<typeof createDiarySchema>
+
+    const [updated] = await db
+      .update(childDiary)
+      .set({ content })
+      .where(eq(childDiary.id, id))
+      .returning()
+
+    if (!updated) {
+      res.status(404).json({ error: 'Diary entry not found' })
+      return
+    }
+
+    res.json(updated)
+  } catch (err) {
+    console.error('PATCH /api/diary/:id failed:', err)
+    res.status(500).json({ error: 'Failed to update diary entry' })
+  }
+})
+
 router.delete('/:id', async (req, res) => {
   try {
     const id = parseInt(req.params['id'] ?? '', 10)

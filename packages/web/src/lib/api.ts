@@ -733,6 +733,11 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ content }),
       }),
+    update: (id: number, content: string) =>
+      request<DiaryEntry>(`/api/diary/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ content }),
+      }),
     delete: (id: number) => requestEmpty(`/api/diary/${id}`, { method: 'DELETE' }),
   },
 
