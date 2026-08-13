@@ -140,6 +140,7 @@ export const topics = pgTable('topics', {
   note: text('note'),
   universeId: integer('universe_id').references(() => storyGroups.id),
   rank: integer('rank').notNull().default(0),
+  status: text('status').$type<'active' | 'suggested'>().notNull().default('active'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 })
@@ -403,5 +404,6 @@ export const storyEmbeddings = pgTable('story_embeddings', {
 export const appSettings = pgTable('app_settings', {
   id: integer('id').primaryKey().default(1),
   stageModels: jsonb('stage_models').$type<Record<string, { model?: string; fallback?: string }>>(),
+  featureFlags: jsonb('feature_flags').$type<Record<string, boolean>>(),
   updatedAt: timestamp('updated_at').defaultNow(),
 })

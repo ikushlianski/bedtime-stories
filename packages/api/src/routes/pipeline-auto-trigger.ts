@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { runPlanPhase } from '@bedtime/core/pipeline/orchestrator'
 import { recordStoryFragments } from '@bedtime/core/pipeline/load-fragments'
+import { recordStoryTopics } from '@bedtime/core/pipeline/load-topics'
 import { synthesizeSashaContext } from '@bedtime/core/pipeline/feedback-synthesizer'
 import { db } from '@bedtime/core/db/client'
 import { runSnapshots, stories } from '@bedtime/core/db/schema'
@@ -22,10 +23,11 @@ export interface AutoPipelineParams {
   universeContext?: string | undefined
   styleGuide?: string | undefined
   universeIds?: number[] | undefined
+  manualTopicIds?: number[] | undefined
 }
 
 export async function runAutoPipeline(params: AutoPipelineParams): Promise<void> {
-  const { storyId, seed, universeSystemPrompt, universeContext, styleGuide, universeIds = [] } = params
+  const { storyId, seed, universeSystemPrompt, universeContext, styleGuide, universeIds = [], manualTopicIds = [] } = params
   const primaryUniverseId = universeIds[0] ?? null
 
   setPipelineStatus(storyId, 'plan_running')
@@ -57,6 +59,8 @@ export async function runAutoPipeline(params: AutoPipelineParams): Promise<void>
         promptVersions: defaultPromptVersions,
         universeIds,
         injectFragments: true,
+        injectTopics: true,
+        ...(manualTopicIds.length > 0 ? { manualTopicIds } : {}),
         ...(effectiveSystemPrompt !== undefined ? { universeSystemPrompt: effectiveSystemPrompt } : {}),
         ...(effectiveUniverseContext !== undefined ? { universeContext: effectiveUniverseContext } : {}),
         ...(effectiveStyleGuide !== undefined ? { styleGuide: effectiveStyleGuide } : {}),
@@ -70,6 +74,7 @@ export async function runAutoPipeline(params: AutoPipelineParams): Promise<void>
       await db.insert(runSnapshots).values(buildPlanSnapshotInsert(storyId, plan))
       await db.update(stories).set(buildPlanStoriesUpdate(plan)).where(eq(stories.id, storyId))
       await recordStoryFragments(storyId, plan.usedFragmentIds)
+      await recordStoryTopics(storyId, plan.usedTopicIds)
     } catch (planError) {
       console.error(`Auto pipeline plan phase failed for storyId=${storyId}:`, planError)
       setPipelineStatus(storyId, 'plan_failed')

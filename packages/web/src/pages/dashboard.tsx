@@ -1,4 +1,4 @@
-import { DashboardPanel, PageHeader } from '../components'
+import { DashboardPanel, PageHeader, PendingStoryIdeasPanel } from '../components'
 
 function ComingSoon({ label }: { label: string }) {
   return (
@@ -18,6 +18,15 @@ export function DashboardPage() {
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="lg:col-span-2">
+          <DashboardPanel
+            title="Ожидающие идеи историй"
+            description="Идеи, предложенные ИИ по всем вселенным. Прими, чтобы сразу создать историю, или отклони."
+          >
+            <PendingStoryIdeasPanel />
+          </DashboardPanel>
+        </div>
+
         <DashboardPanel
           title="Динамика качества"
           description="Оценки по времени с отметками об изменениях промптов и моделей. Показывает, улучшается ли качество после обновлений агентов."

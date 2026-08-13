@@ -19,6 +19,7 @@ import storyIdeasRouter from './routes/story-ideas'
 import diaryRouter from './routes/diary'
 import fragmentsRouter from './routes/fragments'
 import topicsRouter from './routes/topics'
+import topicLiveSuggestionsRouter from './routes/topic-live-suggestions'
 import wordsRouter from './routes/words'
 import childProfileRouter from './routes/child-profile'
 import modelsRouter from './routes/models'
@@ -33,6 +34,7 @@ import internalBackfillRouter from './routes/internal-backfill'
 import internalWorkerRouter from './routes/internal-worker'
 import internalUniverseMemorySyncRouter from './routes/internal-universe-memory-sync'
 import internalEmbedStoryBackfillRouter from './routes/internal-embed-story-backfill'
+import internalDailySuggestionsRouter from './routes/internal-daily-suggestions'
 import { requireAuth } from './middleware/auth.middleware'
 import { bot } from './routes/telegram'
 import { webhookCallback } from 'grammy'
@@ -56,6 +58,7 @@ app.use('/api/internal/backfill', internalBackfillRouter)
 app.use('/api/internal/worker', internalWorkerRouter)
 app.use('/api/internal/universe-memory-sync', internalUniverseMemorySyncRouter)
 app.use('/api/internal/embed-story-backfill', internalEmbedStoryBackfillRouter)
+app.use('/api/internal/daily-suggestions', internalDailySuggestionsRouter)
 
 const useTelegramPolling = !process.env['TELEGRAM_WEBHOOK_URL'] && process.env['TELEGRAM_ENABLE_POLLING'] === 'true'
 
@@ -78,6 +81,7 @@ app.use('/api/universes/:universeId/ideas', storyIdeasRouter)
 app.use('/api/diary', diaryRouter)
 app.use('/api/fragments', fragmentsRouter)
 app.use('/api/topics', topicsRouter)
+app.use('/api/topic-live-suggestions', topicLiveSuggestionsRouter)
 app.use('/api/words', wordsRouter)
 app.use('/api/child-profile', childProfileRouter)
 app.use('/api/models', modelsRouter)

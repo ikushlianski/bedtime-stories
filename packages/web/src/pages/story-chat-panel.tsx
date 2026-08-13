@@ -81,14 +81,16 @@ interface StoryChatPanelProps {
   storyId: number
   context: ChatContext | 'read'
   selectedText?: string
+  selectedTextLineIndex?: number
   onPatchApplied?: (newText: string) => void
   onClose?: () => void
 }
 
-function MutableChatPanel({ storyId, context, selectedText, onPatchApplied, onClose }: {
+function MutableChatPanel({ storyId, context, selectedText, selectedTextLineIndex, onPatchApplied, onClose }: {
   storyId: number
   context: ChatContext
   selectedText?: string
+  selectedTextLineIndex?: number
   onPatchApplied?: (newText: string) => void
   onClose?: () => void
 }) {
@@ -120,13 +122,19 @@ function MutableChatPanel({ storyId, context, selectedText, onPatchApplied, onCl
     setApplyError(null)
 
     try {
-      const applyFn = context === 'plan' ? api.stories.applyPlanPatch : api.stories.applyTextPatch
-
-      const updated = await applyFn(storyId, {
-        find: selectedText,
-        replace: pendingPatch.patch,
-        summary: pendingPatch.summary,
-      })
+      const updated =
+        context === 'plan'
+          ? await api.stories.applyPlanPatch(storyId, {
+              find: selectedText,
+              replace: pendingPatch.patch,
+              summary: pendingPatch.summary,
+            })
+          : await api.stories.applyTextPatch(storyId, {
+              find: selectedText,
+              replace: pendingPatch.patch,
+              summary: pendingPatch.summary,
+              lineIndex: selectedTextLineIndex,
+            })
 
       setPendingPatch(null)
       onPatchApplied?.((context === 'plan' ? updated.plan_v1 : updated.active_text) ?? '')
@@ -355,7 +363,7 @@ function ReadOnlyCommentPanel({ storyId, onClose }: { storyId: number; onClose?:
   )
 }
 
-export function StoryChatPanel({ storyId, context, selectedText, onPatchApplied, onClose }: StoryChatPanelProps) {
+export function StoryChatPanel({ storyId, context, selectedText, selectedTextLineIndex, onPatchApplied, onClose }: StoryChatPanelProps) {
   if (context === 'read') {
     return <ReadOnlyCommentPanel storyId={storyId} onClose={onClose} />
   }
@@ -365,6 +373,7 @@ export function StoryChatPanel({ storyId, context, selectedText, onPatchApplied,
       storyId={storyId}
       context={context}
       selectedText={selectedText}
+      selectedTextLineIndex={selectedTextLineIndex}
       onPatchApplied={onPatchApplied}
       onClose={onClose}
     />

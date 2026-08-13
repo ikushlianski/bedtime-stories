@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { PageHeader, StatusCallout, TopicNudges } from '../components'
+import { PageHeader, StatusCallout, TopicNudges, PendingTopics } from '../components'
 import { TopicCombosPanel } from '../components/topic-combos-panel'
 import { api, type Topic, type StoryGroup } from '../lib/api'
 
@@ -25,7 +25,7 @@ export function TopicsPage() {
   const fetchAll = useCallback(() => {
     setLoading(true)
 
-    Promise.all([api.topics.list(), api.universes.list()])
+    Promise.all([api.topics.list('all'), api.universes.list()])
       .then(([tops, unis]) => {
         setItems(tops)
         setUniverses(unis)
@@ -117,16 +117,24 @@ export function TopicsPage() {
   }
 
   const canGenerateManual = selectedIds.length >= 2 && selectedIds.length <= 3
+  const pendingTopics = items.filter((t) => t.status === 'suggested')
+  const activeTopics = items.filter((t) => t.status !== 'suggested')
 
   return (
     <div>
       <PageHeader
         eyebrow="Темы"
         title="Темы для будущих историй"
-        description="Собирай то, что хочешь однажды объяснить или показать сыну, — пока без готового сюжета. Позже 2–3 темы складываются в одну историю. Истории никогда не создаются автоматически: нажми «Сгенерировать», когда будешь готов."
+        description="Собирай то, что хочешь однажды объяснить или показать сыну. Ниже можно вручную собрать 2–3 темы в одну историю прямо сейчас. А ещё сюжетник сам подмешивает 2–3 темы из этого банка почти в каждую новую историю — то, что реально вошло в историю, отмечается здесь автоматически."
       />
 
-      <TopicNudges topics={items} universeId={targetUniverseId} />
+      <PendingTopics
+        topics={pendingTopics}
+        onApproved={(id) => setItems((prev) => prev.map((t) => (t.id === id ? { ...t, status: 'active' } : t)))}
+        onRejected={(id) => setItems((prev) => prev.filter((t) => t.id !== id))}
+      />
+
+      <TopicNudges topics={activeTopics} universeId={targetUniverseId} />
 
       <section className="mb-6 rounded-box border border-base-300 bg-base-100 p-6 shadow-sm">
         <input
@@ -171,7 +179,7 @@ export function TopicsPage() {
         </label>
 
         <TopicCombosPanel
-          topics={items}
+          topics={activeTopics}
           targetUniverseId={targetUniverseId}
           onGenerate={(topicIds, seed) => handleGenerate(topicIds, seed, `combo-${topicIds.join('-')}`)}
           generatingKey={generatingKey}
@@ -198,11 +206,11 @@ export function TopicsPage() {
 
       {loading ? (
         <StatusCallout title="Загрузка" message="Получаем темы…" />
-      ) : items.length === 0 ? (
+      ) : activeTopics.length === 0 ? (
         <StatusCallout title="Пока нет тем." message="Добавь первое, что хочешь однажды рассказать сыну." />
       ) : (
         <ul className="space-y-3">
-          {items.map((topic) => (
+          {activeTopics.map((topic) => (
             <li key={topic.id} className="rounded-box border border-base-300 bg-base-100 p-4 shadow-sm">
               <div className="flex items-start gap-3">
                 <input

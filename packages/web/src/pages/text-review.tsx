@@ -4,6 +4,7 @@ import { api, type Story, type Annotation } from '../lib/api'
 import { PageHeader, StatusCallout } from '../components'
 import { StoryChatPanel } from './story-chat-panel'
 import { TextVersionHistory } from '../components/text-version-history'
+import { splitTextIntoLines } from './text-blocks'
 
 function useTextReviewStory(id: number) {
   const [story, setStory] = useState<Story | null>(null)
@@ -36,7 +37,7 @@ interface SelectionPopover {
   end: number
 }
 
-function TextAnnotationPanel({ storyId, text, onChatAboutThis }: { storyId: number; text: string; onChatAboutThis?: (selectedText: string) => void }) {
+function TextAnnotationPanel({ storyId, text, onChatAboutThis }: { storyId: number; text: string; onChatAboutThis?: (selectedText: string, lineIndex?: number) => void }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [popover, setPopover] = useState<SelectionPopover | null>(null)
   const [comment, setComment] = useState('')
@@ -108,13 +109,41 @@ function TextAnnotationPanel({ storyId, text, onChatAboutThis }: { storyId: numb
 
   return (
     <div className="space-y-4">
+      {onChatAboutThis && (
+        <p className="text-xs text-base-content/50">
+          Нажми ✎ у любого абзаца, чтобы переписать только его.
+        </p>
+      )}
+
       <div className="relative" ref={containerRef} onMouseUp={handleMouseUp}>
         <div className="select-text cursor-text leading-relaxed text-base-content">
-          {text.split('\n').map((line, i) => (
-            <p key={i} className={line.trim() === '' ? 'mb-4' : 'mb-1'}>
-              {line || '\u00A0'}
-            </p>
-          ))}
+          {splitTextIntoLines(text).map((line) =>
+            line.isBlock ? (
+              <div key={line.index} className="mb-1 flex items-start gap-2">
+                <p className="flex-1">{line.text}</p>
+                {onChatAboutThis && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-xs shrink-0 select-none"
+                    title="Переписать этот абзац"
+                    data-testid={`rewrite-block-${line.index}`}
+                    onMouseUp={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      window.getSelection()?.removeAllRanges()
+                      onChatAboutThis(line.text, line.index)
+                    }}
+                  >
+                    ✎
+                  </button>
+                )}
+              </div>
+            ) : (
+              <p key={line.index} className="mb-4">
+                {line.text || '\u00A0'}
+              </p>
+            ),
+          )}
         </div>
 
         {popover && (
@@ -197,7 +226,7 @@ export function TextReviewPage() {
   const [redoReason, setRedoReason] = useState('')
   const [redoModel, setRedoModel] = useState('')
   const [showModelInput, setShowModelInput] = useState(false)
-  const [chatSelectedText, setChatSelectedText] = useState<string | null>(null)
+  const [chatSelection, setChatSelection] = useState<{ text: string; lineIndex?: number } | null>(null)
   const [localText, setLocalText] = useState<string | null>(null)
 
   const handleApprove = async () => {
@@ -272,7 +301,7 @@ export function TextReviewPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="font-serif text-3xl text-base-content">Текст истории</h2>
 
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button className="btn btn-outline btn-sm" onClick={() => void handleRedo()} disabled={redoing || approving}>
                 {redoing ? 'Запускаем...' : 'Отправить на доработку'}
               </button>
@@ -329,7 +358,7 @@ export function TextReviewPage() {
           <TextAnnotationPanel
             storyId={storyId}
             text={textToReview}
-            onChatAboutThis={(text) => setChatSelectedText(text)}
+            onChatAboutThis={(text, lineIndex) => setChatSelection({ text, lineIndex })}
           />
 
           <div className="flex flex-wrap justify-end gap-2 border-t border-base-300 pt-4">
@@ -343,23 +372,25 @@ export function TextReviewPage() {
         </div>
       </section>
 
-      {chatSelectedText !== null && (
+      {chatSelection !== null && (
         <div className="mt-6">
           <StoryChatPanel
+            key={`${chatSelection.lineIndex ?? 'sel'}:${chatSelection.text}`}
             storyId={storyId}
             context="text"
-            selectedText={chatSelectedText}
+            selectedText={chatSelection.text}
+            selectedTextLineIndex={chatSelection.lineIndex}
             onPatchApplied={() => {
               setLocalText(null)
-              setChatSelectedText(null)
+              setChatSelection(null)
               reload()
             }}
-            onClose={() => setChatSelectedText(null)}
+            onClose={() => setChatSelection(null)}
           />
         </div>
       )}
 
-      {chatSelectedText === null && (
+      {chatSelection === null && (
         <div className="mt-6">
           <StoryChatPanel storyId={storyId} context="text" />
         </div>

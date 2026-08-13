@@ -1,8 +1,9 @@
 import { Router } from 'express'
 import { z } from 'zod'
-import { eq, desc, and, sql } from 'drizzle-orm'
+import { eq, desc, and, sql, inArray } from 'drizzle-orm'
 import { db } from '@bedtime/core/db/client'
-import { stories, annotations, feedback, runSnapshots, storyGroups, planQuestions, planConversations, parentReviews, childReactions, storyReadings, modelCalls, storyTextVersions, storyEmbeddings, storyUniverses } from '@bedtime/core/db/schema'
+import { stories, annotations, feedback, runSnapshots, storyGroups, planQuestions, planConversations, parentReviews, childReactions, storyReadings, modelCalls, storyTextVersions, storyEmbeddings, storyUniverses, topics } from '@bedtime/core/db/schema'
+import { recordStoryTopics } from '@bedtime/core/pipeline/load-topics'
 import { deriveStoryCostBreakdown } from '@bedtime/core/cost/aggregations/derive-story-cost-breakdown'
 import type { Story, NewStory, NewAnnotation, ParentReview, ChildReaction } from '@bedtime/core/db/types'
 import { validate } from '../middleware/validate'
@@ -144,6 +145,17 @@ router.post('/', validate(createStorySchema), async (req, res) => {
 
     if (resolved.groupIds !== undefined && resolved.groupIds.length > 0) {
       await setStoryUniverses((story as Story).id, resolved.groupIds)
+    }
+
+    if (resolved.manualTopicIds !== undefined && resolved.manualTopicIds.length > 0) {
+      const validTopics = await db
+        .select({ id: topics.id })
+        .from(topics)
+        .where(and(inArray(topics.id, resolved.manualTopicIds), eq(topics.status, 'active')))
+
+      if (validTopics.length > 0) {
+        await recordStoryTopics((story as Story).id, validTopics.map((t) => t.id))
+      }
     }
 
     res.status(201).json(toSnakeCase(story as Story))
@@ -439,6 +451,10 @@ const updateTagsSchema = z.object({
   tags: z.array(z.string()),
 })
 
+const updateTitleSchema = z.object({
+  title: z.string().trim().min(1),
+})
+
 router.patch('/:id/tags', validate(updateTagsSchema), async (req, res) => {
   try {
     const storyId = parseIntParam(req.params['id'])
@@ -464,6 +480,34 @@ router.patch('/:id/tags', validate(updateTagsSchema), async (req, res) => {
   } catch (err) {
     console.error('PATCH /stories/:id/tags failed:', err)
     res.status(500).json({ error: 'Failed to update tags' })
+  }
+})
+
+router.patch('/:id/title', validate(updateTitleSchema), async (req, res) => {
+  try {
+    const storyId = parseIntParam(req.params['id'])
+
+    if (isNaN(storyId)) {
+      res.status(400).json({ error: 'Invalid story id' })
+      return
+    }
+
+    const { title } = req.body as z.infer<typeof updateTitleSchema>
+    const [story] = await db
+      .update(stories)
+      .set({ title, updatedAt: new Date() })
+      .where(eq(stories.id, storyId))
+      .returning()
+
+    if (!story) {
+      res.status(404).json({ error: 'Story not found' })
+      return
+    }
+
+    res.json(toSnakeCase(story as Story))
+  } catch (err) {
+    console.error('PATCH /stories/:id/title failed:', err)
+    res.status(500).json({ error: 'Failed to update story title' })
   }
 })
 
@@ -1064,6 +1108,7 @@ const applyTextPatchSchema = z.object({
   find: z.string().min(1),
   replace: z.string().min(1),
   summary: z.string(),
+  lineIndex: z.number().int().nonnegative().optional(),
 })
 
 router.post('/:id/apply-text-patch', validate(applyTextPatchSchema), async (req, res) => {
@@ -1075,7 +1120,7 @@ router.post('/:id/apply-text-patch', validate(applyTextPatchSchema), async (req,
       return
     }
 
-    const { find, replace, summary } = req.body as z.infer<typeof applyTextPatchSchema>
+    const { find, replace, summary, lineIndex } = req.body as z.infer<typeof applyTextPatchSchema>
 
     const [storyRow] = await db.select().from(stories).where(eq(stories.id, storyId))
 
@@ -1102,7 +1147,7 @@ router.post('/:id/apply-text-patch', validate(applyTextPatchSchema), async (req,
       if (version) currentText = version.text
     }
 
-    const patched = computePatchedText({ currentText, find, replace })
+    const patched = computePatchedText({ currentText, find, replace, ...(lineIndex !== undefined ? { lineIndex } : {}) })
 
     if (!patched.ok) {
       res.status(422).json({ error: 'Patch target not found in text — text may have changed' })

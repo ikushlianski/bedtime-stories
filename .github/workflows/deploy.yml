@@ -79,6 +79,9 @@ jobs:
             universeMemorySyncSecret:
               value: ${{ secrets.PROD_UNIVERSE_MEMORY_SYNC_SECRET }}
               secret: true
+            dailySuggestionsSecret:
+              value: ${{ secrets.PROD_DAILY_SUGGESTIONS_SECRET }}
+              secret: true
         env:
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PROD_PULUMI_CONFIG_PASSPHRASE }}
 
@@ -154,6 +157,7 @@ jobs:
             --set-env-vars="CATALOG_SYNC_SECRET=${{ secrets.PROD_CATALOG_SYNC_SECRET }}" \
             --set-env-vars="CATALOG_SYNC_MODE=gcp" \
             --set-env-vars="UNIVERSE_MEMORY_SYNC_SECRET=${{ secrets.PROD_UNIVERSE_MEMORY_SYNC_SECRET }}" \
+            --set-env-vars="DAILY_SUGGESTIONS_SECRET=${{ secrets.PROD_DAILY_SUGGESTIONS_SECRET }}" \
             --set-env-vars="BACKFILL_SECRET=${{ secrets.PROD_BACKFILL_SECRET }}" \
             --set-env-vars="EMBEDDING_BACKFILL_SECRET=${{ secrets.PROD_EMBEDDING_BACKFILL_SECRET }}" \
             --set-env-vars="PIPELINE_QUEUE=projects/bedtime-prod/locations/us-central1/queues/bedtime-pipeline" \

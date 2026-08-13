@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { runPlanPhase, runTextPhase, runPipeline } from './orchestrator'
+import { runPlanPhase, runPlotterOnly, runTextPhase, runPipeline } from './orchestrator'
+import * as loadTopicsModule from './load-topics'
 import * as plotterStage from './stages/plotter'
 import * as plotCriticStage from './stages/plot-critic'
 import * as writerStage from './stages/writer'
@@ -65,6 +66,10 @@ vi.mock('./load-reaction-preferences', async () => {
 vi.mock('./load-recent-titles', async () => {
   const actual = await vi.importActual<typeof import('./load-recent-titles')>('./load-recent-titles')
   return { ...actual, loadRecentTitles: vi.fn().mockResolvedValue([]) }
+})
+vi.mock('./load-topics', async () => {
+  const actual = await vi.importActual<typeof import('./load-topics')>('./load-topics')
+  return { ...actual, loadEligibleTopics: vi.fn().mockResolvedValue([]), loadTopicsByIds: vi.fn().mockResolvedValue([]) }
 })
 
 const baseModels = {
@@ -309,5 +314,91 @@ describe('runPipeline (legacy one-shot, plan + text)', () => {
     expect(result.planFinal).toBe('plan-v1')
     expect(result.textV1).toBe('text-v1')
     expect(result.textV2).toBe('text-v1')
+  })
+})
+
+describe('manualTopicIds replacing the auto-pool', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  const manualTopics = [
+    { id: 5, title: 'Manual topic', note: null, rank: 0, usedCount: 0 },
+  ]
+
+  it('loads the manually selected topics instead of the auto-pool for runPlanPhase', async () => {
+    vi.mocked(loadTopicsModule.loadTopicsByIds).mockResolvedValue(manualTopics)
+    vi.mocked(plotterStage.runPlotter).mockResolvedValue('plan-v1')
+
+    const result = await runPlanPhase({
+      seed: 'seed',
+      storyId: 1,
+      models: baseModels,
+      promptVersions: baseVersions,
+      injectTopics: true,
+      manualTopicIds: [5],
+    })
+
+    expect(loadTopicsModule.loadTopicsByIds).toHaveBeenCalledWith([5])
+    expect(loadTopicsModule.loadEligibleTopics).not.toHaveBeenCalled()
+
+    const callArgs = vi.mocked(plotterStage.runPlotter).mock.calls[0]?.[0]
+    expect(callArgs?.eligibleTopics).toEqual(manualTopics)
+    expect(callArgs?.topicsMode).toBe('manual')
+    expect(result.usedTopicIds).toEqual([5])
+  })
+
+  it('uses auto topicsMode when no manual selection is provided', async () => {
+    vi.mocked(loadTopicsModule.loadEligibleTopics).mockResolvedValue([
+      { id: 9, title: 'Pool topic', note: null, rank: 0, usedCount: 0 },
+    ])
+    vi.mocked(plotterStage.runPlotter).mockResolvedValue('plan-v1')
+
+    await runPlanPhase({
+      seed: 'seed',
+      storyId: 1,
+      models: baseModels,
+      promptVersions: baseVersions,
+      injectTopics: true,
+    })
+
+    const callArgs = vi.mocked(plotterStage.runPlotter).mock.calls[0]?.[0]
+    expect(callArgs?.topicsMode).toBe('auto')
+  })
+
+  it('records all manually selected topics as used even if the plotter footer omits one', async () => {
+    vi.mocked(loadTopicsModule.loadTopicsByIds).mockResolvedValue([
+      { id: 5, title: 'A', note: null, rank: 0, usedCount: 0 },
+      { id: 7, title: 'B', note: null, rank: 0, usedCount: 0 },
+    ])
+    vi.mocked(plotterStage.runPlotter).mockResolvedValue('plan-v1\nТЕМЫ: 5')
+
+    const result = await runPlanPhase({
+      seed: 'seed',
+      storyId: 1,
+      models: baseModels,
+      promptVersions: baseVersions,
+      manualTopicIds: [5, 7],
+    })
+
+    expect(result.usedTopicIds).toEqual([5, 7])
+  })
+
+  it('loads the manually selected topics instead of the auto-pool for runPlotterOnly', async () => {
+    vi.mocked(loadTopicsModule.loadTopicsByIds).mockResolvedValue(manualTopics)
+    vi.mocked(plotterStage.runPlotter).mockResolvedValue('plan-v1')
+
+    const result = await runPlotterOnly({
+      seed: 'seed',
+      storyId: 1,
+      models: baseModels,
+      promptVersions: baseVersions,
+      injectTopics: true,
+      manualTopicIds: [5],
+    })
+
+    expect(loadTopicsModule.loadTopicsByIds).toHaveBeenCalledWith([5])
+    expect(loadTopicsModule.loadEligibleTopics).not.toHaveBeenCalled()
+    expect(result.usedTopicIds).toEqual([5])
   })
 })

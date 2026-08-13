@@ -273,6 +273,7 @@ export interface Topic {
   note: string | null
   universeId: number | null
   rank: number
+  status: 'active' | 'suggested'
   usedCount: number
   createdAt: string | null
   updatedAt: string | null
@@ -370,8 +371,15 @@ export type CreateStoryInput =
       perStageOverrides?: PerStageOverrides
       structureKey?: string
       lensKey?: string
+      manualTopicIds?: number[]
     }
   | { title?: string; textFinal: string; groupId?: number; source?: 'user' | 'legacy'; addToReadingList?: boolean }
+
+export interface LiveTopicSuggestion {
+  id: number
+  title: string
+  note: string | null
+}
 
 export interface ModelCatalogEntry {
   id: string
@@ -564,6 +572,12 @@ export const api = {
         body: JSON.stringify({ tags }),
       }),
 
+    updateTitle: (id: number, title: string) =>
+      request<Story>(`/api/stories/${id}/title`, {
+        method: 'PATCH',
+        body: JSON.stringify({ title }),
+      }),
+
     updateText: (id: number, text: string) =>
       request<Story>(`/api/stories/${id}/text`, {
         method: 'PATCH',
@@ -594,7 +608,7 @@ export const api = {
         body: JSON.stringify(data),
       }),
 
-    applyTextPatch: (id: number, data: { find: string; replace: string; summary: string }) =>
+    applyTextPatch: (id: number, data: { find: string; replace: string; summary: string; lineIndex?: number }) =>
       request<Story>(`/api/stories/${id}/apply-text-patch`, {
         method: 'POST',
         body: JSON.stringify(data),
@@ -660,10 +674,15 @@ export const api = {
   },
 
   pipeline: {
-    run: (storyId: number, seed: string, model?: string) =>
+    run: (storyId: number, seed: string, model?: string, manualTopicIds?: number[]) =>
       request<{ started: boolean; storyId: number; phase: 'plan' | 'questions' }>('/api/pipeline/run', {
         method: 'POST',
-        body: JSON.stringify({ storyId, seed, ...(model ? { model } : {}) }),
+        body: JSON.stringify({
+          storyId,
+          seed,
+          ...(model ? { model } : {}),
+          ...(manualTopicIds && manualTopicIds.length > 0 ? { manualTopicIds } : {}),
+        }),
       }),
 
     status: (storyId: number) => request<PipelineStatus>(`/api/pipeline/status/${storyId}`),
@@ -739,13 +758,14 @@ export const api = {
   },
 
   topics: {
-    list: () => request<Topic[]>('/api/topics'),
+    list: (status?: 'active' | 'suggested' | 'all') =>
+      request<Topic[]>(`/api/topics${status ? `?status=${status}` : ''}`),
     create: (data: { title: string; note?: string | null; universeId?: number | null; rank?: number }) =>
       request<Topic>('/api/topics', {
         method: 'POST',
         body: JSON.stringify(data),
       }),
-    update: (id: number, data: Partial<{ title: string; note: string | null; universeId: number | null; rank: number }>) =>
+    update: (id: number, data: Partial<{ title: string; note: string | null; universeId: number | null; rank: number; status: 'active' | 'suggested' }>) =>
       request<Topic>(`/api/topics/${id}`, {
         method: 'PATCH',
         body: JSON.stringify(data),
@@ -921,11 +941,30 @@ export const api = {
   },
 
   settings: {
-    get: () => request<{ stageModels: Record<string, { model?: string; fallback?: string }> }>('/api/settings'),
-    update: (stageModels: Record<string, { model?: string; fallback?: string }>) =>
-      request<{ stageModels: Record<string, { model?: string; fallback?: string }> }>('/api/settings', {
+    get: () =>
+      request<{
+        stageModels: Record<string, { model?: string; fallback?: string }>
+        featureFlags: Record<string, boolean>
+      }>('/api/settings'),
+    update: (input: {
+      stageModels?: Record<string, { model?: string; fallback?: string }>
+      featureFlags?: Record<string, boolean>
+    }) =>
+      request<{
+        stageModels: Record<string, { model?: string; fallback?: string }>
+        featureFlags: Record<string, boolean>
+      }>('/api/settings', {
         method: 'PATCH',
-        body: JSON.stringify({ stageModels }),
+        body: JSON.stringify(input),
+      }),
+  },
+
+  topicLiveSuggestions: {
+    suggest: (universeId: number, outline: string, signal?: AbortSignal) =>
+      request<{ suggestions: LiveTopicSuggestion[] }>('/api/topic-live-suggestions', {
+        method: 'POST',
+        body: JSON.stringify({ universeId, outline }),
+        ...(signal ? { signal } : {}),
       }),
   },
 
