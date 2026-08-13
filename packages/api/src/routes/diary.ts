@@ -7,8 +7,8 @@ import { validate } from '../middleware/validate'
 
 const router = Router()
 
-const createDiarySchema = z.object({
-  content: z.string().min(1),
+export const createDiarySchema = z.object({
+  content: z.string().min(1).max(2000, 'Слишком длинная запись (максимум 2000 символов)'),
 })
 
 router.get('/', async (_req, res) => {

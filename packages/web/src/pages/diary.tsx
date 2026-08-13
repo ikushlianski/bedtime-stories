@@ -2,6 +2,14 @@ import { useState, useEffect, useCallback } from 'react'
 import { PageHeader, StatusCallout } from '../components'
 import { api, type DiaryEntry } from '../lib/api'
 
+export const DIARY_CONTENT_MAX_LENGTH = 2000
+
+export function isDiaryDraftValid(draft: string): boolean {
+  const trimmed = draft.trim()
+
+  return trimmed.length > 0 && trimmed.length <= DIARY_CONTENT_MAX_LENGTH
+}
+
 export function DiaryPage() {
   const [entries, setEntries] = useState<DiaryEntry[]>([])
   const [draft, setDraft] = useState('')
@@ -24,7 +32,7 @@ export function DiaryPage() {
   }, [fetchEntries])
 
   const handleSave = async () => {
-    if (draft.trim().length === 0) return
+    if (!isDiaryDraftValid(draft)) return
 
     setSaving(true)
     setError(null)
@@ -63,12 +71,16 @@ export function DiaryPage() {
           className="textarea textarea-bordered min-h-28 w-full bg-base-200"
           placeholder="Сегодня Саша заинтересовался..."
           value={draft}
+          maxLength={DIARY_CONTENT_MAX_LENGTH}
           onChange={(e) => setDraft(e.target.value)}
         />
 
-        <div className="mt-3 flex justify-end">
+        <div className="mt-3 flex items-center justify-between">
+          <span className="text-xs text-base-content/50">
+            {draft.length} / {DIARY_CONTENT_MAX_LENGTH}
+          </span>
           <button
-            className={`btn btn-primary ${saving || draft.trim().length === 0 ? 'btn-disabled' : ''}`}
+            className={`btn btn-primary ${saving || !isDiaryDraftValid(draft) ? 'btn-disabled' : ''}`}
             onClick={() => void handleSave()}
           >
             {saving ? 'Сохраняю...' : 'Сохранить'}
