@@ -1,5 +1,11 @@
 import { useState } from 'react'
 import type { AnnotationType } from './types'
+import {
+  NOTE_TEXT_MAX_LENGTH,
+  isSelectionWithinLimit,
+  isNoteTextWithinLimit,
+  SELECTION_TOO_LONG_MESSAGE,
+} from './annotation-limits'
 
 interface AnnotationToolbarProps {
   onAnnotate: (type: AnnotationType, selectedText: string, noteText?: string) => void
@@ -18,6 +24,14 @@ function AnnotationToolbar({ onAnnotate, selectedText }: AnnotationToolbarProps)
 
   if (!selectedText) return null
 
+  if (!isSelectionWithinLimit(selectedText)) {
+    return (
+      <div className="inline-flex items-center gap-2 rounded-full border border-neutral/20 bg-neutral px-3 py-2 text-neutral-content shadow-xl">
+        <span className="max-w-64 text-xs text-neutral-content/80">{SELECTION_TOO_LONG_MESSAGE}</span>
+      </div>
+    )
+  }
+
   if (noteMode) {
     return (
       <div className="inline-flex items-center gap-2 rounded-full border border-neutral/20 bg-neutral px-3 py-2 text-neutral-content shadow-xl">
@@ -27,9 +41,10 @@ function AnnotationToolbar({ onAnnotate, selectedText }: AnnotationToolbarProps)
           className="rounded-full border border-neutral-content/20 bg-neutral px-3 py-1 text-sm text-neutral-content placeholder-neutral-content/40 outline-none"
           placeholder="Ваша заметка..."
           value={noteText}
+          maxLength={NOTE_TEXT_MAX_LENGTH}
           onChange={(e) => setNoteText(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && noteText.trim()) {
+            if (e.key === 'Enter' && noteText.trim() && isNoteTextWithinLimit(noteText)) {
               onAnnotate('my_note', selectedText, noteText.trim())
             }
 
@@ -40,11 +55,15 @@ function AnnotationToolbar({ onAnnotate, selectedText }: AnnotationToolbarProps)
           }}
         />
 
+        <span className="text-xs text-neutral-content/50">
+          {noteText.length}/{NOTE_TEXT_MAX_LENGTH}
+        </span>
+
         <button
           className="btn btn-primary btn-xs"
-          disabled={!noteText.trim()}
+          disabled={!noteText.trim() || !isNoteTextWithinLimit(noteText)}
           onClick={() => {
-            if (noteText.trim()) {
+            if (noteText.trim() && isNoteTextWithinLimit(noteText)) {
               onAnnotate('my_note', selectedText, noteText.trim())
             }
           }}

@@ -5,6 +5,12 @@ import { PageHeader, StatusCallout } from '../components'
 import { StoryChatPanel } from './story-chat-panel'
 import { TextVersionHistory } from '../components/text-version-history'
 import { splitTextIntoLines } from './text-blocks'
+import {
+  NOTE_TEXT_MAX_LENGTH,
+  isSelectionWithinLimit,
+  isNoteTextWithinLimit,
+  SELECTION_TOO_LONG_MESSAGE,
+} from '../components/annotation-limits'
 
 function useTextReviewStory(id: number) {
   const [story, setStory] = useState<Story | null>(null)
@@ -81,7 +87,7 @@ function TextAnnotationPanel({ storyId, text, onChatAboutThis }: { storyId: numb
   }, [])
 
   const handleSave = async () => {
-    if (!popover || !comment.trim()) return
+    if (!popover || !comment.trim() || !isNoteTextWithinLimit(comment)) return
 
     setSaving(true)
     setSaveError(null)
@@ -154,18 +160,29 @@ function TextAnnotationPanel({ storyId, text, onChatAboutThis }: { storyId: numb
             <div className="rounded-box border border-base-300 bg-base-100 p-3 shadow-xl">
               <p className="mb-2 line-clamp-2 text-xs italic text-base-content/50">&ldquo;{popover.text}&rdquo;</p>
 
-              <textarea
-                autoFocus
-                className="textarea textarea-bordered w-full text-sm"
-                rows={2}
-                placeholder="Твой комментарий..."
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void handleSave()
-                  if (e.key === 'Escape') handleDismiss()
-                }}
-              />
+              {!isSelectionWithinLimit(popover.text) ? (
+                <p className="text-xs text-base-content/70">{SELECTION_TOO_LONG_MESSAGE}</p>
+              ) : (
+                <>
+                  <textarea
+                    autoFocus
+                    className="textarea textarea-bordered w-full text-sm"
+                    rows={2}
+                    placeholder="Твой комментарий..."
+                    value={comment}
+                    maxLength={NOTE_TEXT_MAX_LENGTH}
+                    onChange={(e) => setComment(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void handleSave()
+                      if (e.key === 'Escape') handleDismiss()
+                    }}
+                  />
+
+                  <p className="mt-1 text-right text-xs text-base-content/50">
+                    {comment.length}/{NOTE_TEXT_MAX_LENGTH}
+                  </p>
+                </>
+              )}
 
               {saveError && <p className="mt-1 text-xs text-error">{saveError}</p>}
 
@@ -183,13 +200,15 @@ function TextAnnotationPanel({ storyId, text, onChatAboutThis }: { storyId: numb
                       Обсудить →
                     </button>
                   )}
-                  <button
-                    className="btn btn-primary btn-xs"
-                    onClick={() => void handleSave()}
-                    disabled={!comment.trim() || saving}
-                  >
-                    {saving ? '...' : 'Сохранить'}
-                  </button>
+                  {isSelectionWithinLimit(popover.text) && (
+                    <button
+                      className="btn btn-primary btn-xs"
+                      onClick={() => void handleSave()}
+                      disabled={!comment.trim() || !isNoteTextWithinLimit(comment) || saving}
+                    >
+                      {saving ? '...' : 'Сохранить'}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

@@ -13,6 +13,7 @@ import { triggerTextRewrite } from './pipeline-text-rewrite'
 import { decideApprovePlan } from './approve-plan-decision'
 import textVersionsRouter from './text-versions'
 import { createStorySchema, resolveCreateStoryMode } from './create-story-schema'
+import { createAnnotationSchema } from './create-annotation-schema'
 import { analyzeStoryAndLearn } from './story-analysis'
 import { dispatchAnalysis } from './pipeline-dispatch'
 import { loadUniverseContext } from './load-universe-context'
@@ -84,15 +85,6 @@ const approvePlanSchema = z.object({
 
 const approveTextSchema = z.object({
   approved: z.boolean(),
-})
-
-const createAnnotationSchema = z.object({
-  type: z.enum(['sasha_reaction', 'my_note', 'sasha_laughed', 'sasha_loved', 'sasha_disliked']),
-  selected_text: z.string().min(1).optional(),
-  note_text: z.string().optional(),
-  position_start: z.number().int().nonnegative().optional(),
-  position_end: z.number().int().nonnegative().optional(),
-  context: z.enum(['plan', 'text']).optional(),
 })
 
 router.post('/', validate(createStorySchema), async (req, res) => {

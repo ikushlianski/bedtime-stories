@@ -1,6 +1,13 @@
 import type { Annotation, AnnotationType } from '../lib/api'
 
 export { annotationTypeLabel } from '../components/types'
+export {
+  SELECTED_TEXT_MAX_LENGTH,
+  NOTE_TEXT_MAX_LENGTH,
+  isSelectionWithinLimit,
+  isNoteTextWithinLimit,
+  SELECTION_TOO_LONG_MESSAGE,
+} from '../components/annotation-limits'
 
 export function sortAnnotationsByPosition(list: Annotation[]): Annotation[] {
   return [...list].sort((a, b) => {
