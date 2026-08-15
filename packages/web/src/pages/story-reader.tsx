@@ -518,6 +518,7 @@ setStoryTags((story.tags as string[] | null) ?? [])
             setShowRedoModal(false)
             navigate(`/stories/${storyId}/pipeline`)
           }}
+          requireInputs={false}
         />
       )}
 

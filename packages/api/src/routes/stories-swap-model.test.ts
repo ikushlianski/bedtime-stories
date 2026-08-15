@@ -4,26 +4,26 @@ import { z } from 'zod'
 const ORCHESTRATOR_STAGES = ['plotter', 'writer'] as const
 const REASON_CHIPS = ['too_verbose', 'too_short', 'broke_format', 'boring_prose', 'off_topic', 'repetitive', 'not_calm', 'weak_ending', 'too_slow', 'failed', 'other'] as const
 
-const swapModelSchema = z
-  .object({
-    stage: z.enum(ORCHESTRATOR_STAGES),
-    toModel: z.string().min(1),
-    reasonChip: z.enum(REASON_CHIPS).optional(),
-    reasonText: z.string().optional(),
-  })
-  .refine(
-    (v) => (v.reasonChip !== undefined && v.reasonChip.length > 0) || (v.reasonText !== undefined && v.reasonText.trim().length > 0),
-    { message: 'reasonChip or reasonText must be provided' },
-  )
+const swapModelSchema = z.object({
+  stage: z.enum(ORCHESTRATOR_STAGES),
+  toModel: z.string().min(1).optional(),
+  reasonChip: z.enum(REASON_CHIPS).optional(),
+  reasonText: z.string().optional(),
+})
 
 describe('swapModelSchema', () => {
-  it('rejects payload missing both reason_chip and reason_text', () => {
+  it('accepts payload missing both reason_chip and reason_text (plain redo, no reason given)', () => {
     const result = swapModelSchema.safeParse({ stage: 'plotter', toModel: 'm/x' })
-    expect(result.success).toBe(false)
+    expect(result.success).toBe(true)
   })
 
-  it('rejects when reason_text is whitespace-only and chip is absent', () => {
-    const result = swapModelSchema.safeParse({ stage: 'plotter', toModel: 'm/x', reasonText: '   ' })
+  it('accepts payload missing toModel and reason entirely (plain redo, keep current model)', () => {
+    const result = swapModelSchema.safeParse({ stage: 'writer' })
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects empty-string toModel', () => {
+    const result = swapModelSchema.safeParse({ stage: 'plotter', toModel: '' })
     expect(result.success).toBe(false)
   })
 

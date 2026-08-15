@@ -15,17 +15,12 @@ type OrchestratorStage = (typeof ORCHESTRATOR_STAGES)[number]
 
 const REASON_CHIPS = ['too_verbose', 'too_short', 'broke_format', 'boring_prose', 'off_topic', 'repetitive', 'not_calm', 'weak_ending', 'too_slow', 'failed', 'other'] as const
 
-const swapModelSchema = z
-  .object({
-    stage: z.enum(ORCHESTRATOR_STAGES),
-    toModel: z.string().min(1),
-    reasonChip: z.enum(REASON_CHIPS).optional(),
-    reasonText: z.string().optional(),
-  })
-  .refine(
-    (v) => (v.reasonChip !== undefined && v.reasonChip.length > 0) || (v.reasonText !== undefined && v.reasonText.trim().length > 0),
-    { message: 'reasonChip or reasonText must be provided' },
-  )
+const swapModelSchema = z.object({
+  stage: z.enum(ORCHESTRATOR_STAGES),
+  toModel: z.string().min(1).optional(),
+  reasonChip: z.enum(REASON_CHIPS).optional(),
+  reasonText: z.string().optional(),
+})
 
 const SNAPSHOT_MODEL_COLUMN: Record<OrchestratorStage, keyof typeof runSnapshots._.columns> = {
   plotter: 'plotterModel',
@@ -63,26 +58,27 @@ router.post('/', validate(swapModelSchema), async (req: Request<StoryParams>, re
       .limit(1)
 
     const fromModel = snapshot ? (snapshot[SNAPSHOT_MODEL_COLUMN[stage]] as string | null) : null
+    const requestedModel = body.toModel ?? null
+    const effectiveModel = requestedModel ?? fromModel
 
     const currentOverrides = (storyRow.agentOverrides as StageOverrides | null) ?? {}
-    const nextOverrides: StageOverrides = {
-      ...currentOverrides,
-      [stage]: { ...(currentOverrides[stage] ?? {}), model: body.toModel },
-    }
+    const nextOverrides: StageOverrides = requestedModel
+      ? { ...currentOverrides, [stage]: { ...(currentOverrides[stage] ?? {}), model: requestedModel } }
+      : currentOverrides
 
     await db.batch([
       db.insert(modelSwapEvents).values({
         storyId,
         stage,
         fromModel,
-        toModel: body.toModel,
+        toModel: effectiveModel,
         reasonChip: body.reasonChip ?? null,
         reasonText: body.reasonText ?? null,
       }),
       db.update(stories).set({ agentOverrides: nextOverrides }).where(eq(stories.id, storyId)),
     ])
 
-    console.log(`[swap] story_id=${storyId} stage=${stage} from=${fromModel ?? 'none'} to=${body.toModel} chip=${body.reasonChip ?? 'none'}`)
+    console.log(`[swap] story_id=${storyId} stage=${stage} from=${fromModel ?? 'none'} to=${effectiveModel ?? 'unchanged'} chip=${body.reasonChip ?? 'none'}`)
 
     const universeIds = await getStoryUniverseIds(storyId, storyRow.groupId)
     const { universeSystemPrompt, universeContext, styleGuide } = await loadUniverseContext(universeIds)
@@ -115,7 +111,7 @@ router.post('/', validate(swapModelSchema), async (req: Request<StoryParams>, re
       }
     })
 
-    res.status(201).json({ swapped: true, stage, fromModel, toModel: body.toModel })
+    res.status(201).json({ swapped: true, stage, fromModel, toModel: effectiveModel })
   } catch (err) {
     console.error('POST /stories/:id/swap-model failed:', err)
     res.status(500).json({ error: 'Failed to swap model' })

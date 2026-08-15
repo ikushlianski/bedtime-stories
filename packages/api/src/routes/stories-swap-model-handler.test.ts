@@ -149,4 +149,30 @@ describe('stories-swap-model handler', () => {
     expect(textPhase).toHaveBeenCalledTimes(1)
     expect(planRedo).not.toHaveBeenCalled()
   })
+
+  it('succeeds with neither model change nor reason given, leaving overrides untouched and keeping the prior model', async () => {
+    const handler = getPostHandler()
+    const req: FakeReq = {
+      params: { id: '7' },
+      body: { stage: 'writer' },
+    }
+    const res = makeRes()
+    await handler(req, res)
+
+    expect(res.statusCode).toBe(201)
+    expect(dbState.insertedSwap).toMatchObject({
+      storyId: 7,
+      stage: 'writer',
+      fromModel: 'old/write',
+      toModel: 'old/write',
+      reasonChip: null,
+      reasonText: null,
+    })
+    expect(dbState.updatedStoryPatch?.['agentOverrides']).toEqual({})
+    expect(res.body).toMatchObject({ swapped: true, stage: 'writer', fromModel: 'old/write', toModel: 'old/write' })
+
+    await new Promise((r) => setImmediate(r))
+    expect(textPhase).toHaveBeenCalledTimes(1)
+    expect(planRedo).not.toHaveBeenCalled()
+  })
 })

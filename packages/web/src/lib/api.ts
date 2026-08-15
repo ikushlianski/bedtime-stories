@@ -907,9 +907,9 @@ export const api = {
   swapModel: {
     submit: (
       storyId: number,
-      data: { stage: 'plotter' | 'writer'; toModel: string; reasonChip?: string; reasonText?: string },
+      data: { stage: 'plotter' | 'writer'; toModel?: string; reasonChip?: string; reasonText?: string },
     ) =>
-      request<{ swapped: boolean; stage: string; fromModel: string | null; toModel: string }>(
+      request<{ swapped: boolean; stage: string; fromModel: string | null; toModel: string | null }>(
         `/api/stories/${storyId}/swap-model`,
         { method: 'POST', body: JSON.stringify(data) },
       ),

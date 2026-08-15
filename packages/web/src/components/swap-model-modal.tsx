@@ -40,9 +40,10 @@ interface SwapModelModalProps {
   currentModel: string | null
   onClose: () => void
   onSubmitted: () => void
+  requireInputs?: boolean
 }
 
-export default function SwapModelModal({ open, storyId, stage, currentModel, onClose, onSubmitted }: SwapModelModalProps) {
+export default function SwapModelModal({ open, storyId, stage, currentModel, onClose, onSubmitted, requireInputs = true }: SwapModelModalProps) {
   const [categories, setCategories] = useState<ModelCategories>(EMPTY_MODEL_CATEGORIES)
   const [reuseModel, setReuseModel] = useState(true)
   const [toModel, setToModel] = useState('')
@@ -68,7 +69,7 @@ export default function SwapModelModal({ open, storyId, stage, currentModel, onC
 
   const effectiveModel = reuseModel ? (currentModel ?? '') : toModel
   const hasReason = reasonChip.length > 0 || reasonText.trim().length > 0
-  const canSubmit = effectiveModel.length > 0 && hasReason && !submitting
+  const canSubmit = !submitting && (!requireInputs || (effectiveModel.length > 0 && hasReason))
 
   async function handleSubmit() {
     if (!canSubmit) return
@@ -78,7 +79,7 @@ export default function SwapModelModal({ open, storyId, stage, currentModel, onC
     try {
       await api.swapModel.submit(storyId, {
         stage,
-        toModel: effectiveModel,
+        ...(effectiveModel ? { toModel: effectiveModel } : {}),
         ...(reasonChip ? { reasonChip } : {}),
         ...(reasonText.trim() ? { reasonText: reasonText.trim() } : {}),
       })
@@ -132,7 +133,7 @@ export default function SwapModelModal({ open, storyId, stage, currentModel, onC
           </>
         )}
 
-        <label className="label mt-4"><span className="label-text">Почему?</span></label>
+        <label className="label mt-4"><span className="label-text">Почему?{!requireInputs && ' (необязательно)'}</span></label>
         <div className="flex flex-wrap gap-2">
           {REASON_CHIPS.map((c) => (
             <button
