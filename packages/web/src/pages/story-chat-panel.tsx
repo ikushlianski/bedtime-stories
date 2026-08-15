@@ -48,25 +48,53 @@ function useStoryChat({ storyId, context, selectedText, selectedTextLineIndex }:
   const [lastBanked, setLastBanked] = useState(false)
 
   useEffect(() => {
+    let cancelled = false
+
     api.pipeline
       .conversations(storyId, context)
-      .then(setMessages)
+      .then((fetched) => {
+        if (cancelled) return
+
+        setMessages((prev) => {
+          const existingIds = new Set(prev.map((m) => m.id))
+          const merged = [...prev, ...fetched.filter((m) => !existingIds.has(m.id))]
+
+          return merged.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+        })
+      })
       .catch(() => undefined)
+
+    return () => {
+      cancelled = true
+    }
   }, [storyId, context])
 
-  const sendMessage = async (text: string) => {
+  const sendMessage = async (text: string): Promise<boolean> => {
+    const tempId = -Date.now()
+    const optimisticMessage: ConversationMessage = {
+      id: tempId,
+      storyId,
+      role: 'user',
+      content: text,
+      context,
+      createdAt: new Date().toISOString(),
+    }
+
     setThinking(true)
     setSendError(null)
     setLastBanked(false)
+    setMessages((prev) => [...prev, optimisticMessage])
 
     try {
       const result = await api.pipeline.sendConversationMessage(storyId, text, selectedText, context)
 
-      if (result.assistantMessage) {
-        setMessages((prev) => [...prev, result.userMessage, result.assistantMessage as ConversationMessage])
-      } else {
-        setMessages((prev) => [...prev, result.userMessage])
-      }
+      setMessages((prev) => {
+        const withoutOptimistic = prev.filter((m) => m.id !== tempId)
+
+        return result.assistantMessage
+          ? [...withoutOptimistic, result.userMessage, result.assistantMessage as ConversationMessage]
+          : [...withoutOptimistic, result.userMessage]
+      })
 
       if (result.banked) {
         setBankedCount((count) => count + 1)
@@ -83,8 +111,12 @@ function useStoryChat({ storyId, context, selectedText, selectedTextLineIndex }:
           messageId: result.assistantMessage.id,
         })
       }
+
+      return true
     } catch (err) {
+      setMessages((prev) => prev.filter((m) => m.id !== tempId))
       setSendError(err instanceof Error ? err.message : 'Не удалось отправить сообщение')
+      return false
     } finally {
       setThinking(false)
     }
@@ -133,7 +165,9 @@ function MutableChatPanel({ storyId, context, selectedText, selectedTextLineInde
     if (!text || thinking || !isNoteTextWithinLimit(text)) return
 
     setInput('')
-    void sendMessage(text)
+    void sendMessage(text).then((success) => {
+      if (!success) setInput(text)
+    })
   }
 
   const handleApplyPatch = async () => {
@@ -179,7 +213,7 @@ function MutableChatPanel({ storyId, context, selectedText, selectedTextLineInde
 
   return (
     <section className="card border border-base-300 bg-base-100 shadow-sm">
-      <div className="card-body gap-4">
+      <div className="card-body gap-3 p-4">
         <div className="flex items-center justify-between">
           <h2 className="font-serif text-2xl text-base-content">{title}</h2>
           {onClose && (
@@ -190,19 +224,19 @@ function MutableChatPanel({ storyId, context, selectedText, selectedTextLineInde
         </div>
 
         {selectedText && (
-          <div className="rounded-lg border border-secondary/30 bg-secondary/5 px-4 py-3">
+          <div className="rounded-lg border border-secondary/30 bg-secondary/5 px-3 py-2">
             <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-secondary/70">Выделенный фрагмент</p>
             <p className="line-clamp-3 text-sm italic text-base-content/60">&ldquo;{selectedText}&rdquo;</p>
           </div>
         )}
 
         {bankedCount > 0 && (
-          <div className="rounded-lg border border-info/30 bg-info/5 px-4 py-2 text-xs text-info-content">
-            Сохранено комментариев для следующей переработки: {bankedCount}
-          </div>
+          <p className="text-xs text-info">
+            ✓ Сохранено комментариев для следующей переработки: {bankedCount}
+          </p>
         )}
 
-        <div ref={scrollRef} className="flex max-h-96 flex-col gap-3 overflow-y-auto rounded-lg bg-base-200 p-4">
+        <div ref={scrollRef} className="flex max-h-96 flex-col gap-2 overflow-y-auto rounded-lg bg-base-200 p-3">
           {messages.length === 0 && !lastBanked && (
             <p className="text-sm text-base-content/50">{emptyHint}</p>
           )}
@@ -216,7 +250,7 @@ function MutableChatPanel({ storyId, context, selectedText, selectedTextLineInde
             return (
               <div key={msg.id} className="flex flex-col gap-2">
                 <div
-                  className={`max-w-[85%] rounded-lg px-4 py-2 text-sm ${
+                  className={`max-w-[85%] rounded-lg px-3 py-1.5 text-sm ${
                     msg.role === 'user'
                       ? 'self-end bg-primary text-primary-content'
                       : 'self-start bg-base-100 text-base-content'
@@ -226,12 +260,12 @@ function MutableChatPanel({ storyId, context, selectedText, selectedTextLineInde
                 </div>
 
                 {parsed && patchOriginal && isPatch && (
-                  <div className="self-start ml-0 w-full max-w-[85%] rounded-lg border border-success/30 bg-success/5 px-4 py-3">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-success/70">Предлагаемая замена</p>
-                    <div className="mb-3">
+                  <div className="self-start ml-0 w-full max-w-[85%] rounded-lg border border-success/30 bg-success/5 px-3 py-2">
+                    <p className="mb-1.5 text-xs font-semibold uppercase tracking-widest text-success">Предлагаемая замена</p>
+                    <div className="mb-2">
                       <PatchDiffView original={patchOriginal} patched={parsed.patch} />
                     </div>
-                    <p className="mb-3 text-xs italic text-base-content/50">{parsed.summary}</p>
+                    <p className="mb-2 text-xs italic text-base-content/50">{parsed.summary}</p>
                     {applyError && <p className="mb-2 text-xs text-error">{applyError}</p>}
                     <button
                       className="btn btn-success btn-sm"
@@ -247,13 +281,12 @@ function MutableChatPanel({ storyId, context, selectedText, selectedTextLineInde
           })}
 
           {lastBanked && (
-            <div className="self-start rounded-lg border border-info/30 bg-info/5 px-4 py-2 text-sm text-info-content">
-              Сохранено — попадёт в следующую переработку.
-            </div>
+            <p className="self-start text-xs text-info">✓ Сохранено — попадёт в следующую переработку.</p>
           )}
 
           {thinking && (
-            <div className="self-start rounded-lg bg-base-100 px-4 py-2 text-sm text-base-content/60">
+            <div className="self-start flex items-center gap-2 rounded-lg bg-base-100 px-3 py-1.5 text-sm text-base-content/70">
+              <span className="loading loading-dots loading-xs" />
               Думаю...
             </div>
           )}

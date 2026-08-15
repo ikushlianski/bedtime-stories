@@ -317,7 +317,7 @@ export function TextReviewPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
         <section className="card border border-base-300 bg-base-100 shadow-sm">
-          <div className="card-body gap-6 lg:gap-4 lg:p-6">
+          <div className="card-body gap-5 lg:gap-3 lg:p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="font-serif text-3xl text-base-content">Текст истории</h2>
 

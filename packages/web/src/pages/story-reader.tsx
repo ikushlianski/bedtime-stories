@@ -139,8 +139,8 @@ function StoryText({
   }, [onSelection, resolvedRef])
 
   const sizeClasses = compact
-    ? 'p-8 text-xl lg:p-6 lg:text-lg'
-    : 'p-8 text-xl'
+    ? 'p-5 text-lg lg:p-4 lg:text-base'
+    : 'p-6 text-xl'
 
   if (editable) {
     return (

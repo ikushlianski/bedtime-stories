@@ -6,8 +6,8 @@ interface PatchDiffViewProps {
 }
 
 const segmentStyle: Record<'added' | 'removed' | 'unchanged', string> = {
-  added: 'bg-success/20 text-success-content underline decoration-success',
-  removed: 'bg-error/20 text-error-content line-through decoration-error',
+  added: 'bg-success/20 text-success underline decoration-success',
+  removed: 'bg-error/20 text-error line-through decoration-error',
   unchanged: '',
 }
 
