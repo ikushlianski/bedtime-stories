@@ -43,11 +43,12 @@ export function triggerPlanRedo(
   const primaryUniverseId = universeIds[0] ?? null
 
   withPipelineTrace(String(storyId), async () => {
-    const [feedback, models, ctx] = await Promise.all([
+    const [feedback, resolvedModels, ctx] = await Promise.all([
       gatherRedoFeedback({ storyId, context: 'plan', reason, universeId: primaryUniverseId }),
       loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(primaryUniverseId, overrides)),
       loadUniverseContext(universeIds),
     ])
+    const { models, fallbacks } = resolvedModels
 
     if (modelOverride) {
       models.plotter = modelOverride
@@ -62,6 +63,7 @@ export function triggerPlanRedo(
       seed,
       storyId,
       models,
+      fallbacks,
       promptVersions: defaultPromptVersions,
       ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
       ...(universeContext !== undefined ? { universeContext } : {}),

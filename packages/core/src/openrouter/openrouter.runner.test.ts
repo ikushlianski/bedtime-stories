@@ -263,6 +263,76 @@ describe('OpenRouterRunner.runText with tools', () => {
     expect(executeTool).toHaveBeenCalledTimes(3)
   })
 
+  it('falls back to the configured fallback model when the primary model times out mid tool-loop', async () => {
+    const recorder = makeRecorder()
+    let call = 0
+    const chatNonStream = vi.fn(async (req: { model: string }) => {
+      call++
+
+      if (call === 1) {
+        throw new Error('OpenRouter request exceeded timeout of 180000ms')
+      }
+
+      expect(req.model).toBe('m/fallback')
+
+      return {
+        text: 'final outline from fallback',
+        usage: { promptTokens: 12, completionTokens: 6, costUsd: 0.0004 },
+      }
+    })
+
+    const client = {
+      chatStream: vi.fn(),
+      chatNonStream,
+      listModels: vi.fn(),
+    } as unknown as OpenRouterClient
+
+    const runner = new OpenRouterRunner(client, recorder)
+    const executeTool = vi.fn()
+
+    const result = await runner.runText({
+      model: 'm/plotter',
+      fallback: 'm/fallback',
+      prompt: 'plan a story',
+      tools: [tool],
+      executeTool,
+    })
+
+    expect(result).toBe('final outline from fallback')
+    expect(chatNonStream).toHaveBeenCalledTimes(2)
+    expect(chatNonStream.mock.calls[0]?.[0]).toMatchObject({ model: 'm/plotter' })
+    expect(chatNonStream.mock.calls[1]?.[0]).toMatchObject({ model: 'm/fallback' })
+    expect(recorder.calls[0]).toMatchObject({ modelId: 'm/plotter', success: false, fallbackUsed: false })
+    expect(recorder.calls[1]).toMatchObject({ modelId: 'm/fallback', success: true, fallbackUsed: true })
+  })
+
+  it('rethrows without retrying when there is no fallback configured for the tool-loop path', async () => {
+    const recorder = makeRecorder()
+    const chatNonStream = vi.fn(async () => {
+      throw new Error('OpenRouter request exceeded timeout of 180000ms')
+    })
+
+    const client = {
+      chatStream: vi.fn(),
+      chatNonStream,
+      listModels: vi.fn(),
+    } as unknown as OpenRouterClient
+
+    const runner = new OpenRouterRunner(client, recorder)
+    const executeTool = vi.fn()
+
+    await expect(
+      runner.runText({
+        model: 'm/plotter',
+        prompt: 'plan a story',
+        tools: [tool],
+        executeTool,
+      }),
+    ).rejects.toThrow('exceeded timeout')
+
+    expect(chatNonStream).toHaveBeenCalledTimes(1)
+  })
+
   it('feeds a structured error back to the model instead of throwing when executeTool rejects', async () => {
     const recorder = makeRecorder()
     const chatNonStream = vi

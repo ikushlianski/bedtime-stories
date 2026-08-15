@@ -50,10 +50,11 @@ router.post('/', validate(createSeriesSchema), async (req, res) => {
         resolvePipelineModels(groupId ?? null, null),
         loadEligibleFragments(groupId !== undefined ? [groupId] : []),
       ])
+      const { models } = resolvedModels
 
       const resolvedPlans = await runPlotterSeries({
         seed,
-        model: resolvedModels.plotter,
+        model: models.plotter,
         ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
         ...(universeContext !== undefined ? { universeContext } : {}),
         ...(styleGuide !== undefined ? { styleGuide } : {}),
@@ -62,7 +63,7 @@ router.post('/', validate(createSeriesSchema), async (req, res) => {
         ...(bibleCharacters.length > 0 ? { bibleCharacters } : {}),
       })
 
-      return { plans: resolvedPlans, models: resolvedModels, eligibleFragments }
+      return { plans: resolvedPlans, models, eligibleFragments }
     })
 
     const seriesId = randomUUID()

@@ -25,10 +25,11 @@ export function triggerTextRewrite(
   const primaryUniverseId = universeIds[0] ?? null
 
   withPipelineTraceIfNone(String(storyId), async () => {
-    const [feedback, models] = await Promise.all([
+    const [feedback, resolvedModels] = await Promise.all([
       gatherRedoFeedback({ storyId, context: 'text', reason, universeId: primaryUniverseId, activeTextVersionId }),
       loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(primaryUniverseId, overrides)),
     ])
+    const { models, fallbacks } = resolvedModels
 
     if (modelOverride) {
       models.writer = modelOverride
@@ -50,6 +51,7 @@ export function triggerTextRewrite(
       planFinal,
       storyId,
       models,
+      fallbacks,
       promptVersions: defaultPromptVersions,
       ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
       ...(universeContext !== undefined ? { universeContext } : {}),

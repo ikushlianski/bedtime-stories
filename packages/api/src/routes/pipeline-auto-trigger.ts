@@ -40,11 +40,12 @@ export async function runAutoPipeline(params: AutoPipelineParams): Promise<void>
     let effectiveStyleGuide: string | undefined
 
     try {
-      const [sasha, models, enrichedContext] = await Promise.all([
+      const [sasha, resolvedModels, enrichedContext] = await Promise.all([
         synthesizeSashaContext(),
         loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(primaryUniverseId, overrides)),
         loadUniverseContext(universeIds),
       ])
+      const { models, fallbacks } = resolvedModels
 
       sashaContext = sasha
       effectiveSystemPrompt = enrichedContext?.universeSystemPrompt ?? universeSystemPrompt
@@ -56,6 +57,7 @@ export async function runAutoPipeline(params: AutoPipelineParams): Promise<void>
         seed,
         storyId,
         models,
+        fallbacks,
         promptVersions: defaultPromptVersions,
         universeIds,
         injectFragments: true,

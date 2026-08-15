@@ -29,11 +29,12 @@ export function triggerTextRedoWithAnnotations(
   const primaryUniverseId = universeIds[0] ?? null
 
   withPipelineTrace(String(storyId), async () => {
-    const [sashaContext, models, ctx] = await Promise.all([
+    const [sashaContext, resolvedModels, ctx] = await Promise.all([
       synthesizeSashaContext(),
       loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(primaryUniverseId, overrides)),
       loadUniverseContext(universeIds),
     ])
+    const { models, fallbacks } = resolvedModels
 
     const bibleCharacters = ctx?.bibleCharacters ?? []
 
@@ -41,6 +42,7 @@ export function triggerTextRedoWithAnnotations(
       seed: seedWithContext,
       storyId,
       models,
+      fallbacks,
       promptVersions: defaultPromptVersions,
       ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
       ...(universeContext !== undefined ? { universeContext } : {}),
@@ -60,6 +62,7 @@ export function triggerTextRedoWithAnnotations(
       planFinal: plan.planFinal,
       storyId,
       models,
+      fallbacks,
       promptVersions: defaultPromptVersions,
       ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
       ...(universeContext !== undefined ? { universeContext } : {}),

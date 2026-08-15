@@ -5,6 +5,7 @@ export async function runPlotCritic(options: {
   plan: string
   iterationNumber: number
   model: string
+  fallback?: string
   universeSystemPrompt?: string
   universeContext?: string
   styleGuide?: string
@@ -13,6 +14,7 @@ export async function runPlotCritic(options: {
 }): Promise<CriticOutput> {
   const { plan, iterationNumber, model } = options
   const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
+  const fallbackArg = options.fallback !== undefined ? { fallback: options.fallback } : {}
 
   const sashaContextBlock = options.sashaContext
     ? `\n\n---\nКОНТЕКСТ САШИ (используй для вдохновения, не копируй буквально):\n${options.sashaContext}\n---\n`
@@ -41,5 +43,6 @@ export async function runPlotCritic(options: {
     prompt,
     outputSchema: CriticOutputSchema,
     ...cwdArg,
+    ...fallbackArg,
   })
 }

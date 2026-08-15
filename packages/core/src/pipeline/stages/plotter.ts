@@ -94,6 +94,7 @@ export async function runPlotter(options: {
   criticNotes?: CriticOutput
   userFeedback?: string
   model: string
+  fallback?: string
   resolvedPrompt?: ResolvedPrompt
   universeSystemPrompt?: string
   universeContext?: string
@@ -220,6 +221,8 @@ export async function runPlotter(options: {
         }
       : {}
 
+  const fallbackArg = options.fallback !== undefined ? { fallback: options.fallback } : {}
+
   return aiRunner.runText({
     model,
     prompt,
@@ -229,5 +232,6 @@ export async function runPlotter(options: {
     ...cwdArg,
     ...storyIdArg,
     ...toolsArg,
+    ...fallbackArg,
   })
 }

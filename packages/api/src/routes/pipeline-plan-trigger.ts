@@ -47,15 +47,17 @@ export function triggerPlanPhaseFromAnswers(
   const primaryUniverseId = universeIds[0] ?? null
 
   withPipelineTrace(String(storyId), async () => {
-    const [sashaContext, models] = await Promise.all([
+    const [sashaContext, resolvedModels] = await Promise.all([
       synthesizeSashaContext(),
       loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(primaryUniverseId, overrides)),
     ])
+    const { models, fallbacks } = resolvedModels
 
     const result = await runPlotterOnly({
       seed: seedWithAnswers,
       storyId,
       models,
+      fallbacks,
       promptVersions: defaultPromptVersions,
       universeIds,
       injectFragments: true,

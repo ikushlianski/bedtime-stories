@@ -15,6 +15,7 @@ export type PlotterQuestionItem = z.infer<typeof PlotterQuestionItemSchema>
 export async function runPlotterQuestions(options: {
   seed: string
   model: string
+  fallback?: string
   universeSystemPrompt?: string
   sashaContext?: string | null
   cwd?: string
@@ -23,6 +24,7 @@ export async function runPlotterQuestions(options: {
   const { seed, model } = options
   const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
   const storyIdArg = options.storyId !== undefined ? { storyId: options.storyId } : {}
+  const fallbackArg = options.fallback !== undefined ? { fallback: options.fallback } : {}
 
   const sashaContextBlock = options.sashaContext
     ? `\n\n---\nКОНТЕКСТ САШИ (используй для вдохновения, не копируй буквально):\n${options.sashaContext}\n---\n`
@@ -43,6 +45,7 @@ export async function runPlotterQuestions(options: {
     stage: 'plotterQuestions',
     ...cwdArg,
     ...storyIdArg,
+    ...fallbackArg,
   })
 
   return result.questions

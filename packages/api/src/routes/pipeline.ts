@@ -5,6 +5,7 @@ import { validate } from '../middleware/validate'
 import {
   runQuestionsPhase,
   type PipelineModels,
+  type PipelineModelFallbacks,
   type PipelinePromptVersions,
 } from '@bedtime/core/pipeline/orchestrator'
 import { synthesizeSashaContext } from '@bedtime/core/pipeline/feedback-synthesizer'
@@ -28,7 +29,7 @@ export { toPublicStatus, type PipelineInternalStatus, type PublicPipelineStatus 
 export { getPipelineStatus, setPipelineStatus }
 export { defaultModels, defaultPromptVersions }
 export { triggerTextPhase }
-export type { PipelineModels, PipelinePromptVersions }
+export type { PipelineModels, PipelineModelFallbacks, PipelinePromptVersions }
 
 const router = Router()
 
@@ -108,12 +109,13 @@ router.post('/run', validate(runPipelineSchema), async (req, res) => {
         synthesizeSashaContext(),
         loadStoryOverrides(storyId),
       ])
-      const questionModels = await resolvePipelineModels(storyRow.groupId ?? null, storyOverrides)
+      const { models: questionModels, fallbacks: questionFallbacks } = await resolvePipelineModels(storyRow.groupId ?? null, storyOverrides)
 
       const questions = await runQuestionsPhase({
         seed,
         storyId,
         models: questionModels,
+        fallbacks: questionFallbacks,
         ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
         ...(universeContext !== undefined ? { universeContext } : {}),
         ...(sashaContext !== null ? { sashaContext } : {}),

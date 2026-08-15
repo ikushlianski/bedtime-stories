@@ -60,7 +60,7 @@ export async function runTextPhaseDurable(params: TextPhaseParams): Promise<void
         : isNull(annotations.textVersionId)
       : undefined
 
-    const [rows, models, exemplars] = await Promise.all([
+    const [rows, resolvedModels, exemplars] = await Promise.all([
       db
         .select({ selectedText: annotations.selectedText, noteText: annotations.noteText })
         .from(annotations)
@@ -68,6 +68,7 @@ export async function runTextPhaseDurable(params: TextPhaseParams): Promise<void
       loadStoryOverrides(storyId).then((overrides) => resolvePipelineModels(primaryUniverseId, overrides)),
       isRetry ? Promise.resolve([]) : loadRandomExemplars(universeIds, 2),
     ])
+    const { models, fallbacks } = resolvedModels
 
     const userAnnotations = rows
       .filter((a) => a.noteText)
@@ -96,6 +97,7 @@ export async function runTextPhaseDurable(params: TextPhaseParams): Promise<void
       planFinal,
       storyId,
       models,
+      fallbacks,
       promptVersions: defaultPromptVersions,
       ...(universeSystemPrompt !== undefined ? { universeSystemPrompt } : {}),
       ...(universeContext !== undefined ? { universeContext } : {}),

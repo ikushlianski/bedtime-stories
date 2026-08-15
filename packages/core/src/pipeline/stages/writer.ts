@@ -35,6 +35,7 @@ export async function runWriter(options: {
   previousText?: string
   criticNotes?: CriticOutput
   model: string
+  fallback?: string
   resolvedPrompt?: ResolvedPrompt
   universeSystemPrompt?: string
   universeContext?: string
@@ -150,6 +151,7 @@ export async function runWriter(options: {
   const onChunkResetArg = options.onChunkReset !== undefined ? { onChunkReset: options.onChunkReset } : {}
 
   const storyIdArg = options.storyId !== undefined ? { storyId: options.storyId } : {}
+  const fallbackArg = options.fallback !== undefined ? { fallback: options.fallback } : {}
 
-  return aiRunner.runText({ model, prompt, label: `writer:v${resolved.version}`, stage: 'writer', temperature: WRITER_TEMPERATURE, ...cwdArg, ...onChunkArg, ...onChunkResetArg, ...storyIdArg })
+  return aiRunner.runText({ model, prompt, label: `writer:v${resolved.version}`, stage: 'writer', temperature: WRITER_TEMPERATURE, ...cwdArg, ...onChunkArg, ...onChunkResetArg, ...storyIdArg, ...fallbackArg })
 }

@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm'
-import type { PipelineModels, PipelinePromptVersions } from '@bedtime/core/pipeline/orchestrator'
+import type { PipelineModels, PipelineModelFallbacks, PipelinePromptVersions } from '@bedtime/core/pipeline/orchestrator'
 import { db } from '@bedtime/core/db/client'
 import { storyGroups, stories, appSettings } from '@bedtime/core/db/schema'
 import { derivePerStageModels, type StageOverrides, type PerStageModels } from '@bedtime/core/pipeline/derivers/per-stage-models'
@@ -23,6 +23,14 @@ export const defaultModels: PipelineModels = {
   writer: DEFAULT_STAGE_MODELS.writer.model,
   writerCritic: DEFAULT_STAGE_MODELS.writerCritic.model,
   plotterQuestions: DEFAULT_STAGE_MODELS.plotterQuestions.model,
+}
+
+export const defaultModelFallbacks: PipelineModelFallbacks = {
+  plotter: DEFAULT_STAGE_MODELS.plotter.fallback,
+  plotCritic: DEFAULT_STAGE_MODELS.plotCritic.fallback,
+  writer: DEFAULT_STAGE_MODELS.writer.fallback,
+  writerCritic: DEFAULT_STAGE_MODELS.writerCritic.fallback,
+  plotterQuestions: DEFAULT_STAGE_MODELS.plotterQuestions.fallback,
 }
 
 export const defaultPromptVersions: PipelinePromptVersions = {
@@ -54,7 +62,7 @@ async function loadEffectiveDefaults(): Promise<PerStageModels> {
 export async function resolvePipelineModels(
   universeId: number | null,
   perStoryOverrides: StageOverrides | null = null,
-): Promise<PipelineModels> {
+): Promise<{ models: PipelineModels; fallbacks: PipelineModelFallbacks }> {
   const [universeRow, effectiveDefaults] = await Promise.all([
     universeId !== null
       ? db.select({ agentOverrides: storyGroups.agentOverrides }).from(storyGroups).where(eq(storyGroups.id, universeId)).limit(1)
@@ -71,10 +79,19 @@ export async function resolvePipelineModels(
   })
 
   return {
-    plotter: resolved.plotter.model,
-    plotCritic: resolved.plotCritic.model,
-    writer: resolved.writer.model,
-    writerCritic: resolved.writerCritic.model,
-    plotterQuestions: resolved.plotterQuestions.model,
+    models: {
+      plotter: resolved.plotter.model,
+      plotCritic: resolved.plotCritic.model,
+      writer: resolved.writer.model,
+      writerCritic: resolved.writerCritic.model,
+      plotterQuestions: resolved.plotterQuestions.model,
+    },
+    fallbacks: {
+      plotter: resolved.plotter.fallback,
+      plotCritic: resolved.plotCritic.fallback,
+      writer: resolved.writer.fallback,
+      writerCritic: resolved.writerCritic.fallback,
+      plotterQuestions: resolved.plotterQuestions.fallback,
+    },
   }
 }

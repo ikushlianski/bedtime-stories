@@ -23,6 +23,14 @@ export interface PipelineModels {
   plotterQuestions: string
 }
 
+export interface PipelineModelFallbacks {
+  plotter?: string
+  plotCritic?: string
+  writer?: string
+  writerCritic?: string
+  plotterQuestions?: string
+}
+
 export interface PipelinePromptVersions {
   plotter: number
   plotCritic: number
@@ -80,6 +88,7 @@ export async function runPlanPhase(options: {
   seed: string
   storyId: number
   models: PipelineModels
+  fallbacks?: PipelineModelFallbacks
   promptVersions: PipelinePromptVersions
   universeSystemPrompt?: string
   universeContext?: string
@@ -138,6 +147,8 @@ export async function runPlanPhase(options: {
   const bibleArg = options.bibleCharacters && options.bibleCharacters.length > 0 ? { bibleCharacters: options.bibleCharacters } : {}
   const memorableMomentsArg = memorableMoments.length > 0 ? { memorableMoments } : {}
 
+  const plotterFallbackArg = options.fallbacks?.plotter !== undefined ? { fallback: options.fallbacks.plotter } : {}
+
   notify('Plotter')
   const planRaw = await runPlotter({
     seed,
@@ -157,6 +168,7 @@ export async function runPlanPhase(options: {
     ...memorableMomentsArg,
     ...userFeedbackArg,
     ...storyIdArg,
+    ...plotterFallbackArg,
     universeId: universeIds[0] ?? null,
   })
 
@@ -198,6 +210,7 @@ export async function runTextPhase(options: {
   planFinal: string
   storyId: number
   models: PipelineModels
+  fallbacks?: PipelineModelFallbacks
   promptVersions: PipelinePromptVersions
   universeSystemPrompt?: string
   universeContext?: string
@@ -247,6 +260,8 @@ export async function runTextPhase(options: {
   ])
   const memorableMomentsArg = memorableMoments.length > 0 ? { memorableMoments } : {}
 
+  const writerFallbackArg = options.fallbacks?.writer !== undefined ? { fallback: options.fallbacks.writer } : {}
+
   notify('Writer')
   const textV1 = await runWriter({
     plan: planFinal,
@@ -262,6 +277,7 @@ export async function runTextPhase(options: {
     ...exemplarsArg,
     ...memorableMomentsArg,
     ...storyIdArg,
+    ...writerFallbackArg,
   })
 
   return {
@@ -277,6 +293,7 @@ export async function runPlotterOnly(options: {
   seed: string
   storyId: number
   models: PipelineModels
+  fallbacks?: PipelineModelFallbacks
   promptVersions: PipelinePromptVersions
   universeSystemPrompt?: string
   universeContext?: string
@@ -327,6 +344,8 @@ export async function runPlotterOnly(options: {
   const bibleArg = options.bibleCharacters && options.bibleCharacters.length > 0 ? { bibleCharacters: options.bibleCharacters } : {}
   const memorableMomentsArg = memorableMoments.length > 0 ? { memorableMoments } : {}
 
+  const plotterFallbackArg = options.fallbacks?.plotter !== undefined ? { fallback: options.fallbacks.plotter } : {}
+
   notify('Plotter')
   const planRaw = await runPlotter({
     seed,
@@ -346,6 +365,7 @@ export async function runPlotterOnly(options: {
     ...memorableMomentsArg,
     ...userFeedbackArg,
     ...storyIdArg,
+    ...plotterFallbackArg,
     universeId: universeIds[0] ?? null,
   })
 
@@ -384,6 +404,7 @@ export async function runWriterOnly(options: {
   planFinal: string
   storyId: number
   models: PipelineModels
+  fallbacks?: PipelineModelFallbacks
   promptVersions: PipelinePromptVersions
   universeSystemPrompt?: string
   universeContext?: string
@@ -430,6 +451,8 @@ export async function runWriterOnly(options: {
   ])
   const memorableMomentsArg = memorableMoments.length > 0 ? { memorableMoments } : {}
 
+  const writerFallbackArg = options.fallbacks?.writer !== undefined ? { fallback: options.fallbacks.writer } : {}
+
   notify('Writer')
   const textV1 = await runWriter({
     plan: planFinal,
@@ -451,6 +474,7 @@ export async function runWriterOnly(options: {
     ...onChunkArg,
     ...onChunkResetArg,
     ...storyIdArg,
+    ...writerFallbackArg,
   })
 
   const wordMarker = extractWordMarkers(textV1, options.targetWords ?? [])
@@ -465,6 +489,7 @@ export async function runAnnotatedRewrite(options: {
   planFinal: string
   storyId: number
   models: PipelineModels
+  fallbacks?: PipelineModelFallbacks
   promptVersions: PipelinePromptVersions
   userAnnotations?: string
   universeSystemPrompt?: string
@@ -496,6 +521,7 @@ export async function runAnnotatedRewrite(options: {
   notify('Writer')
 
   const storyIdArg = { storyId: options.storyId }
+  const writerFallbackArg = options.fallbacks?.writer !== undefined ? { fallback: options.fallbacks.writer } : {}
 
   const structureChoice = await resolveStoryStructureChoice(options.storyId)
 
@@ -515,6 +541,7 @@ export async function runAnnotatedRewrite(options: {
     ...onChunkArg,
     ...onChunkResetArg,
     ...storyIdArg,
+    ...writerFallbackArg,
   })
 
   return { textV2, models, promptVersions: resolvedVersions }
@@ -524,6 +551,7 @@ export async function runQuestionsPhase(options: {
   seed: string
   storyId: number
   models: PipelineModels
+  fallbacks?: PipelineModelFallbacks
   universeSystemPrompt?: string
   universeContext?: string
   sashaContext?: string | null
@@ -541,6 +569,9 @@ export async function runQuestionsPhase(options: {
     const sashaContextArg = options.sashaContext !== undefined && options.sashaContext !== null
       ? { sashaContext: options.sashaContext }
       : {}
+    const plotterQuestionsFallbackArg = options.fallbacks?.plotterQuestions !== undefined
+      ? { fallback: options.fallbacks.plotterQuestions }
+      : {}
 
     return runPlotterQuestions({
       seed,
@@ -550,6 +581,7 @@ export async function runQuestionsPhase(options: {
       ...universeArg,
       ...universeContextArg,
       ...sashaContextArg,
+      ...plotterQuestionsFallbackArg,
     })
   })
 }
@@ -558,6 +590,7 @@ export async function runPipeline(options: {
   seed: string
   storyId: number
   models: PipelineModels
+  fallbacks?: PipelineModelFallbacks
   promptVersions: PipelinePromptVersions
   universeSystemPrompt?: string
   universeContext?: string
@@ -576,6 +609,7 @@ export async function runPipeline(options: {
       storyId: options.storyId,
       models: options.models,
       promptVersions: options.promptVersions,
+      ...(options.fallbacks !== undefined ? { fallbacks: options.fallbacks } : {}),
       ...(options.universeSystemPrompt !== undefined ? { universeSystemPrompt: options.universeSystemPrompt } : {}),
       ...(options.universeContext !== undefined ? { universeContext: options.universeContext } : {}),
       ...(options.styleGuide !== undefined ? { styleGuide: options.styleGuide } : {}),

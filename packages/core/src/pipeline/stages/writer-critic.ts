@@ -5,6 +5,7 @@ export async function runWriterCritic(options: {
   textV1: string
   finalPlan: string
   model: string
+  fallback?: string
   universeSystemPrompt?: string
   universeContext?: string
   styleGuide?: string
@@ -14,6 +15,7 @@ export async function runWriterCritic(options: {
 }): Promise<CriticOutput> {
   const { textV1, finalPlan, model } = options
   const cwdArg = options.cwd !== undefined ? { cwd: options.cwd } : {}
+  const fallbackArg = options.fallback !== undefined ? { fallback: options.fallback } : {}
 
   if (options.userAnnotations) {
     console.log(`[WRITER-CRITIC] received ${options.userAnnotations.split('\n\n').filter(Boolean).length} annotation(s) from editor — will include in critique`)
@@ -52,5 +54,6 @@ export async function runWriterCritic(options: {
     prompt,
     outputSchema: CriticOutputSchema,
     ...cwdArg,
+    ...fallbackArg,
   })
 }

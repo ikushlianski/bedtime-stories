@@ -104,7 +104,7 @@ export class OpenRouterRunner implements AiRunner {
 
   async runText(options: RunTextOptions): Promise<string> {
     if (options.tools !== undefined && options.tools.length > 0 && options.executeTool !== undefined) {
-      return this.runTextWithTools(options, options.tools, options.executeTool)
+      return this.runTextWithToolsAndFallback(options, options.tools, options.executeTool)
     }
 
     const label = options.label ?? 'runText'
@@ -216,10 +216,46 @@ export class OpenRouterRunner implements AiRunner {
     throw lastErr ?? new AiExecutionError('no candidates available')
   }
 
+  private async runTextWithToolsAndFallback(
+    options: RunTextOptions,
+    tools: NonNullable<RunTextOptions['tools']>,
+    executeTool: NonNullable<RunTextOptions['executeTool']>,
+  ): Promise<string> {
+    const label = options.label ?? 'runText'
+    const candidates = options.fallback !== undefined ? [options.model, options.fallback] : [options.model]
+    let lastErr: unknown
+
+    for (let i = 0; i < candidates.length; i++) {
+      const model = candidates[i]!
+      const fallbackUsed = i > 0
+
+      if (fallbackUsed) {
+        console.warn(`[ai] fallback activated label=${label} from-model=${candidates[0]} to-model=${model} reason=${(lastErr as Error)?.message ?? 'unknown'}`)
+        options.onChunkReset?.()
+      }
+
+      try {
+        return await this.runTextWithTools({ ...options, model }, tools, executeTool, fallbackUsed)
+      } catch (err) {
+        lastErr = err
+
+        if (i + 1 < candidates.length && isRetryable(err)) {
+          console.warn(`[ai] ${label} tool-loop retryable failure model=${model}, switching to fallback:`, err)
+          continue
+        }
+
+        throw err
+      }
+    }
+
+    throw lastErr ?? new AiExecutionError('no candidates available')
+  }
+
   private async runTextWithTools(
     options: RunTextOptions,
     tools: NonNullable<RunTextOptions['tools']>,
     executeTool: NonNullable<RunTextOptions['executeTool']>,
+    fallbackUsed = false,
   ): Promise<string> {
     const label = options.label ?? 'runText'
     const stage = options.stage ?? deriveStage(options.label, undefined)
@@ -260,7 +296,7 @@ export class OpenRouterRunner implements AiRunner {
           stage,
           modelId: model,
           attempt: iteration,
-          fallbackUsed: false,
+          fallbackUsed,
           tokensIn: 0,
           tokensOut: 0,
           usd: 0,
@@ -280,7 +316,7 @@ export class OpenRouterRunner implements AiRunner {
         stage,
         modelId: model,
         attempt: iteration,
-        fallbackUsed: false,
+        fallbackUsed,
         tokensIn: response.usage.promptTokens,
         tokensOut: response.usage.completionTokens,
         usd: response.usage.costUsd,

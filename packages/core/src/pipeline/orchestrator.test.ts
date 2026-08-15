@@ -77,6 +77,7 @@ const baseModels = {
   plotCritic: 'claude-haiku-4-5-20251001',
   writer: 'claude-sonnet-4-6',
   writerCritic: 'claude-haiku-4-5-20251001',
+  plotterQuestions: 'claude-haiku-4-5-20251001',
 }
 
 const baseVersions = {
@@ -314,6 +315,72 @@ describe('runPipeline (legacy one-shot, plan + text)', () => {
     expect(result.planFinal).toBe('plan-v1')
     expect(result.textV1).toBe('text-v1')
     expect(result.textV2).toBe('text-v1')
+  })
+})
+
+describe('model fallback propagation', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('passes the resolved plotter fallback into runPlotter for runPlanPhase', async () => {
+    vi.mocked(plotterStage.runPlotter).mockResolvedValue('plan-v1')
+
+    await runPlanPhase({
+      seed: 'seed',
+      storyId: 1,
+      models: baseModels,
+      fallbacks: { plotter: 'deepseek/deepseek-v4-flash' },
+      promptVersions: baseVersions,
+    })
+
+    const callArgs = vi.mocked(plotterStage.runPlotter).mock.calls[0]?.[0]
+    expect(callArgs?.fallback).toBe('deepseek/deepseek-v4-flash')
+  })
+
+  it('omits fallback from the runPlotter call when none was resolved', async () => {
+    vi.mocked(plotterStage.runPlotter).mockResolvedValue('plan-v1')
+
+    await runPlanPhase({
+      seed: 'seed',
+      storyId: 1,
+      models: baseModels,
+      promptVersions: baseVersions,
+    })
+
+    const callArgs = vi.mocked(plotterStage.runPlotter).mock.calls[0]?.[0]
+    expect(callArgs?.fallback).toBeUndefined()
+  })
+
+  it('passes the resolved writer fallback into runWriter for runTextPhase', async () => {
+    vi.mocked(writerStage.runWriter).mockResolvedValue('text-v1')
+
+    await runTextPhase({
+      seed: 'seed',
+      planFinal: 'approved-plan',
+      storyId: 1,
+      models: baseModels,
+      fallbacks: { writer: 'deepseek/deepseek-v4-flash' },
+      promptVersions: baseVersions,
+    })
+
+    const callArgs = vi.mocked(writerStage.runWriter).mock.calls[0]?.[0]
+    expect(callArgs?.fallback).toBe('deepseek/deepseek-v4-flash')
+  })
+
+  it('passes the resolved plotter fallback into runPlotter for runPlotterOnly', async () => {
+    vi.mocked(plotterStage.runPlotter).mockResolvedValue('plan-v1')
+
+    await runPlotterOnly({
+      seed: 'seed',
+      storyId: 1,
+      models: baseModels,
+      fallbacks: { plotter: 'deepseek/deepseek-v4-flash' },
+      promptVersions: baseVersions,
+    })
+
+    const callArgs = vi.mocked(plotterStage.runPlotter).mock.calls[0]?.[0]
+    expect(callArgs?.fallback).toBe('deepseek/deepseek-v4-flash')
   })
 })
 
