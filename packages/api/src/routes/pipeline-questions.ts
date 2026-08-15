@@ -10,6 +10,7 @@ import { aiRunner } from '@bedtime/core/ai'
 import { triggerPlanPhaseFromAnswers } from './pipeline-plan-trigger'
 import { resolveChatGate } from '@bedtime/core/pipeline/resolve-chat-gate'
 import { parsePatchBlock } from '@bedtime/core/pipeline/parse-patch-block'
+import { resolveTargetInText } from '@bedtime/core/pipeline/resolve-target-in-text'
 import { sendMessageSchema } from './send-message-schema'
 
 const router = Router()
@@ -236,22 +237,6 @@ router.post('/conversations/:storyId', validate(sendMessageSchema), async (req, 
 
     const trimmedSelection = selectedText?.trim()
 
-    if (!trimmedSelection) {
-      const [bankedAnnotation] = await db
-        .insert(annotations)
-        .values({
-          storyId: storyIdRaw,
-          type: 'my_note',
-          selectedText: null,
-          noteText: message,
-          context: resolvedContext,
-        })
-        .returning()
-
-      res.json({ userMessage, banked: true, annotation: bankedAnnotation })
-      return
-    }
-
     const priorMessages = await db
       .select()
       .from(planConversations)
@@ -265,27 +250,45 @@ router.post('/conversations/:storyId', validate(sendMessageSchema), async (req, 
       .map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
       .join('\n\n')
 
-    const selectionBlock = [
-      ``,
-      `The user is focusing on this specific passage from the ${resolvedContext === 'plan' ? 'plan' : 'text'}:`,
-      `"""`,
-      trimmedSelection,
-      `"""`,
-      ``,
-      `If you arrive at a concrete replacement for this passage, output it using this exact format at the end of your response:`,
-      `<<<PATCH>>>`,
-      `[replacement text]`,
-      `<<<END PATCH>>>`,
-      `<<<SUMMARY>>>`,
-      `[1-2 sentence summary of what changed and why, for future story generation memory]`,
-      `<<<END SUMMARY>>>`,
-      `Only include a PATCH block when you have a clear, agreed improvement. Skip it if you are still exploring options.`,
-    ].join('\n')
+    const instructionBlock = trimmedSelection
+      ? [
+          ``,
+          `The user is focusing on this specific passage from the ${resolvedContext === 'plan' ? 'plan' : 'text'}:`,
+          `"""`,
+          trimmedSelection,
+          `"""`,
+          ``,
+          `If you arrive at a concrete replacement for this passage, output it using this exact format at the end of your response:`,
+          `<<<PATCH>>>`,
+          `[replacement text]`,
+          `<<<END PATCH>>>`,
+          `<<<SUMMARY>>>`,
+          `[1-2 sentence summary of what changed and why, for future story generation memory]`,
+          `<<<END SUMMARY>>>`,
+          `Only include a PATCH block when you have a clear, agreed improvement. Skip it if you are still exploring options.`,
+        ].join('\n')
+      : [
+          ``,
+          `The user has not pre-selected a specific passage. Discuss their request against the full ${resolvedContext === 'plan' ? 'plan' : 'text'} above.`,
+          `If — and only if — you identify one concrete, specific passage to change, quote that passage verbatim as an exact, character-for-character substring of the current ${resolvedContext === 'plan' ? 'plan' : 'text'} above (not paraphrased, not shortened, not re-punctuated) inside this marker block:`,
+          `<<<TARGET>>>`,
+          `[verbatim passage copied exactly from the current ${resolvedContext === 'plan' ? 'plan' : 'text'} above]`,
+          `<<<END TARGET>>>`,
+          `Then immediately follow it with the replacement, using this exact format:`,
+          `<<<PATCH>>>`,
+          `[replacement text]`,
+          `<<<END PATCH>>>`,
+          `<<<SUMMARY>>>`,
+          `[1-2 sentence summary of what changed and why, for future story generation memory]`,
+          `<<<END SUMMARY>>>`,
+          `If the request is general and does not map to one specific passage (e.g. "make it funnier overall"), just respond in plain conversational text — do not include TARGET, PATCH, or SUMMARY blocks.`,
+          `Always give a real, substantive reply. Never leave the response empty, and never respond only with markers and no discussion.`,
+        ].join('\n')
 
     const prompt = [
       `You are helping refine a ${subjectLabel}. Here is the current ${resolvedContext}:\n${currentText}`,
       `Discuss and suggest improvements conversationally. Be concise and direct.`,
-      selectionBlock,
+      instructionBlock,
       ``,
       `Conversation so far:`,
       conversationContext,
@@ -310,7 +313,41 @@ router.post('/conversations/:storyId', validate(sendMessageSchema), async (req, 
 
     const parsedPatch = parsePatchBlock(aiResponse)
 
-    res.json({ userMessage, assistantMessage, patch: parsedPatch?.patch, patchSummary: parsedPatch?.summary })
+    let patch = parsedPatch?.patch
+    let patchSummary = parsedPatch?.summary
+    let target: string | undefined
+
+    if (!trimmedSelection && patch) {
+      const resolvedTarget = parsedPatch?.target ? resolveTargetInText(currentText, parsedPatch.target) : { ok: false as const }
+
+      if (resolvedTarget.ok) {
+        target = resolvedTarget.resolvedTarget
+      } else {
+        patch = undefined
+        patchSummary = undefined
+      }
+    }
+
+    let banked = false
+    let bankedAnnotation: typeof annotations.$inferSelect | undefined
+
+    if (!trimmedSelection && !patch) {
+      const [inserted] = await db
+        .insert(annotations)
+        .values({
+          storyId: storyIdRaw,
+          type: 'my_note',
+          selectedText: null,
+          noteText: message,
+          context: resolvedContext,
+        })
+        .returning()
+
+      banked = true
+      bankedAnnotation = inserted
+    }
+
+    res.json({ userMessage, assistantMessage, patch, patchSummary, target, banked, annotation: bankedAnnotation })
   } catch (err) {
     console.error('POST /pipeline/conversations/:storyId failed:', err)
     res.status(500).json({ error: 'Failed to send conversation message' })

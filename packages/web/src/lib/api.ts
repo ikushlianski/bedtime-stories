@@ -718,6 +718,7 @@ export const api = {
         assistantMessage?: ConversationMessage
         patch?: string
         patchSummary?: string
+        target?: string
         banked?: boolean
         annotation?: Annotation
       }>(

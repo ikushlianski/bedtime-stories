@@ -6,20 +6,27 @@ import { NOTE_TEXT_MAX_LENGTH, isNoteTextWithinLimit } from '../components/annot
 interface PatchInfo {
   patch: string
   summary: string
+  target?: string
+  selectionAtSend?: string
+  selectionLineIndexAtSend?: number
   messageId: number
 }
 
-function parsePatch(content: string): { patch: string; summary: string } | null {
+function parsePatch(content: string): { patch: string; summary: string; target?: string } | null {
   const patchMatch = content.match(/<<<PATCH>>>([\s\S]*?)<<<END PATCH>>>/)
   const summaryMatch = content.match(/<<<SUMMARY>>>([\s\S]*?)<<<END SUMMARY>>>/)
+  const targetMatch = content.match(/<<<TARGET>>>([\s\S]*?)<<<END TARGET>>>/)
 
   if (!patchMatch || !summaryMatch) return null
 
-  return { patch: patchMatch[1].trim(), summary: summaryMatch[1].trim() }
+  const target = targetMatch?.[1]?.trim()
+
+  return { patch: patchMatch[1].trim(), summary: summaryMatch[1].trim(), ...(target ? { target } : {}) }
 }
 
 function stripMarkers(content: string): string {
   return content
+    .replace(/<<<TARGET>>>[\s\S]*?<<<END TARGET>>>/g, '')
     .replace(/<<<PATCH>>>[\s\S]*?<<<END PATCH>>>/g, '')
     .replace(/<<<SUMMARY>>>[\s\S]*?<<<END SUMMARY>>>/g, '')
     .trim()
@@ -29,9 +36,10 @@ interface UseStoryChatProps {
   storyId: number
   context: ChatContext
   selectedText?: string
+  selectedTextLineIndex?: number
 }
 
-function useStoryChat({ storyId, context, selectedText }: UseStoryChatProps) {
+function useStoryChat({ storyId, context, selectedText, selectedTextLineIndex }: UseStoryChatProps) {
   const [messages, setMessages] = useState<ConversationMessage[]>([])
   const [pendingPatch, setPendingPatch] = useState<PatchInfo | null>(null)
   const [thinking, setThinking] = useState(false)
@@ -54,19 +62,26 @@ function useStoryChat({ storyId, context, selectedText }: UseStoryChatProps) {
     try {
       const result = await api.pipeline.sendConversationMessage(storyId, text, selectedText, context)
 
-      if (result.banked) {
-        setMessages((prev) => [...prev, result.userMessage])
-        setBankedCount((count) => count + 1)
-        setLastBanked(true)
-        return
-      }
-
       if (result.assistantMessage) {
         setMessages((prev) => [...prev, result.userMessage, result.assistantMessage as ConversationMessage])
+      } else {
+        setMessages((prev) => [...prev, result.userMessage])
+      }
+
+      if (result.banked) {
+        setBankedCount((count) => count + 1)
+        setLastBanked(true)
       }
 
       if (result.patch && result.patchSummary && result.assistantMessage) {
-        setPendingPatch({ patch: result.patch, summary: result.patchSummary, messageId: result.assistantMessage.id })
+        setPendingPatch({
+          patch: result.patch,
+          summary: result.patchSummary,
+          target: result.target,
+          selectionAtSend: selectedText,
+          selectionLineIndexAtSend: selectedTextLineIndex,
+          messageId: result.assistantMessage.id,
+        })
       }
     } catch (err) {
       setSendError(err instanceof Error ? err.message : 'Не удалось отправить сообщение')
@@ -95,7 +110,12 @@ function MutableChatPanel({ storyId, context, selectedText, selectedTextLineInde
   onPatchApplied?: (newText: string) => void
   onClose?: () => void
 }) {
-  const { messages, pendingPatch, setPendingPatch, thinking, sendError, sendMessage, bankedCount, lastBanked } = useStoryChat({ storyId, context, selectedText })
+  const { messages, pendingPatch, setPendingPatch, thinking, sendError, sendMessage, bankedCount, lastBanked } = useStoryChat({
+    storyId,
+    context,
+    selectedText,
+    selectedTextLineIndex,
+  })
   const [input, setInput] = useState('')
   const [applying, setApplying] = useState(false)
   const [applyError, setApplyError] = useState<string | null>(null)
@@ -117,7 +137,13 @@ function MutableChatPanel({ storyId, context, selectedText, selectedTextLineInde
   }
 
   const handleApplyPatch = async () => {
-    if (!pendingPatch || !selectedText) return
+    if (!pendingPatch) return
+
+    const findValue = pendingPatch.target ?? pendingPatch.selectionAtSend
+
+    if (!findValue) return
+
+    const usePreSelectedLineIndex = !pendingPatch.target
 
     setApplying(true)
     setApplyError(null)
@@ -126,15 +152,15 @@ function MutableChatPanel({ storyId, context, selectedText, selectedTextLineInde
       const updated =
         context === 'plan'
           ? await api.stories.applyPlanPatch(storyId, {
-              find: selectedText,
+              find: findValue,
               replace: pendingPatch.patch,
               summary: pendingPatch.summary,
             })
           : await api.stories.applyTextPatch(storyId, {
-              find: selectedText,
+              find: findValue,
               replace: pendingPatch.patch,
               summary: pendingPatch.summary,
-              lineIndex: selectedTextLineIndex,
+              lineIndex: usePreSelectedLineIndex ? pendingPatch.selectionLineIndexAtSend : undefined,
             })
 
       setPendingPatch(null)
@@ -149,7 +175,7 @@ function MutableChatPanel({ storyId, context, selectedText, selectedTextLineInde
   const title = context === 'plan' ? 'Обсудить план' : 'Обсудить текст'
   const emptyHint = selectedText
     ? 'Расскажи, что хочешь изменить в выделенном фрагменте.'
-    : `Сообщений пока нет. Спроси что-нибудь о ${context === 'plan' ? 'плане' : 'тексте'}, или оставь общий комментарий — он попадёт в следующую переработку.`
+    : `Сообщений пока нет. Спроси что-нибудь о ${context === 'plan' ? 'плане' : 'тексте'} — можно обсудить любую правку.`
 
   return (
     <section className="card border border-base-300 bg-base-100 shadow-sm">
@@ -185,6 +211,7 @@ function MutableChatPanel({ storyId, context, selectedText, selectedTextLineInde
             const isPatch = pendingPatch?.messageId === msg.id
             const displayContent = msg.role === 'assistant' ? stripMarkers(msg.content) : msg.content
             const parsed = msg.role === 'assistant' ? parsePatch(msg.content) : null
+            const patchOriginal = isPatch ? (pendingPatch?.target ?? pendingPatch?.selectionAtSend) : undefined
 
             return (
               <div key={msg.id} className="flex flex-col gap-2">
@@ -198,11 +225,11 @@ function MutableChatPanel({ storyId, context, selectedText, selectedTextLineInde
                   {displayContent}
                 </div>
 
-                {parsed && selectedText && isPatch && (
+                {parsed && patchOriginal && isPatch && (
                   <div className="self-start ml-0 w-full max-w-[85%] rounded-lg border border-success/30 bg-success/5 px-4 py-3">
                     <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-success/70">Предлагаемая замена</p>
                     <div className="mb-3">
-                      <PatchDiffView original={selectedText} patched={parsed.patch} />
+                      <PatchDiffView original={patchOriginal} patched={parsed.patch} />
                     </div>
                     <p className="mb-3 text-xs italic text-base-content/50">{parsed.summary}</p>
                     {applyError && <p className="mb-2 text-xs text-error">{applyError}</p>}

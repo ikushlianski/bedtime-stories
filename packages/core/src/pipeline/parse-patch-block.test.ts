@@ -43,4 +43,40 @@ describe('parsePatchBlock', () => {
       summary: 'Итог.',
     })
   })
+
+  it('extracts a trimmed target when a TARGET block precedes PATCH and SUMMARY', () => {
+    const raw = [
+      'Нашёл подходящий фрагмент.',
+      '<<<TARGET>>>',
+      '  Дракон был очень страшным.  ',
+      '<<<END TARGET>>>',
+      '<<<PATCH>>>',
+      'Дракон был немного застенчивым.',
+      '<<<END PATCH>>>',
+      '<<<SUMMARY>>>',
+      'Сделали дракона добрее.',
+      '<<<END SUMMARY>>>',
+    ].join('\n')
+
+    expect(parsePatchBlock(raw)).toEqual({
+      target: 'Дракон был очень страшным.',
+      patch: 'Дракон был немного застенчивым.',
+      summary: 'Сделали дракона добрее.',
+    })
+  })
+
+  it('omits target from the result when no TARGET block is present', () => {
+    const raw = ['<<<PATCH>>>', 'Замена.', '<<<END PATCH>>>', '<<<SUMMARY>>>', 'Итог.', '<<<END SUMMARY>>>'].join('\n')
+
+    const result = parsePatchBlock(raw)
+
+    expect(result).toEqual({ patch: 'Замена.', summary: 'Итог.' })
+    expect(result?.target).toBeUndefined()
+  })
+
+  it('returns null when TARGET is present but PATCH/SUMMARY are missing', () => {
+    const raw = ['<<<TARGET>>>', 'Что-то', '<<<END TARGET>>>'].join('\n')
+
+    expect(parsePatchBlock(raw)).toBeNull()
+  })
 })
