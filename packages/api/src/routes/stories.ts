@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { eq, desc, and, sql, inArray } from 'drizzle-orm'
 import { db } from '@bedtime/core/db/client'
 import { stories, annotations, feedback, runSnapshots, storyGroups, planQuestions, planConversations, parentReviews, childReactions, storyReadings, modelCalls, storyTextVersions, storyEmbeddings, storyUniverses, topics } from '@bedtime/core/db/schema'
+import { deleteStoryCascade } from './delete-story-cascade'
 import { recordStoryTopics } from '@bedtime/core/pipeline/load-topics'
 import { deriveStoryCostBreakdown } from '@bedtime/core/cost/aggregations/derive-story-cost-breakdown'
 import type { Story, NewStory, NewAnnotation, ParentReview, ChildReaction } from '@bedtime/core/db/types'
@@ -1240,17 +1241,7 @@ router.delete('/:id', async (req, res) => {
       return
     }
 
-    await db.delete(annotations).where(eq(annotations.storyId, storyId))
-    await db.delete(runSnapshots).where(eq(runSnapshots.storyId, storyId))
-    await db.delete(feedback).where(eq(feedback.storyId, storyId))
-    await db.delete(planQuestions).where(eq(planQuestions.storyId, storyId))
-    await db.delete(planConversations).where(eq(planConversations.storyId, storyId))
-    await db.delete(storyReadings).where(eq(storyReadings.storyId, storyId))
-    await db.delete(modelCalls).where(eq(modelCalls.storyId, storyId))
-    await db.delete(storyTextVersions).where(eq(storyTextVersions.storyId, storyId))
-    await db.delete(storyEmbeddings).where(eq(storyEmbeddings.storyId, storyId))
-    await db.delete(storyUniverses).where(eq(storyUniverses.storyId, storyId))
-    await db.delete(stories).where(eq(stories.id, storyId))
+    await deleteStoryCascade(storyId)
 
     res.status(204).send()
   } catch (err) {
