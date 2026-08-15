@@ -1,0 +1,1 @@
+ALTER TABLE "universe_characters" ADD COLUMN "importance" integer DEFAULT 3 NOT NULL;

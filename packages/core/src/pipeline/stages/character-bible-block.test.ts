@@ -68,6 +68,34 @@ describe('buildCharacterBibleBlock', () => {
     })
   })
 
+  describe('importance', () => {
+    it('sorts the roster by importance, most important first', () => {
+      const block = buildCharacterBibleBlock([
+        { name: 'Редкий', setting: 'изредка', importance: 1 },
+        { name: 'Главный', setting: 'часто', importance: 5 },
+        { name: 'Средний', setting: 'иногда', importance: 3 },
+      ])
+
+      expect(block.indexOf('Главный')).toBeLessThan(block.indexOf('Средний'))
+      expect(block.indexOf('Средний')).toBeLessThan(block.indexOf('Редкий'))
+    })
+
+    it('defaults missing importance to 3 for sorting and labeling', () => {
+      const block = buildCharacterBibleBlock([
+        { name: 'БезВажности', setting: 'где-то' },
+      ])
+
+      expect(block).toContain('Важность: 3/5')
+    })
+
+    it('labels the 1-5 scale so the plotter knows how often to use a character', () => {
+      const block = buildCharacterBibleBlock([{ name: 'Гоша', setting: 'x', importance: 5 }])
+
+      expect(block).toContain('5/5')
+      expect(block).toContain('появляется часто')
+    })
+  })
+
   describe('the hard rule text', () => {
     const block = buildCharacterBibleBlock([{ name: 'Гоша', setting: 'старшая группа садика' }])
 

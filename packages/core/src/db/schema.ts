@@ -34,6 +34,7 @@ export const universeCharacters = pgTable('universe_characters', {
   traits: text('traits'),
   relationships: text('relationships'),
   coOccurrenceNote: text('co_occurrence_note'),
+  importance: integer('importance').notNull().default(3),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 })

@@ -17,14 +17,15 @@ const EMPTY_CONTEXT: UniverseContext = {
   bibleCharacters: [],
 }
 
-function compileCharacters(chars: Array<{ name: string; description: string }>): string {
+function compileCharacters(chars: Array<{ name: string; description: string; importance: number }>): string {
   if (chars.length === 0) return ''
 
-  const lines = chars.map((c) =>
-    c.description.trim() ? `- **${c.name}**: ${c.description.trim()}` : `- **${c.name}**`,
+  const sorted = [...chars].sort((a, b) => b.importance - a.importance)
+  const lines = sorted.map((c) =>
+    c.description.trim() ? `- **${c.name}** (важность ${c.importance}/5): ${c.description.trim()}` : `- **${c.name}** (важность ${c.importance}/5)`,
   )
 
-  return `## Персонажи вселенной\n${lines.join('\n')}`
+  return `## Персонажи вселенной (отсортировано по важности)\n${lines.join('\n')}`
 }
 
 export async function loadUniverseContext(universeIds: number[]): Promise<UniverseContext> {
@@ -56,6 +57,7 @@ export async function loadUniverseContext(universeIds: number[]): Promise<Univer
     relationships: c.relationships,
     coOccurrenceNote: c.coOccurrenceNote,
     description: c.description,
+    importance: c.importance,
   }))
 
   if (!isBlend) {
