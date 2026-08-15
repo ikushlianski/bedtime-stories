@@ -122,7 +122,7 @@ function TextAnnotationPanel({ storyId, text, onChatAboutThis }: { storyId: numb
       )}
 
       <div className="relative" ref={containerRef} onMouseUp={handleMouseUp}>
-        <div className="select-text cursor-text leading-relaxed text-base-content">
+        <div className="select-text cursor-text text-base leading-relaxed text-base-content lg:text-sm">
           {splitTextIntoLines(text).map((line) =>
             line.isBlock ? (
               <div key={line.index} className="mb-1 flex items-start gap-2">
@@ -315,12 +315,73 @@ export function TextReviewPage() {
         </div>
       )}
 
-      <section className="card border border-base-300 bg-base-100 shadow-sm">
-        <div className="card-body gap-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="font-serif text-3xl text-base-content">Текст истории</h2>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
+        <section className="card border border-base-300 bg-base-100 shadow-sm">
+          <div className="card-body gap-6 lg:gap-4 lg:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="font-serif text-3xl text-base-content">Текст истории</h2>
 
-            <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2">
+                <button className="btn btn-outline btn-sm" onClick={() => void handleRedo()} disabled={redoing || approving}>
+                  {redoing ? 'Запускаем...' : 'Отправить на доработку'}
+                </button>
+                <button className="btn btn-primary btn-sm" onClick={() => void handleApprove()} disabled={approving || redoing}>
+                  {approving ? 'Сохраняем…' : 'Готово для Саши'}
+                </button>
+              </div>
+            </div>
+
+            <p className="text-sm text-base-content/60">
+              Выдели любой фрагмент текста, чтобы оставить точечный комментарий. Или напиши общие указания к доработке ниже — они попадут прямо к писателю.
+            </p>
+
+            <div className="rounded-box border border-primary/20 bg-primary/5 p-4">
+              <label className="mb-2 block text-sm font-medium text-base-content">
+                Что изменить в этой версии?
+              </label>
+              <textarea
+                className="textarea textarea-bordered min-h-24 w-full bg-base-100 text-sm"
+                placeholder="Например: вплети в историю строчки этой песни… (можно вставить целиком). Эти указания получит писатель при следующем прогоне."
+                value={redoReason}
+                onChange={(e) => setRedoReason(e.target.value)}
+              />
+              <p className="mt-1 text-xs text-base-content/50">
+                Нажми «Отправить на доработку», чтобы переписать текст с учётом этих указаний.
+              </p>
+
+              <details
+                className="mt-2 text-xs text-base-content/60"
+                onToggle={(e) => setShowModelInput((e.target as HTMLDetailsElement).open)}
+              >
+                <summary className="cursor-pointer select-none">Другая модель (необязательно)</summary>
+                {showModelInput && (
+                  <input
+                    type="text"
+                    className="input input-bordered input-xs mt-2 w-full max-w-xs"
+                    placeholder="например, anthropic/claude-sonnet-4"
+                    value={redoModel}
+                    onChange={(e) => setRedoModel(e.target.value)}
+                  />
+                )}
+              </details>
+            </div>
+
+            <TextVersionHistory
+              storyId={storyId}
+              activeVersionId={story.active_text_version_id}
+              onRestored={() => {
+                setLocalText(null)
+                reload()
+              }}
+            />
+
+            <TextAnnotationPanel
+              storyId={storyId}
+              text={textToReview}
+              onChatAboutThis={(text, lineIndex) => setChatSelection({ text, lineIndex })}
+            />
+
+            <div className="flex flex-wrap justify-end gap-2 border-t border-base-300 pt-4">
               <button className="btn btn-outline btn-sm" onClick={() => void handleRedo()} disabled={redoing || approving}>
                 {redoing ? 'Запускаем...' : 'Отправить на доработку'}
               </button>
@@ -329,91 +390,23 @@ export function TextReviewPage() {
               </button>
             </div>
           </div>
+        </section>
 
-          <p className="text-sm text-base-content/60">
-            Выдели любой фрагмент текста, чтобы оставить точечный комментарий. Или напиши общие указания к доработке ниже — они попадут прямо к писателю.
-          </p>
-
-          <div className="rounded-box border border-primary/20 bg-primary/5 p-4">
-            <label className="mb-2 block text-sm font-medium text-base-content">
-              Что изменить в этой версии?
-            </label>
-            <textarea
-              className="textarea textarea-bordered min-h-24 w-full bg-base-100 text-sm"
-              placeholder="Например: вплети в историю строчки этой песни… (можно вставить целиком). Эти указания получит писатель при следующем прогоне."
-              value={redoReason}
-              onChange={(e) => setRedoReason(e.target.value)}
-            />
-            <p className="mt-1 text-xs text-base-content/50">
-              Нажми «Отправить на доработку», чтобы переписать текст с учётом этих указаний.
-            </p>
-
-            <details
-              className="mt-2 text-xs text-base-content/60"
-              onToggle={(e) => setShowModelInput((e.target as HTMLDetailsElement).open)}
-            >
-              <summary className="cursor-pointer select-none">Другая модель (необязательно)</summary>
-              {showModelInput && (
-                <input
-                  type="text"
-                  className="input input-bordered input-xs mt-2 w-full max-w-xs"
-                  placeholder="например, anthropic/claude-sonnet-4"
-                  value={redoModel}
-                  onChange={(e) => setRedoModel(e.target.value)}
-                />
-              )}
-            </details>
-          </div>
-
-          <TextVersionHistory
-            storyId={storyId}
-            activeVersionId={story.active_text_version_id}
-            onRestored={() => {
-              setLocalText(null)
-              reload()
-            }}
-          />
-
-          <TextAnnotationPanel
-            storyId={storyId}
-            text={textToReview}
-            onChatAboutThis={(text, lineIndex) => setChatSelection({ text, lineIndex })}
-          />
-
-          <div className="flex flex-wrap justify-end gap-2 border-t border-base-300 pt-4">
-            <button className="btn btn-outline btn-sm" onClick={() => void handleRedo()} disabled={redoing || approving}>
-              {redoing ? 'Запускаем...' : 'Отправить на доработку'}
-            </button>
-            <button className="btn btn-primary btn-sm" onClick={() => void handleApprove()} disabled={approving || redoing}>
-              {approving ? 'Сохраняем…' : 'Готово для Саши'}
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {chatSelection !== null && (
-        <div className="mt-6">
+        <div className="lg:sticky lg:top-4">
           <StoryChatPanel
-            key={`${chatSelection.lineIndex ?? 'sel'}:${chatSelection.text}`}
             storyId={storyId}
             context="text"
-            selectedText={chatSelection.text}
-            selectedTextLineIndex={chatSelection.lineIndex}
+            selectedText={chatSelection?.text}
+            selectedTextLineIndex={chatSelection?.lineIndex}
             onPatchApplied={() => {
               setLocalText(null)
               setChatSelection(null)
               reload()
             }}
-            onClose={() => setChatSelection(null)}
+            onClose={chatSelection ? () => setChatSelection(null) : undefined}
           />
         </div>
-      )}
-
-      {chatSelection === null && (
-        <div className="mt-6">
-          <StoryChatPanel storyId={storyId} context="text" />
-        </div>
-      )}
+      </div>
     </div>
   )
 }

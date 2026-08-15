@@ -67,6 +67,7 @@ function StoryText({
   editRef,
   onSelection,
   onInput,
+  compact = false,
 }: {
   text: string
   editable?: boolean
@@ -74,6 +75,7 @@ function StoryText({
   editRef?: RefObject<HTMLDivElement>
   onSelection: (sel: SelectionState | null) => void
   onInput?: () => void
+  compact?: boolean
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const resolvedRef = editRef ?? containerRef
@@ -136,13 +138,17 @@ function StoryText({
     })
   }, [onSelection, resolvedRef])
 
+  const sizeClasses = compact
+    ? 'p-8 text-xl lg:p-6 lg:text-lg'
+    : 'p-8 text-xl'
+
   if (editable) {
     return (
       <div
         ref={resolvedRef}
         contentEditable
         suppressContentEditableWarning
-        className="rounded-box border-2 border-primary/40 bg-base-100 p-8 font-serif text-xl leading-relaxed text-base-content shadow-sm outline-none focus:border-primary/70 min-h-96 cursor-text"
+        className={`rounded-box border-2 border-primary/40 bg-base-100 font-serif leading-relaxed text-base-content shadow-sm outline-none focus:border-primary/70 min-h-96 cursor-text ${sizeClasses}`}
         onMouseUp={handleMouseUp}
         onInput={handleInput}
       />
@@ -152,7 +158,7 @@ function StoryText({
   return (
     <div
       ref={resolvedRef}
-      className="relative rounded-box border border-base-300 bg-base-100 p-8 font-serif text-xl leading-relaxed text-base-content shadow-sm"
+      className={`relative rounded-box border border-base-300 bg-base-100 font-serif leading-relaxed text-base-content shadow-sm ${sizeClasses}`}
       onMouseUp={handleMouseUp}
     >
       {displayText.split('\n').map((para, i) => (
@@ -170,6 +176,7 @@ export function StoryReaderPage() {
   const storyId = Number(id)
   const { story, setStory, loading, error } = useStoryFetch(storyId)
   const [selection, setSelection] = useState<SelectionState | null>(null)
+  const [chatSelection, setChatSelection] = useState<string | null>(null)
   const [annotations, setAnnotations] = useState<Annotation[]>([])
   const [annotationError, setAnnotationError] = useState<string | null>(null)
   const [markingRead, setMarkingRead] = useState(false)
@@ -320,6 +327,7 @@ setStoryTags((story.tags as string[] | null) ?? [])
   }
 
   const textToDisplay = story.active_text ?? story.text_final ?? story.text_v2 ?? story.text_v1 ?? null
+  const chatPanelVisible = (currentStatus ?? story.status) === 'proofreading' && !!textToDisplay
 
   return (
     <div>
@@ -522,76 +530,100 @@ setStoryTags((story.tags as string[] | null) ?? [])
         />
       )}
 
-      <div className="relative">
-        {textToDisplay ? (
-          <StoryText
-            text={textToDisplay}
-            editable
-            draftKey={draftKey}
-            editRef={editRef}
-            onSelection={setSelection}
-            onInput={() => setIsDirty(true)}
-          />
-        ) : (
-          <StatusCallout
-            tone="warning"
-            title="Текст недоступен"
-            message="Финальный текст истории ещё не был сгенерирован."
-          />
-        )}
+      <div className={chatPanelVisible ? 'grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start' : undefined}>
+        <div>
+          <div className="relative">
+            {textToDisplay ? (
+              <StoryText
+                text={textToDisplay}
+                editable
+                draftKey={draftKey}
+                editRef={editRef}
+                onSelection={setSelection}
+                onInput={() => setIsDirty(true)}
+                compact={chatPanelVisible}
+              />
+            ) : (
+              <StatusCallout
+                tone="warning"
+                title="Текст недоступен"
+                message="Финальный текст истории ещё не был сгенерирован."
+              />
+            )}
 
-        {selection && (
-          <div
-            style={{
-              position: 'absolute',
-              left: selection.position.x,
-              top: selection.position.y,
-              transform: selection.placement === 'above' ? 'translate(-50%, -100%)' : 'translateX(-50%)',
-              zIndex: 10,
-            }}
-          >
-            <AnnotationToolbar
-              selectedText={selection.text}
-              onAnnotate={(type, text, noteText) => {
-                const storyText = textToDisplay ?? ''
-                const globalOffset = findTextOffset(storyText, text)
-                const start = globalOffset?.start ?? selection.start
-                const end = globalOffset?.end ?? selection.end
+            {selection && (
+              <div
+                style={{
+                  position: 'absolute',
+                  left: selection.position.x,
+                  top: selection.position.y,
+                  transform: selection.placement === 'above' ? 'translate(-50%, -100%)' : 'translateX(-50%)',
+                  zIndex: 10,
+                }}
+              >
+                <AnnotationToolbar
+                  selectedText={selection.text}
+                  onAnnotate={(type, text, noteText) => {
+                    const storyText = textToDisplay ?? ''
+                    const globalOffset = findTextOffset(storyText, text)
+                    const start = globalOffset?.start ?? selection.start
+                    const end = globalOffset?.end ?? selection.end
 
-                void handleAnnotate(type, text, start, end, noteText)
-                handleAnnotationDismiss()
-              }}
+                    void handleAnnotate(type, text, start, end, noteText)
+                    handleAnnotationDismiss()
+                  }}
+                  onChatAboutThis={
+                    chatPanelVisible
+                      ? (text) => {
+                          setChatSelection(text)
+                          handleAnnotationDismiss()
+                        }
+                      : undefined
+                  }
+                />
+              </div>
+            )}
+          </div>
+
+          {isDirty && (
+            <div className="mt-2 flex items-center justify-end gap-2">
+              {saveTextError && <span className="text-xs text-error">{saveTextError}</span>}
+              <button
+                className="btn btn-xs btn-ghost"
+                disabled={savingText}
+                onClick={() => {
+                  localStorage.removeItem(draftKey)
+                  if (editRef.current && textToDisplay) editRef.current.innerText = stripLeadingTitle(textToDisplay)
+                  setIsDirty(false)
+                  setSaveTextError(null)
+                }}
+              >
+                Отмена
+              </button>
+              <button className="btn btn-xs btn-primary" disabled={savingText} onClick={() => void handleSaveText()}>
+                {savingText ? 'Сохраняем…' : 'Сохранить'}
+              </button>
+            </div>
+          )}
+
+          {annotationError && (
+            <div className="mt-4">
+              <StatusCallout tone="error" title="Ошибка сохранения заметки" message={annotationError} />
+            </div>
+          )}
+        </div>
+
+        {chatPanelVisible && (
+          <div className="lg:sticky lg:top-4">
+            <StoryChatPanel
+              storyId={storyId}
+              context="text"
+              selectedText={chatSelection ?? undefined}
+              onClose={chatSelection ? () => setChatSelection(null) : undefined}
             />
           </div>
         )}
       </div>
-
-      {isDirty && (
-        <div className="mt-2 flex items-center justify-end gap-2">
-          {saveTextError && <span className="text-xs text-error">{saveTextError}</span>}
-          <button
-            className="btn btn-xs btn-ghost"
-            disabled={savingText}
-            onClick={() => {
-              localStorage.removeItem(draftKey)
-              if (editRef.current && textToDisplay) editRef.current.innerText = stripLeadingTitle(textToDisplay)
-              setIsDirty(false)
-              setSaveTextError(null)
-            }}
-          >
-            Отмена
-          </button>
-          <button className="btn btn-xs btn-primary" disabled={savingText} onClick={() => void handleSaveText()}>
-            {savingText ? 'Сохраняем…' : 'Сохранить'}
-          </button>
-        </div>
-      )}
-
-      {annotationError && (
-        <div className="mt-4">
-          <StatusCallout tone="error" title="Ошибка сохранения заметки" message={annotationError} />
-        </div>
-      )}
 
       {(currentStatus ?? story.status) === 'proofreading' && textToDisplay && (
         <div className="mt-4 rounded-box border border-primary/30 bg-primary/10 p-4">
@@ -626,12 +658,6 @@ setStoryTags((story.tags as string[] | null) ?? [])
               </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {(currentStatus ?? story.status) === 'proofreading' && textToDisplay && (
-        <div className="mt-4">
-          <StoryChatPanel storyId={storyId} context="text" />
         </div>
       )}
 

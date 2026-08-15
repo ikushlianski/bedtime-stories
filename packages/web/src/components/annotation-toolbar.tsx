@@ -10,6 +10,7 @@ import {
 interface AnnotationToolbarProps {
   onAnnotate: (type: AnnotationType, selectedText: string, noteText?: string) => void
   selectedText: string
+  onChatAboutThis?: (selectedText: string) => void
 }
 
 const REACTION_BUTTONS: Array<{ type: AnnotationType; label: string }> = [
