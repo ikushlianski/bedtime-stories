@@ -1,5 +1,6 @@
 import { eq, desc, and, isNull, or } from 'drizzle-orm'
 import { runWriterOnly } from '@bedtime/core/pipeline/orchestrator'
+import { validateWriterOutput } from '@bedtime/core/pipeline/validate-writer-output'
 import { loadRandomExemplars } from '@bedtime/core/pipeline/load-exemplars'
 import { loadStoryFragmentTexts } from '@bedtime/core/pipeline/load-fragments'
 import { loadEligibleWords, recordStoryWords } from '@bedtime/core/pipeline/load-words'
@@ -113,6 +114,13 @@ export async function runTextPhaseDurable(params: TextPhaseParams): Promise<void
       onChunk: (chunk) => emitPipelineEvent(storyId, { type: 'chunk', text: chunk }),
       onChunkReset: () => emitPipelineEvent(storyId, { type: 'chunk_reset' }),
     })
+
+    const validation = validateWriterOutput(result.textV1)
+
+    if (!validation.valid) {
+      console.error(`[WRITER] story=${storyId} — rejected writer output: ${validation.reason}`)
+      throw new Error(`Writer produced invalid output for storyId=${storyId}: ${validation.reason}`)
+    }
 
     try {
       const [existing] = await db

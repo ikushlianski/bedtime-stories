@@ -1,5 +1,6 @@
 import { eq, desc } from 'drizzle-orm'
 import { runPlanPhase, runTextPhase } from '@bedtime/core/pipeline/orchestrator'
+import { validateWriterOutput } from '@bedtime/core/pipeline/validate-writer-output'
 import { synthesizeSashaContext } from '@bedtime/core/pipeline/feedback-synthesizer'
 import { generateTextChangeSummary } from '@bedtime/core/pipeline/text-change-summarizer'
 import { db } from '@bedtime/core/db/client'
@@ -71,6 +72,13 @@ export function triggerTextRedoWithAnnotations(
       universeIds,
       onStepChange: (step) => setCurrentStep(storyId, step),
     })
+
+    const validation = validateWriterOutput(text.textV2)
+
+    if (!validation.valid) {
+      console.error(`[TEXT-REDO] story=${storyId} — rejected writer output: ${validation.reason}`)
+      throw new Error(`Text redo produced invalid output for storyId=${storyId}: ${validation.reason}`)
+    }
 
     const [existing] = await db
       .select()

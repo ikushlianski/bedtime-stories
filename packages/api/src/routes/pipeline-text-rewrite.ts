@@ -1,11 +1,13 @@
 import { eq, and, isNull, or, desc } from 'drizzle-orm'
 import { runAnnotatedRewrite } from '@bedtime/core/pipeline/orchestrator'
+import { validateWriterOutput } from '@bedtime/core/pipeline/validate-writer-output'
 import { db } from '@bedtime/core/db/client'
 import { annotations, runSnapshots, stories } from '@bedtime/core/db/schema'
 import { buildAnnotatedRewriteStoriesUpdate, buildAnnotatedRewriteSnapshotUpdate, insertTextVersion } from './pipeline-persistence'
 import { setPipelineStatus, setCurrentStep, setStepSummary, emitPipelineEvent } from './pipeline-state'
 import { defaultPromptVersions, resolvePipelineModels, loadStoryOverrides } from './pipeline-defaults'
 import { gatherRedoFeedback } from './gather-redo-feedback'
+import { notifyStoryFailed } from './pipeline-notifications'
 import { withPipelineTraceIfNone } from '@bedtime/observability'
 
 export function triggerTextRewrite(
@@ -62,6 +64,15 @@ export function triggerTextRewrite(
       onChunk: (chunk) => emitPipelineEvent(storyId, { type: 'chunk', text: chunk }),
       onChunkReset: () => emitPipelineEvent(storyId, { type: 'chunk_reset' }),
     })
+
+    const validation = validateWriterOutput(result.textV2)
+
+    if (!validation.valid) {
+      console.error(`[TEXT-REWRITE] story=${storyId} — rejected writer output: ${validation.reason}`)
+      setPipelineStatus(storyId, 'text_failed')
+      notifyStoryFailed(storyId, 'text')
+      throw new Error(`Annotated rewrite produced invalid output for storyId=${storyId}: ${validation.reason}`)
+    }
 
     setStepSummary(storyId, 'WriterCritic', 'Пропущен — применены заметки редактора напрямую')
     setStepSummary(storyId, 'Writer', 'Текст переработан с учётом заметок редактора.')
