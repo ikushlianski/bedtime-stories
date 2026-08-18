@@ -1,4 +1,4 @@
-import { bigint, boolean, integer, jsonb, numeric, pgTable, serial, text, timestamp, unique, vector } from 'drizzle-orm/pg-core'
+import { bigint, boolean, integer, jsonb, numeric, pgTable, serial, text, timestamp, unique, vector, type AnyPgColumn } from 'drizzle-orm/pg-core'
 
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
@@ -94,6 +94,8 @@ export const stories = pgTable('stories', {
   structureKey: text('structure_key'),
   lensKey: text('lens_key'),
   favorite: boolean('favorite').notNull().default(false),
+  referenceStoryId: integer('reference_story_id')
+    .references((): AnyPgColumn => stories.id, { onDelete: 'set null' }),
 })
 
 export const storyUniverses = pgTable('story_universes', {

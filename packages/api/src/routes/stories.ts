@@ -73,6 +73,7 @@ function toSnakeCase(row: Story) {
     structure_key: row.structureKey ?? null,
     lens_key: row.lensKey ?? null,
     favorite: row.favorite,
+    reference_story_id: row.referenceStoryId ?? null,
   }
 }
 
@@ -125,6 +126,23 @@ router.post('/', validate(createStorySchema), async (req, res) => {
       return
     }
 
+    if (resolved.referenceStoryId !== undefined) {
+      const [referenced] = await db
+        .select({ id: stories.id, textFinal: stories.textFinal })
+        .from(stories)
+        .where(eq(stories.id, resolved.referenceStoryId))
+
+      if (!referenced) {
+        res.status(400).json({ error: 'Referenced story not found' })
+        return
+      }
+
+      if (referenced.textFinal === null) {
+        res.status(400).json({ error: 'Referenced story has no finalized text' })
+        return
+      }
+    }
+
     const newStory: NewStory = {
       seed: resolved.seed,
       title: resolved.title,
@@ -135,6 +153,7 @@ router.post('/', validate(createStorySchema), async (req, res) => {
       ...(resolved.perStageOverrides !== undefined ? { agentOverrides: resolved.perStageOverrides } : {}),
       ...(resolved.structureKey !== undefined ? { structureKey: resolved.structureKey } : {}),
       ...(resolved.lensKey !== undefined ? { lensKey: resolved.lensKey } : {}),
+      ...(resolved.referenceStoryId !== undefined ? { referenceStoryId: resolved.referenceStoryId } : {}),
     }
     const [story] = await db.insert(stories).values(newStory).returning()
 

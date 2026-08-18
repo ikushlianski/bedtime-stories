@@ -90,6 +90,26 @@ describe('createStorySchema', () => {
     })
   })
 
+  describe('referenceStoryId', () => {
+    it('accepts a positive referenceStoryId', () => {
+      const result = createStorySchema.safeParse({
+        seed: 'A hero learns patience',
+        referenceStoryId: 127,
+      })
+
+      expect(result.success).toBe(true)
+    })
+
+    it('rejects a non-positive referenceStoryId', () => {
+      const result = createStorySchema.safeParse({
+        seed: 'A hero learns patience',
+        referenceStoryId: -1,
+      })
+
+      expect(result.success).toBe(false)
+    })
+  })
+
   describe('exclusivity', () => {
     it('rejects input with both seed and textFinal', () => {
       const result = createStorySchema.safeParse({
@@ -298,6 +318,31 @@ describe('resolveCreateStoryMode', () => {
 
       expect(resolved.structureKey).toBeUndefined()
       expect(resolved.lensKey).toBeUndefined()
+    })
+  })
+
+  describe('referenceStoryId', () => {
+    it('forwards an explicit referenceStoryId into agent mode', () => {
+      const resolved = resolveCreateStoryMode({
+        seed: 'hero learns patience',
+        referenceStoryId: 127,
+      })
+
+      if (resolved.mode !== 'agent') {
+        throw new Error('expected agent mode')
+      }
+
+      expect(resolved.referenceStoryId).toBe(127)
+    })
+
+    it('omits referenceStoryId from agent mode when not provided', () => {
+      const resolved = resolveCreateStoryMode({ seed: 'hero learns patience' })
+
+      if (resolved.mode !== 'agent') {
+        throw new Error('expected agent mode')
+      }
+
+      expect(resolved.referenceStoryId).toBeUndefined()
     })
   })
 })

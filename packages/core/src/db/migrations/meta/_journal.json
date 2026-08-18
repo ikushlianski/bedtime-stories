@@ -351,6 +351,13 @@
       "when": 1786800833444,
       "tag": "0049_large_meggan",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1787049181280,
+      "tag": "0050_tricky_william_stryker",
+      "breakpoints": true
     }
   ]
 }

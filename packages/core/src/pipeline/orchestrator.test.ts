@@ -71,6 +71,10 @@ vi.mock('./load-topics', async () => {
   const actual = await vi.importActual<typeof import('./load-topics')>('./load-topics')
   return { ...actual, loadEligibleTopics: vi.fn().mockResolvedValue([]), loadTopicsByIds: vi.fn().mockResolvedValue([]) }
 })
+vi.mock('./load-reference-story', async () => {
+  const actual = await vi.importActual<typeof import('./load-reference-story')>('./load-reference-story')
+  return { ...actual, loadReferenceStory: vi.fn().mockResolvedValue(null) }
+})
 
 const baseModels = {
   plotter: 'claude-sonnet-4-6',

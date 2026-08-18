@@ -108,6 +108,7 @@ export async function runPlotter(options: {
   memorableMoments?: MemorableMomentRow[]
   structure?: StoryStructure
   characterLens?: CharacterLens
+  referenceStory?: { title: string; textFinal: string }
   cwd?: string
   storyId?: number
   universeId?: number | null
@@ -148,8 +149,16 @@ export async function runPlotter(options: {
   const reactionBlock = options.reactionSummary ? buildReactionPreferenceBlock(options.reactionSummary) : ''
   const memorableMomentsBlock = buildMemorableMomentsBlock(options.memorableMoments ?? [])
 
+  if (options.referenceStory) {
+    console.log(`[PLOTTER] using reference story «${options.referenceStory.title}»`)
+  }
+
+  const referenceStoryBlock = options.referenceStory
+    ? `\n\n---\nИСТОРИЯ-ССЫЛКА (пользователь явно попросил учитывать её при создании этой истории — не копируй персонажей из неё автоматически, если они не относятся к текущей вселенной, но учти её сюжет/тему/тон/события как контекст):\n[«${options.referenceStory.title}»]\n${options.referenceStory.textFinal}\n---\n`
+    : ''
+
   const parts: string[] = [
-    `${basePrompt}${structureBlock}${settingBlock}${characterLensBlock}${characterBibleBlock}${reactionBlock}${memorableMomentsBlock}${universeContextBlock}${styleGuideBlock}${sashaContextBlock}${fragmentsBlock}${topicsBlock}`,
+    `${basePrompt}${structureBlock}${settingBlock}${characterLensBlock}${characterBibleBlock}${reactionBlock}${memorableMomentsBlock}${universeContextBlock}${styleGuideBlock}${sashaContextBlock}${referenceStoryBlock}${fragmentsBlock}${topicsBlock}`,
     '',
     `SEED (real-life situation to base the story on):\n${seed}`,
   ]

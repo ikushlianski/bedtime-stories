@@ -7,6 +7,7 @@ import { loadEligibleFragments, extractFragmentMarkers, MAX_FRAGMENTS_PER_STORY 
 import { loadEligibleTopics, loadTopicsByIds, extractTopicMarkers, MAX_TOPICS_PER_STORY } from './load-topics'
 import { loadReactionPreferences, MIN_REACTIONS } from './load-reaction-preferences'
 import { loadMemorableMoments } from './load-memorable-moments'
+import { loadReferenceStory } from './load-reference-story'
 import { loadRecentTitles } from './load-recent-titles'
 import { resolveStoryStructureChoice } from './resolve-story-structure-choice'
 import { extractWordMarkers, MAX_WORDS_PER_STORY, type TargetWord } from './stages/words-block'
@@ -131,7 +132,7 @@ export async function runPlanPhase(options: {
   const universeIds = options.universeIds ?? []
   const manualTopicIds = options.manualTopicIds ?? []
 
-  const [eligibleFragments, eligibleTopics, reactionSummary, memorableMoments, structureChoice, recentTitles] = await Promise.all([
+  const [eligibleFragments, eligibleTopics, reactionSummary, memorableMoments, structureChoice, recentTitles, referenceStory] = await Promise.all([
     options.injectFragments ? loadEligibleFragments(universeIds) : Promise.resolve([]),
     manualTopicIds.length > 0
       ? loadTopicsByIds(manualTopicIds)
@@ -140,12 +141,14 @@ export async function runPlanPhase(options: {
     loadMemorableMoments(universeIds, options.storyId),
     resolveStoryStructureChoice(options.storyId),
     loadRecentTitles(universeIds[0] ?? null, options.storyId),
+    loadReferenceStory(options.storyId),
   ])
   const fragmentsArg = eligibleFragments.length > 0 ? { eligibleFragments } : {}
   const topicsArg = eligibleTopics.length > 0 ? { eligibleTopics, topicsMode: manualTopicIds.length > 0 ? 'manual' as const : 'auto' as const } : {}
   const reactionArg = reactionSummary && reactionSummary.sampleSize >= MIN_REACTIONS ? { reactionSummary } : {}
   const bibleArg = options.bibleCharacters && options.bibleCharacters.length > 0 ? { bibleCharacters: options.bibleCharacters } : {}
   const memorableMomentsArg = memorableMoments.length > 0 ? { memorableMoments } : {}
+  const referenceStoryArg = referenceStory ? { referenceStory } : {}
 
   const plotterFallbackArg = options.fallbacks?.plotter !== undefined ? { fallback: options.fallbacks.plotter } : {}
 
@@ -166,6 +169,7 @@ export async function runPlanPhase(options: {
     ...reactionArg,
     ...bibleArg,
     ...memorableMomentsArg,
+    ...referenceStoryArg,
     ...userFeedbackArg,
     ...storyIdArg,
     ...plotterFallbackArg,
@@ -254,11 +258,13 @@ export async function runTextPhase(options: {
   notify('Writer')
   const storyIdArg = { storyId: options.storyId }
 
-  const [memorableMoments, structureChoice] = await Promise.all([
+  const [memorableMoments, structureChoice, referenceStory] = await Promise.all([
     loadMemorableMoments(options.universeIds ?? [], options.storyId),
     resolveStoryStructureChoice(options.storyId),
+    loadReferenceStory(options.storyId),
   ])
   const memorableMomentsArg = memorableMoments.length > 0 ? { memorableMoments } : {}
+  const referenceStoryArg = referenceStory ? { referenceStory } : {}
 
   const writerFallbackArg = options.fallbacks?.writer !== undefined ? { fallback: options.fallbacks.writer } : {}
 
@@ -276,6 +282,7 @@ export async function runTextPhase(options: {
     ...sashaContextArg,
     ...exemplarsArg,
     ...memorableMomentsArg,
+    ...referenceStoryArg,
     ...storyIdArg,
     ...writerFallbackArg,
   })
@@ -328,7 +335,7 @@ export async function runPlotterOnly(options: {
   const universeIds = options.universeIds ?? []
   const manualTopicIds = options.manualTopicIds ?? []
 
-  const [eligibleFragments, eligibleTopics, reactionSummary, memorableMoments, structureChoice, recentTitles] = await Promise.all([
+  const [eligibleFragments, eligibleTopics, reactionSummary, memorableMoments, structureChoice, recentTitles, referenceStory] = await Promise.all([
     options.injectFragments ? loadEligibleFragments(universeIds) : Promise.resolve([]),
     manualTopicIds.length > 0
       ? loadTopicsByIds(manualTopicIds)
@@ -337,12 +344,14 @@ export async function runPlotterOnly(options: {
     loadMemorableMoments(universeIds, options.storyId),
     resolveStoryStructureChoice(options.storyId),
     loadRecentTitles(universeIds[0] ?? null, options.storyId),
+    loadReferenceStory(options.storyId),
   ])
   const fragmentsArg = eligibleFragments.length > 0 ? { eligibleFragments } : {}
   const topicsArg = eligibleTopics.length > 0 ? { eligibleTopics, topicsMode: manualTopicIds.length > 0 ? 'manual' as const : 'auto' as const } : {}
   const reactionArg = reactionSummary && reactionSummary.sampleSize >= MIN_REACTIONS ? { reactionSummary } : {}
   const bibleArg = options.bibleCharacters && options.bibleCharacters.length > 0 ? { bibleCharacters: options.bibleCharacters } : {}
   const memorableMomentsArg = memorableMoments.length > 0 ? { memorableMoments } : {}
+  const referenceStoryArg = referenceStory ? { referenceStory } : {}
 
   const plotterFallbackArg = options.fallbacks?.plotter !== undefined ? { fallback: options.fallbacks.plotter } : {}
 
@@ -363,6 +372,7 @@ export async function runPlotterOnly(options: {
     ...reactionArg,
     ...bibleArg,
     ...memorableMomentsArg,
+    ...referenceStoryArg,
     ...userFeedbackArg,
     ...storyIdArg,
     ...plotterFallbackArg,
@@ -445,11 +455,13 @@ export async function runWriterOnly(options: {
 
   const storyIdArg = { storyId: options.storyId }
 
-  const [memorableMoments, structureChoice] = await Promise.all([
+  const [memorableMoments, structureChoice, referenceStory] = await Promise.all([
     loadMemorableMoments(options.universeIds ?? [], options.storyId),
     resolveStoryStructureChoice(options.storyId),
+    loadReferenceStory(options.storyId),
   ])
   const memorableMomentsArg = memorableMoments.length > 0 ? { memorableMoments } : {}
+  const referenceStoryArg = referenceStory ? { referenceStory } : {}
 
   const writerFallbackArg = options.fallbacks?.writer !== undefined ? { fallback: options.fallbacks.writer } : {}
 
@@ -471,6 +483,7 @@ export async function runWriterOnly(options: {
     ...previousTextArg,
     ...userAnnotationsArg,
     ...memorableMomentsArg,
+    ...referenceStoryArg,
     ...onChunkArg,
     ...onChunkResetArg,
     ...storyIdArg,
@@ -523,7 +536,11 @@ export async function runAnnotatedRewrite(options: {
   const storyIdArg = { storyId: options.storyId }
   const writerFallbackArg = options.fallbacks?.writer !== undefined ? { fallback: options.fallbacks.writer } : {}
 
-  const structureChoice = await resolveStoryStructureChoice(options.storyId)
+  const [structureChoice, referenceStory] = await Promise.all([
+    resolveStoryStructureChoice(options.storyId),
+    loadReferenceStory(options.storyId),
+  ])
+  const referenceStoryArg = referenceStory ? { referenceStory } : {}
 
   const textV2 = await runWriter({
     plan: planFinal,
@@ -538,6 +555,7 @@ export async function runAnnotatedRewrite(options: {
     ...universeContextArg,
     ...styleGuideArg,
     ...sashaContextArg,
+    ...referenceStoryArg,
     ...onChunkArg,
     ...onChunkResetArg,
     ...storyIdArg,

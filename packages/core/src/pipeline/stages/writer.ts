@@ -45,6 +45,7 @@ export async function runWriter(options: {
   structure?: StoryStructure
   characterLens?: CharacterLens
   exemplars?: Exemplar[]
+  referenceStory?: { title: string; textFinal: string }
   chosenFragments?: string[]
   targetWords?: TargetWord[]
   userAnnotations?: string
@@ -86,6 +87,14 @@ export async function runWriter(options: {
         .join('\n\n---\n\n')}\n---\n`
     : ''
 
+  if (options.referenceStory) {
+    console.log(`[WRITER] using reference story «${options.referenceStory.title}»`)
+  }
+
+  const referenceStoryBlock = options.referenceStory
+    ? `\n\n---\nИСТОРИЯ-ССЫЛКА (пользователь явно попросил учитывать её при создании этой истории — не копируй персонажей из неё автоматически, если они не относятся к текущей вселенной, но учти её сюжет/тему/тон/события как контекст):\n[«${options.referenceStory.title}»]\n${options.referenceStory.textFinal}\n---\n`
+    : ''
+
   const fragmentBlock = options.chosenFragments && options.chosenFragments.length > 0 && !isRevision
     ? `\n\n---\nФРАГМЕНТЫ ДЛЯ ВПЛЕТЕНИЯ (родитель хотел увидеть эти детали — впиши каждую органично и естественно, не выпячивая и не сваливая в одну сцену; если это короткая фраза или образ — сохрани её узнаваемой):\n${options.chosenFragments.map((f) => `- ${f}`).join('\n')}\n---\n`
     : ''
@@ -99,7 +108,7 @@ export async function runWriter(options: {
     : ''
 
   const parts: string[] = [
-    `${basePrompt}${universeContextBlock}${styleGuideBlock}${sashaContextBlock}${memorableMomentsBlock}${structureBlock}${characterLensBlock}${exemplarsBlock}${fragmentBlock}${wordsBlock}${endingRuleBlock}${idiomRuleBlock}`,
+    `${basePrompt}${universeContextBlock}${styleGuideBlock}${sashaContextBlock}${memorableMomentsBlock}${structureBlock}${characterLensBlock}${exemplarsBlock}${referenceStoryBlock}${fragmentBlock}${wordsBlock}${endingRuleBlock}${idiomRuleBlock}`,
     '',
     `STORY PLAN:\n${plan}`,
   ]

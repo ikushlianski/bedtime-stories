@@ -64,6 +64,7 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
     structureKey: null,
     lensKey: null,
     manualTopicIds: [],
+    referenceStoryRaw: '',
   })
   const [contextMessages, setContextMessages] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
@@ -86,6 +87,7 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
         structureKey: null,
         lensKey: null,
         manualTopicIds: [],
+        referenceStoryRaw: '',
       })
       setContextMessages([])
       setError(null)
@@ -192,7 +194,7 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
 
     try {
       await onSubmit(validation.input)
-      setForm({ seed: '', groupIds: [], structureKey: null, lensKey: null, manualTopicIds: [] })
+      setForm({ seed: '', groupIds: [], structureKey: null, lensKey: null, manualTopicIds: [], referenceStoryRaw: '' })
       setContextMessages([])
       setSuggestedTopics([])
       topicCacheRef.current = new Map()
@@ -243,6 +245,11 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
       return
     }
 
+    if (form.referenceStoryRaw.trim()) {
+      setError('Ссылка на историю поддерживается только для «Создать историю», не для серии')
+      return
+    }
+
     const [primaryGroupId] = form.groupIds
 
     if (!('seed' in validation.input) || primaryGroupId === undefined) {
@@ -256,7 +263,7 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
     try {
       const result = await api.stories.createSeries({ seed, groupId: primaryGroupId })
 
-      setForm({ seed: '', groupIds: [], structureKey: null, lensKey: null, manualTopicIds: [] })
+      setForm({ seed: '', groupIds: [], structureKey: null, lensKey: null, manualTopicIds: [], referenceStoryRaw: '' })
       setContextMessages([])
       setSuggestedTopics([])
       topicCacheRef.current = new Map()
@@ -427,6 +434,19 @@ function CreateStoryModal({ open, onClose, onSubmit, onSeriesCreated, initialSee
                 })}
               </div>
             )}
+          </FormField>
+
+          <FormField
+            label="Ссылка на историю или её ID (необязательно)"
+            hint="История будет передана Плоттеру и Писателю как отдельный контекст-ориентир. Действует только для «Создать историю», не для «Создать серию»."
+          >
+            <input
+              type="text"
+              className="input input-bordered w-full bg-base-200"
+              placeholder="127 или https://bedtime-agent.ilya.online/stories/127"
+              value={form.referenceStoryRaw}
+              onChange={(event) => setForm((prev) => ({ ...prev, referenceStoryRaw: event.target.value }))}
+            />
           </FormField>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

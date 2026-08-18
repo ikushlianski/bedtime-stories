@@ -153,6 +153,7 @@ export interface Story {
   lens_key?: string | null
   favorite: boolean
   reaction_counts?: Record<AnnotationType, number>
+  reference_story_id: number | null
 }
 
 export interface TextVersion {
@@ -374,6 +375,7 @@ export type CreateStoryInput =
       structureKey?: string
       lensKey?: string
       manualTopicIds?: number[]
+      referenceStoryId?: number
     }
   | { title?: string; textFinal: string; groupId?: number; source?: 'user' | 'legacy'; addToReadingList?: boolean }
 

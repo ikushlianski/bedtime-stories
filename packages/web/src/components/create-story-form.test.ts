@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   validateCreateStoryForm,
   buildAccumulatedSeed,
+  parseReferenceStoryId,
   INITIAL_CREATE_STORY_FORM,
   MAX_UNIVERSES_PER_STORY,
   type CreateStoryFormState,
@@ -105,6 +106,78 @@ describe('validateCreateStoryForm', () => {
         manualTopicIds: [3, 7],
       },
     })
+  })
+
+  it('omits referenceStoryId when the field is left empty', () => {
+    const result = validateCreateStoryForm(formWith({ seed: 'valid seed', groupIds: [1] }))
+
+    if (!result.valid) {
+      throw new Error('expected valid result')
+    }
+
+    expect(result.input).not.toHaveProperty('referenceStoryId')
+  })
+
+  it('forwards a referenceStoryId parsed from a raw numeric id', () => {
+    const result = validateCreateStoryForm(formWith({ seed: 'valid seed', groupIds: [1], referenceStoryRaw: '127' }))
+
+    expect(result).toEqual({
+      valid: true,
+      input: {
+        seed: 'valid seed',
+        pipelineMode: 'auto',
+        groupIds: [1],
+        referenceStoryId: 127,
+      },
+    })
+  })
+
+  it('forwards a referenceStoryId parsed from a pasted story URL', () => {
+    const result = validateCreateStoryForm(
+      formWith({ seed: 'valid seed', groupIds: [1], referenceStoryRaw: 'https://bedtime-agent.ilya.online/stories/127' }),
+    )
+
+    if (!result.valid) {
+      throw new Error('expected valid result')
+    }
+
+    expect(result.input).toMatchObject({ referenceStoryId: 127 })
+  })
+
+  it('rejects a reference story field that is neither an id nor a story URL', () => {
+    const result = validateCreateStoryForm(formWith({ seed: 'valid seed', groupIds: [1], referenceStoryRaw: 'not a story link' }))
+
+    expect(result).toEqual({ valid: false, reason: 'Enter a valid story ID or URL' })
+  })
+})
+
+describe('parseReferenceStoryId', () => {
+  it('parses raw digits as a story id', () => {
+    expect(parseReferenceStoryId('127')).toBe(127)
+  })
+
+  it('extracts the id from a full story URL', () => {
+    expect(parseReferenceStoryId('https://bedtime-agent.ilya.online/stories/127')).toBe(127)
+  })
+
+  it('extracts the id from a story URL with a trailing slash', () => {
+    expect(parseReferenceStoryId('https://bedtime-agent.ilya.online/stories/127/')).toBe(127)
+  })
+
+  it('extracts the id from a story URL with trailing query noise', () => {
+    expect(parseReferenceStoryId('https://bedtime-agent.ilya.online/stories/127?tab=text')).toBe(127)
+  })
+
+  it('returns null for an empty string', () => {
+    expect(parseReferenceStoryId('')).toBeNull()
+  })
+
+  it('returns null for a whitespace-only string', () => {
+    expect(parseReferenceStoryId('   ')).toBeNull()
+  })
+
+  it('returns null for garbage input', () => {
+    expect(parseReferenceStoryId('not a story link')).toBeNull()
   })
 })
 

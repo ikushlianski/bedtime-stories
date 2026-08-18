@@ -8,6 +8,7 @@ export interface CreateStoryFormState {
   structureKey: string | null
   lensKey: string | null
   manualTopicIds: number[]
+  referenceStoryRaw: string
 }
 
 export const INITIAL_CREATE_STORY_FORM: CreateStoryFormState = {
@@ -16,6 +17,7 @@ export const INITIAL_CREATE_STORY_FORM: CreateStoryFormState = {
   structureKey: null,
   lensKey: null,
   manualTopicIds: [],
+  referenceStoryRaw: '',
 }
 
 export type CreateStoryFormValidation =
@@ -26,6 +28,22 @@ export function buildAccumulatedSeed(messages: string[], draft: string): string 
   const parts = [...messages, draft].map((part) => part.trim()).filter((part) => part.length > 0)
 
   return parts.join('\n\n')
+}
+
+export function parseReferenceStoryId(raw: string): number | null {
+  const trimmed = raw.trim()
+
+  if (!trimmed) {
+    return null
+  }
+
+  if (/^\d+$/.test(trimmed)) {
+    return parseInt(trimmed, 10)
+  }
+
+  const match = trimmed.match(/\/stories\/(\d+)/)
+
+  return match?.[1] ? parseInt(match[1], 10) : null
 }
 
 export function validateCreateStoryForm(state: CreateStoryFormState): CreateStoryFormValidation {
@@ -43,6 +61,13 @@ export function validateCreateStoryForm(state: CreateStoryFormState): CreateStor
     return { valid: false, reason: `Choose at most ${MAX_UNIVERSES_PER_STORY} universes` }
   }
 
+  const referenceStoryRaw = state.referenceStoryRaw.trim()
+  const referenceStoryId = referenceStoryRaw ? parseReferenceStoryId(referenceStoryRaw) : null
+
+  if (referenceStoryRaw && referenceStoryId === null) {
+    return { valid: false, reason: 'Enter a valid story ID or URL' }
+  }
+
   return {
     valid: true,
     input: {
@@ -52,6 +77,7 @@ export function validateCreateStoryForm(state: CreateStoryFormState): CreateStor
       ...(state.structureKey ? { structureKey: state.structureKey } : {}),
       ...(state.lensKey ? { lensKey: state.lensKey } : {}),
       ...(state.manualTopicIds.length > 0 ? { manualTopicIds: state.manualTopicIds } : {}),
+      ...(referenceStoryId !== null ? { referenceStoryId } : {}),
     },
   }
 }
