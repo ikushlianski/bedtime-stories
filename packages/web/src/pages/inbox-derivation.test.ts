@@ -44,6 +44,7 @@ function mkStory(overrides: Partial<Story>): Story {
     updated_at: null,
     ready_at: null,
     favorite: false,
+    reference_story_id: null,
     ...overrides,
   }
 }
