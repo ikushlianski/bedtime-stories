@@ -14,6 +14,7 @@ import { triggerTextRewrite } from './pipeline-text-rewrite'
 import { decideApprovePlan } from './approve-plan-decision'
 import textVersionsRouter from './text-versions'
 import { createStorySchema, resolveCreateStoryMode } from './create-story-schema'
+import { extractReferenceStoryIdFromSeed } from './extract-reference-story-id'
 import { createAnnotationSchema } from './create-annotation-schema'
 import { analyzeStoryAndLearn } from './story-analysis'
 import { dispatchAnalysis } from './pipeline-dispatch'
@@ -126,11 +127,13 @@ router.post('/', validate(createStorySchema), async (req, res) => {
       return
     }
 
-    if (resolved.referenceStoryId !== undefined) {
+    let referenceStoryId = resolved.referenceStoryId
+
+    if (referenceStoryId !== undefined) {
       const [referenced] = await db
         .select({ id: stories.id, textFinal: stories.textFinal })
         .from(stories)
-        .where(eq(stories.id, resolved.referenceStoryId))
+        .where(eq(stories.id, referenceStoryId))
 
       if (!referenced) {
         res.status(400).json({ error: 'Referenced story not found' })
@@ -140,6 +143,19 @@ router.post('/', validate(createStorySchema), async (req, res) => {
       if (referenced.textFinal === null) {
         res.status(400).json({ error: 'Referenced story has no finalized text' })
         return
+      }
+    } else {
+      const detectedId = extractReferenceStoryIdFromSeed(resolved.seed)
+
+      if (detectedId !== null) {
+        const [referenced] = await db
+          .select({ id: stories.id, textFinal: stories.textFinal })
+          .from(stories)
+          .where(eq(stories.id, detectedId))
+
+        if (referenced && referenced.textFinal !== null) {
+          referenceStoryId = referenced.id
+        }
       }
     }
 
@@ -153,7 +169,7 @@ router.post('/', validate(createStorySchema), async (req, res) => {
       ...(resolved.perStageOverrides !== undefined ? { agentOverrides: resolved.perStageOverrides } : {}),
       ...(resolved.structureKey !== undefined ? { structureKey: resolved.structureKey } : {}),
       ...(resolved.lensKey !== undefined ? { lensKey: resolved.lensKey } : {}),
-      ...(resolved.referenceStoryId !== undefined ? { referenceStoryId: resolved.referenceStoryId } : {}),
+      ...(referenceStoryId !== undefined ? { referenceStoryId } : {}),
     }
     const [story] = await db.insert(stories).values(newStory).returning()
 
