@@ -246,6 +246,12 @@ router.post('/conversations/:storyId', validate(sendMessageSchema), async (req, 
     const currentText = await resolveSourceText(storyRow, resolvedContext)
     const subjectLabel = resolvedContext === 'plan' ? 'bedtime story plan' : 'bedtime story text'
 
+    const universeIds = await getStoryUniverseIds(storyIdRaw)
+    const { universeContext } = await loadUniverseContext(universeIds)
+    const universeContextBlock = universeContext
+      ? `\n\nКОНТЕКСТ ВСЕЛЕННОЙ (персонажи, события, темы вселенной или вселенных истории — используй только этих персонажей, когда пользователь просит добавить кого-то из «другой вселенной»):\n${universeContext}`
+      : ''
+
     const conversationContext = priorMessages
       .map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
       .join('\n\n')
@@ -286,8 +292,9 @@ router.post('/conversations/:storyId', validate(sendMessageSchema), async (req, 
         ].join('\n')
 
     const prompt = [
-      `You are helping refine a ${subjectLabel}. Here is the current ${resolvedContext}:\n${currentText}`,
+      `You are helping refine a ${subjectLabel}. Here is the current ${resolvedContext}:\n${currentText}${universeContextBlock}`,
       `Discuss and suggest improvements conversationally. Be concise and direct.`,
+      `Never invent characters from outside licensed franchises (Harry Potter, superheroes, Disney, etc.) — this app has its own registered universes and characters, listed above if this story mixes universes. When the user asks for "characters from another universe" or "more characters," pull only from that list.`,
       instructionBlock,
       ``,
       `Conversation so far:`,

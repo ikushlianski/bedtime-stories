@@ -156,7 +156,7 @@ function AppShell() {
                 : 'bg-[radial-gradient(circle_at_top,_rgba(249,115,22,0.12),_transparent_35%),linear-gradient(180deg,_rgba(255,253,250,0.96),_rgba(247,242,234,0.96))]'
             }`}
           >
-            <div className="mx-auto max-w-4xl">
+            <div className="mx-auto max-w-6xl">
               <Routes>
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/*" element={
