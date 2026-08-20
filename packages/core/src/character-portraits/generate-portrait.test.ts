@@ -46,6 +46,7 @@ vi.mock('../db/client.js', () => ({
 
 vi.mock('../ai/index.js', () => ({ aiRunner: { generateImage: vi.fn() } }))
 vi.mock('node:fs/promises', () => ({ readFile: vi.fn(async () => Buffer.from('fake-default-image')) }))
+vi.mock('../env.js', () => ({ env: { GCS_BUCKET_NAME: 'bedtime-prod-storage' } }))
 
 import {
   generatePortrait,
