@@ -1,7 +1,9 @@
 import { useState } from 'react'
-import { api, type UniverseCharacter } from '../lib/api'
+import { api, type CurrentPortrait, type UniverseCharacter } from '../lib/api'
 import FormField from './form-field'
 import CharacterBibleFields, { type CharacterBibleValues } from './character-bible-fields'
+import CharacterPortraitPanel from './character-portrait-panel'
+import CharacterReferenceImages from './character-reference-images'
 
 function bibleFromCharacter(character: UniverseCharacter): CharacterBibleValues {
   return {
@@ -56,7 +58,7 @@ function CharacterCard({ character, universeId, onUpdated, onDeleted }: Characte
         coOccurrenceNote: bible.coOccurrenceNote.trim(),
       })
 
-      onUpdated(updated)
+      onUpdated({ ...updated, currentPortrait: updated.currentPortrait ?? character.currentPortrait ?? null })
       setEditing(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Не удалось сохранить')
@@ -99,6 +101,7 @@ function CharacterCard({ character, universeId, onUpdated, onDeleted }: Characte
             />
           </FormField>
           <CharacterBibleFields values={bible} onChange={(patch) => setBible((p) => ({ ...p, ...patch }))} />
+          <CharacterReferenceImages universeId={universeId} characterId={character.id} />
           {error && <p className="text-xs text-error">{error}</p>}
           <div className="flex gap-2">
             <button className="btn btn-primary btn-sm" disabled={saving || !name.trim()} onClick={() => void handleSave()}>
@@ -118,6 +121,10 @@ function CharacterCard({ character, universeId, onUpdated, onDeleted }: Characte
     : character.createdAt
       ? `Создан ${formatDate(character.createdAt)}`
       : null
+
+  function handlePortraitUpdated(portrait: CurrentPortrait) {
+    onUpdated({ ...character, currentPortrait: portrait })
+  }
 
   return (
     <div className="card border border-base-300 bg-base-200 p-4">
@@ -144,6 +151,17 @@ function CharacterCard({ character, universeId, onUpdated, onDeleted }: Characte
           </button>
         </div>
       </div>
+
+      <div className="mt-3">
+        <CharacterPortraitPanel
+          universeId={universeId}
+          characterId={character.id}
+          characterName={character.name}
+          currentPortrait={character.currentPortrait}
+          onPortraitUpdated={handlePortraitUpdated}
+        />
+      </div>
+
       {error && <p className="mt-2 text-xs text-error">{error}</p>}
     </div>
   )
@@ -179,7 +197,7 @@ function AddCharacterForm({ universeId, onAdded, onCancel }: AddCharacterFormPro
         coOccurrenceNote: bible.coOccurrenceNote.trim(),
       })
 
-      onAdded(created)
+      onAdded({ ...created, currentPortrait: created.currentPortrait ?? null })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Не удалось создать')
       setSaving(false)

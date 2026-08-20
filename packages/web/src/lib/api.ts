@@ -25,6 +25,29 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>
 }
 
+async function requestFormData<T>(path: string, formData: FormData, method: string): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method,
+    credentials: 'include',
+    body: formData,
+  })
+
+  if (!res.ok) {
+    let body: unknown = null
+
+    try {
+      body = await res.json()
+    } catch {
+      body = null
+    }
+
+    console.error(`API request failed: ${res.status} ${res.statusText}`, body)
+    throw new Error(formatApiError(body))
+  }
+
+  return res.json() as Promise<T>
+}
+
 async function requestEmpty(path: string, init?: RequestInit): Promise<void> {
   const res = await fetch(`${API_BASE}${path}`, {
     credentials: 'include',
@@ -46,6 +69,14 @@ async function requestEmpty(path: string, init?: RequestInit): Promise<void> {
   }
 }
 
+export type PortraitTier = 'own_reference' | 'universe_sibling' | 'default_style'
+
+export interface CurrentPortrait {
+  imageUrl: string
+  tier: PortraitTier
+  generatedAt: string | null
+}
+
 export interface UniverseCharacter {
   id: number
   universeId: number
@@ -58,6 +89,21 @@ export interface UniverseCharacter {
   coOccurrenceNote: string | null
   createdAt: string | null
   updatedAt: string | null
+  currentPortrait: CurrentPortrait | null
+}
+
+export interface CharacterReferenceImage {
+  id: number
+  characterId: number
+  url: string
+  uploadedAt: string | null
+}
+
+export interface CharacterPortraitHistoryEntry {
+  id: number
+  imageUrl: string
+  tier: PortraitTier
+  generatedAt: string | null
 }
 
 export interface UniverseSuggestion {
@@ -861,6 +907,29 @@ export const api = {
 
     deleteCharacter: (universeId: number, charId: number) =>
       requestEmpty(`/api/universes/${universeId}/characters/${charId}`, { method: 'DELETE' }),
+
+    listReferenceImages: (universeId: number, charId: number) =>
+      request<CharacterReferenceImage[]>(`/api/universes/${universeId}/characters/${charId}/reference-images`),
+
+    uploadReferenceImages: (universeId: number, charId: number, files: File[]) => {
+      const formData = new FormData()
+      files.forEach((file) => formData.append('files', file))
+
+      return requestFormData<CharacterReferenceImage[]>(
+        `/api/universes/${universeId}/characters/${charId}/reference-images`,
+        formData,
+        'POST',
+      )
+    },
+
+    deleteReferenceImage: (universeId: number, charId: number, imageId: number) =>
+      requestEmpty(`/api/universes/${universeId}/characters/${charId}/reference-images/${imageId}`, { method: 'DELETE' }),
+
+    generatePortrait: (universeId: number, charId: number) =>
+      request<CurrentPortrait>(`/api/universes/${universeId}/characters/${charId}/portrait`, { method: 'POST' }),
+
+    getPortraitHistory: (universeId: number, charId: number) =>
+      request<CharacterPortraitHistoryEntry[]>(`/api/universes/${universeId}/characters/${charId}/portrait-history`),
 
     listSuggestions: (universeId: number) =>
       request<UniverseSuggestion[]>(`/api/universes/${universeId}/suggestions`),
