@@ -49,6 +49,18 @@ export interface EmbedResult {
   usage: OpenRouterUsage
 }
 
+export interface GenerateImageRequest {
+  model: string
+  prompt: string
+  inputReferences?: string[]
+}
+
+export interface GenerateImageResult {
+  imageBase64: string
+  mediaType: string
+  usage: OpenRouterUsage
+}
+
 export interface ChatStreamEvent {
   delta?: string
   usage?: OpenRouterUsage
@@ -166,6 +178,53 @@ export class OpenRouterClient {
       }
 
       return { embeddings, usage }
+    } catch (err) {
+      throw toTimeoutError(err)
+    } finally {
+      clear()
+    }
+  }
+
+  async generateImage(req: GenerateImageRequest): Promise<GenerateImageResult> {
+    const body = {
+      model: req.model,
+      prompt: req.prompt,
+      ...(req.inputReferences !== undefined && req.inputReferences.length > 0
+        ? { input_references: req.inputReferences }
+        : {}),
+    }
+    const { signal, clear } = withTimeout()
+
+    try {
+      const res = await fetch(`${BASE_URL}/images`, {
+        method: 'POST',
+        headers: authHeaders(this.apiKey),
+        body: JSON.stringify(body),
+        signal,
+      })
+
+      if (!res.ok) {
+        throw new OpenRouterHttpError(res.status, await res.text())
+      }
+
+      const json = (await res.json()) as {
+        data?: Array<{ b64_json?: string; media_type?: string }>
+        usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number }
+      }
+
+      const image = json.data?.[0]
+
+      if (!image?.b64_json) {
+        throw new Error('OpenRouter image response contained no image data')
+      }
+
+      const usage: OpenRouterUsage = {
+        promptTokens: json.usage?.prompt_tokens ?? 0,
+        completionTokens: json.usage?.completion_tokens ?? 0,
+        costUsd: json.usage?.cost ?? 0,
+      }
+
+      return { imageBase64: image.b64_json, mediaType: image.media_type ?? 'image/png', usage }
     } catch (err) {
       throw toTimeoutError(err)
     } finally {

@@ -8,6 +8,10 @@ import { validate } from '../middleware/validate'
 import { getPendingSuggestionsCount } from './universe-suggestions'
 import { getPendingIdeasCount } from './story-ideas'
 import { syncUniverseMemory } from '@bedtime/core/pipeline/synthesize-universe-memory'
+import { deleteCharacterCascade } from './delete-character-cascade'
+import { loadCharactersWithPortrait } from '@bedtime/core/character-portraits/load-characters-with-portrait'
+import { buildPublicObjectUrl } from '@bedtime/core/character-portraits/build-public-object-url'
+import { env } from '@bedtime/core/env'
 
 const router = Router()
 
@@ -56,9 +60,24 @@ const updateCharacterSchema = z.object({
   coOccurrenceNote: z.string().optional(),
 })
 
+function toPublicCharacter(character: Awaited<ReturnType<typeof loadCharactersWithPortrait>>[number]) {
+  const { currentPortrait, ...rest } = character
+
+  return {
+    ...rest,
+    currentPortrait: currentPortrait
+      ? {
+          imageUrl: buildPublicObjectUrl({ bucketName: env.GCS_BUCKET_NAME, storagePath: currentPortrait.storagePath }),
+          tier: currentPortrait.tier,
+          generatedAt: currentPortrait.generatedAt,
+        }
+      : null,
+  }
+}
+
 async function toPublic(row: StoryGroup) {
   const [characters, pendingSuggestionsCount, pendingIdeasCount] = await Promise.all([
-    db.select().from(universeCharacters).where(eq(universeCharacters.universeId, row.id)),
+    loadCharactersWithPortrait(row.id),
     getPendingSuggestionsCount(row.id),
     getPendingIdeasCount(row.id),
   ])
@@ -76,7 +95,7 @@ async function toPublic(row: StoryGroup) {
     styleGuideMinimize: row.styleGuideMinimize ?? null,
     agentOverrides: row.agentOverrides,
     createdAt: row.createdAt,
-    characters,
+    characters: characters.map(toPublicCharacter),
     pendingSuggestionsCount,
     pendingIdeasCount,
   }
@@ -218,12 +237,9 @@ router.get('/:id/characters', async (req, res) => {
       return
     }
 
-    const chars = await db
-      .select()
-      .from(universeCharacters)
-      .where(eq(universeCharacters.universeId, id))
+    const chars = await loadCharactersWithPortrait(id)
 
-    res.json(chars)
+    res.json(chars.map(toPublicCharacter))
   } catch (err) {
     console.error('GET /universes/:id/characters failed:', err)
     res.status(500).json({ error: 'Failed to fetch characters' })
@@ -302,9 +318,17 @@ router.delete('/:id/characters/:charId', async (req, res) => {
       return
     }
 
-    await db
-      .delete(universeCharacters)
+    const [existing] = await db
+      .select({ id: universeCharacters.id })
+      .from(universeCharacters)
       .where(and(eq(universeCharacters.id, charId), eq(universeCharacters.universeId, id)))
+
+    if (!existing) {
+      res.status(404).json({ error: 'Character not found' })
+      return
+    }
+
+    await deleteCharacterCascade(charId)
 
     res.status(204).send()
   } catch (err) {

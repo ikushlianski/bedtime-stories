@@ -23,7 +23,7 @@ vi.mock('node:fs', async (orig) => {
   return { ...real, existsSync: () => true }
 })
 
-import { OpenRouterRunner, AiValidationError } from './openrouter.runner'
+import { OpenRouterRunner, AiValidationError, ModelNotInCatalogError } from './openrouter.runner'
 import type { OpenRouterClient, ChatStreamEvent, ChatNonStreamResult } from './openrouter.client'
 import { OpenRouterHttpError } from './openrouter.client'
 import type { CostRecorder } from '../cost/cost-recorder'
@@ -370,6 +370,83 @@ describe('OpenRouterRunner.runText with tools', () => {
     const secondCallMessages = chatNonStream.mock.calls[1]?.[0]?.messages as Array<{ role: string; content?: string }>
     const toolMessage = secondCallMessages.find((m) => m.role === 'tool')
     expect(toolMessage?.content).toContain('tool_execution_failed')
+  })
+})
+
+describe('OpenRouterRunner.generateImage', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('generates an image and records a successful, character-tied cost row', async () => {
+    const recorder = makeRecorder()
+    const generateImage = vi.fn(async () => ({
+      imageBase64: 'base64data',
+      mediaType: 'image/png',
+      usage: { promptTokens: 0, completionTokens: 0, costUsd: 0.0387509 },
+    }))
+    const client = { generateImage } as unknown as OpenRouterClient
+
+    const runner = new OpenRouterRunner(client, recorder)
+
+    const result = await runner.generateImage({
+      model: 'google/gemini-2.5-flash-image',
+      prompt: 'a portrait',
+      referenceImageUrls: ['https://example.com/ref.png'],
+      characterId: 42,
+    })
+
+    expect(result).toEqual({ imageBase64: 'base64data', mediaType: 'image/png' })
+    expect(generateImage).toHaveBeenCalledWith({
+      model: 'google/gemini-2.5-flash-image',
+      prompt: 'a portrait',
+      inputReferences: ['https://example.com/ref.png'],
+    })
+    expect(recorder.calls).toHaveLength(1)
+    expect(recorder.calls[0]).toMatchObject({
+      storyId: null,
+      characterId: 42,
+      stage: 'character_portrait',
+      modelId: 'google/gemini-2.5-flash-image',
+      success: true,
+    })
+  })
+
+  it('refuses to call OpenRouter when the model is missing from model_catalog', async () => {
+    const { db } = (await import('../db/client.js')) as unknown as {
+      db: { select: ReturnType<typeof vi.fn> }
+    }
+    db.select.mockReturnValueOnce({
+      from: () => ({ where: () => ({ limit: async () => [] }) }),
+    })
+
+    const recorder = makeRecorder()
+    const generateImage = vi.fn()
+    const client = { generateImage } as unknown as OpenRouterClient
+
+    const runner = new OpenRouterRunner(client, recorder)
+
+    await expect(
+      runner.generateImage({ model: 'unknown/model', prompt: 'a portrait' }),
+    ).rejects.toBeInstanceOf(ModelNotInCatalogError)
+
+    expect(generateImage).not.toHaveBeenCalled()
+    expect(recorder.calls).toHaveLength(0)
+  })
+
+  it('records a failed, unbilled cost row when the OpenRouter call itself fails', async () => {
+    const recorder = makeRecorder()
+    const generateImage = vi.fn(async () => {
+      throw new OpenRouterHttpError(502, 'provider error')
+    })
+    const client = { generateImage } as unknown as OpenRouterClient
+
+    const runner = new OpenRouterRunner(client, recorder)
+
+    await expect(
+      runner.generateImage({ model: 'google/gemini-2.5-flash-image', prompt: 'a portrait', characterId: 7 }),
+    ).rejects.toThrow('OpenRouter HTTP 502')
+
+    expect(recorder.calls).toHaveLength(1)
+    expect(recorder.calls[0]).toMatchObject({ characterId: 7, success: false, usd: 0 })
   })
 })
 

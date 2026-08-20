@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm'
 import { db } from '../db/client.js'
 import { modelCatalog } from '../db/schema.js'
 import { env } from '../env.js'
-import type { AiRunner, RunStructuredOptions, RunTextOptions } from '../ai/runner.interface.js'
+import type { AiRunner, RunImageOptions, RunImageResult, RunStructuredOptions, RunTextOptions } from '../ai/runner.interface.js'
 import { OpenRouterClient, OpenRouterHttpError, type ChatMessage, type OpenRouterUsage } from './openrouter.client.js'
 import { parseJsonWithSchema } from './json-extract.js'
 import { deriveStructuredRequestPayload } from './derive-structured-request-payload.js'
@@ -34,6 +34,12 @@ export class AiValidationError extends Error {
     readonly parseError: unknown,
   ) {
     super('AI returned invalid JSON output')
+  }
+}
+
+export class ModelNotInCatalogError extends Error {
+  constructor(readonly model: string) {
+    super(`Model "${model}" is not yet in model_catalog — run a catalog sync before generating`)
   }
 }
 
@@ -214,6 +220,84 @@ export class OpenRouterRunner implements AiRunner {
     generation.end({ level: 'ERROR', statusMessage: 'no candidates available' })
 
     throw lastErr ?? new AiExecutionError('no candidates available')
+  }
+
+  async generateImage(options: RunImageOptions): Promise<RunImageResult> {
+    const label = 'generateImage'
+    const stage = options.stage ?? 'character_portrait'
+
+    const catalogRows = await db.select().from(modelCatalog).where(eq(modelCatalog.id, options.model)).limit(1)
+
+    if (catalogRows.length === 0) {
+      throw new ModelNotInCatalogError(options.model)
+    }
+
+    const generation = langfuse.generation({
+      name: label,
+      model: options.model,
+      input: options.prompt,
+      metadata: { stage },
+      traceId: getActiveTraceId() ?? null,
+    })
+
+    const startedAt = Date.now()
+
+    console.log(`[ai] ${label} start model=${options.model} promptLen=${options.prompt.length} referenceCount=${options.referenceImageUrls?.length ?? 0}`)
+
+    try {
+      const result = await this.client.generateImage({
+        model: options.model,
+        prompt: options.prompt,
+        ...(options.referenceImageUrls !== undefined ? { inputReferences: options.referenceImageUrls } : {}),
+      })
+
+      const latencyMs = Date.now() - startedAt
+
+      console.log(`[ai] ${label} done model=${options.model} stage=${stage} usd=${result.usage.costUsd} latencyMs=${latencyMs}`)
+
+      await this.recorder.record({
+        storyId: null,
+        characterId: options.characterId ?? null,
+        stage,
+        modelId: options.model,
+        attempt: 1,
+        fallbackUsed: false,
+        tokensIn: result.usage.promptTokens,
+        tokensOut: result.usage.completionTokens,
+        usd: result.usage.costUsd,
+        latencyMs,
+        success: true,
+      })
+
+      generation.end({
+        output: '[image]',
+        usage: { input: result.usage.promptTokens, output: result.usage.completionTokens, unit: 'TOKENS' },
+      })
+
+      return { imageBase64: result.imageBase64, mediaType: result.mediaType }
+    } catch (err) {
+      const latencyMs = Date.now() - startedAt
+
+      console.error(`[ai] ${label} failed model=${options.model} latencyMs=${latencyMs}:`, err)
+
+      await this.recorder.record({
+        storyId: null,
+        characterId: options.characterId ?? null,
+        stage,
+        modelId: options.model,
+        attempt: 1,
+        fallbackUsed: false,
+        tokensIn: 0,
+        tokensOut: 0,
+        usd: 0,
+        latencyMs,
+        success: false,
+      })
+
+      generation.end({ level: 'ERROR', statusMessage: String(err) })
+
+      throw err
+    }
   }
 
   private async runTextWithToolsAndFallback(

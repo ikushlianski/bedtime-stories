@@ -39,3 +39,16 @@ export interface AiRunner {
   runText(options: RunTextOptions): Promise<string>
   runStructured<T>(options: RunStructuredOptions<T>): Promise<T>
 }
+
+export interface RunImageOptions {
+  model: string
+  prompt: string
+  referenceImageUrls?: string[]
+  stage?: string
+  characterId?: number
+}
+
+export interface RunImageResult {
+  imageBase64: string
+  mediaType: string
+}

@@ -14,6 +14,8 @@ import pipelineRouter from './routes/pipeline'
 import dashboardRouter from './routes/dashboard'
 import improverRouter from './routes/improver'
 import universesRouter from './routes/universes'
+import universeCharacterReferenceImagesRouter from './routes/universe-character-reference-images'
+import universeCharacterPortraitRouter from './routes/universe-character-portrait'
 import universeSuggestionsRouter from './routes/universe-suggestions'
 import storyIdeasRouter from './routes/story-ideas'
 import diaryRouter from './routes/diary'
@@ -76,6 +78,8 @@ app.use('/api/pipeline', pipelineRouter)
 app.use('/api/dashboard', dashboardRouter)
 app.use('/api/improver', improverRouter)
 app.use('/api/universes', universesRouter)
+app.use('/api/universes', universeCharacterReferenceImagesRouter)
+app.use('/api/universes', universeCharacterPortraitRouter)
 app.use('/api/universes/:universeId/suggestions', universeSuggestionsRouter)
 app.use('/api/universes/:universeId/ideas', storyIdeasRouter)
 app.use('/api/diary', diaryRouter)
