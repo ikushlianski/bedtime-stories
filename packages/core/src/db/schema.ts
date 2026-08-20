@@ -357,6 +357,7 @@ export const valueForMoneyFeedback = pgTable('value_for_money_feedback', {
 export const modelCalls = pgTable('model_calls', {
   id: serial('id').primaryKey(),
   storyId: integer('story_id').references(() => stories.id),
+  characterId: integer('character_id').references(() => universeCharacters.id),
   stage: text('stage').notNull(),
   modelId: text('model_id').references(() => modelCatalog.id),
   attempt: integer('attempt').notNull().default(1),
@@ -367,6 +368,23 @@ export const modelCalls = pgTable('model_calls', {
   latencyMs: integer('latency_ms'),
   success: boolean('success').notNull(),
   createdAt: timestamp('created_at').defaultNow(),
+})
+
+export const characterReferenceImages = pgTable('character_reference_images', {
+  id: serial('id').primaryKey(),
+  characterId: integer('character_id').references(() => universeCharacters.id).notNull(),
+  storagePath: text('storage_path').notNull(),
+  uploadedAt: timestamp('uploaded_at').defaultNow(),
+})
+
+export const characterPortraits = pgTable('character_portraits', {
+  id: serial('id').primaryKey(),
+  characterId: integer('character_id').references(() => universeCharacters.id).notNull(),
+  storagePath: text('storage_path').notNull(),
+  tier: text('tier').$type<'own_reference' | 'universe_sibling' | 'default_style'>().notNull(),
+  sourceStoragePaths: jsonb('source_storage_paths').$type<string[] | null>().default(null),
+  isCurrent: boolean('is_current').notNull().default(false),
+  generatedAt: timestamp('generated_at').defaultNow(),
 })
 
 export const storyIdeas = pgTable('story_ideas', {

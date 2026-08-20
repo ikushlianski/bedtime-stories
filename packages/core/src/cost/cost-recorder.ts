@@ -4,6 +4,7 @@ import { toMicros } from '@bedtime/shared/money/micros'
 
 export interface RecordCallInput {
   storyId: number | null
+  characterId?: number | null
   stage: string
   modelId: string
   attempt: number
@@ -32,6 +33,7 @@ export class DbCostRecorder implements CostRecorder {
 
       await db.insert(modelCalls).values({
         storyId: input.storyId,
+        characterId: input.characterId ?? null,
         stage: input.stage,
         modelId: input.modelId,
         attempt: input.attempt,

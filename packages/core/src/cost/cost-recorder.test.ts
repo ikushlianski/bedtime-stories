@@ -37,6 +37,7 @@ describe('DbCostRecorder', () => {
     expect(mocked.__mock.insert).toHaveBeenCalledTimes(1)
     expect(mocked.__mock.insertValues).toHaveBeenCalledWith({
       storyId: 7,
+      characterId: null,
       stage: 'plotter',
       modelId: 'anthropic/claude-3.5-sonnet',
       attempt: 1,
@@ -47,5 +48,27 @@ describe('DbCostRecorder', () => {
       latencyMs: 1500,
       success: true,
     })
+  })
+
+  it('writes a model_calls row tied to a character instead of a story', async () => {
+    const recorder = new DbCostRecorder()
+
+    await recorder.record({
+      storyId: null,
+      characterId: 42,
+      stage: 'character_portrait',
+      modelId: 'google/gemini-2.5-flash-image',
+      attempt: 1,
+      fallbackUsed: false,
+      tokensIn: 0,
+      tokensOut: 0,
+      usd: 0.0387509,
+      latencyMs: 4200,
+      success: true,
+    })
+
+    expect(mocked.__mock.insertValues).toHaveBeenCalledWith(
+      expect.objectContaining({ storyId: null, characterId: 42, stage: 'character_portrait' }),
+    )
   })
 })
