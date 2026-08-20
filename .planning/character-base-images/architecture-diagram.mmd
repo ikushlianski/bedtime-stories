@@ -1,0 +1,31 @@
+flowchart LR
+  classDef default fill:#e8eaf6,stroke:#455a64,stroke-width:1.5px,color:#000
+  linkStyle default stroke:#455a64,stroke-width:1.5px
+
+  Web["Web SPA<br/>character card"]
+  API["Express API"]
+  DB[("Neon DB<br/>characters + reference images")]
+  Router{"Reference source?<br/>own upload, sibling<br/>portrait, or default"}
+  Default["Bundled default<br/>style reference"]
+  OR["OpenRouter /images<br/>gemini-2.5-flash-image"]
+  GCS[("GCS bucket<br/>bedtime-prod-storage")]
+
+  Web -- "1 upload reference images" --> API
+  API -- "2 store uploads" --> GCS
+  GCS -- "3 public URL" --> API
+  API -- "4 save reference rows" --> DB
+
+  Web -- "A click Generate portrait" --> API
+  API -- "B look up references" --> DB
+  DB -- "C own images, sibling<br/>portraits, or none" --> Router
+  Router -- "no references anywhere" --> Default
+  Router -- "own or sibling refs found" --> OR
+  Default -- "D style-only prompt" --> OR
+  OR -- "E generated image + cost" --> API
+  API -- "F upload portrait" --> GCS
+  GCS -- "G public URL" --> API
+  API -- "H save portrait + cost" --> DB
+  API -- "I updated character" --> Web
+
+  class OR,GCS external
+  classDef external fill:#fff9c4,stroke:#455a64,stroke-width:1.5px,color:#000
