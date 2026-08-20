@@ -8,7 +8,7 @@ flowchart LR
   Router{"Reference source?<br/>own upload, sibling<br/>portrait, or default"}
   Default["Bundled default<br/>style reference"]
   OR["OpenRouter /images<br/>gemini-2.5-flash-image"]
-  GCS[("GCS bucket<br/>references/ private, portraits/ public")]
+  GCS[("Two GCS buckets<br/>bedtime-prod-references (private)<br/>bedtime-prod-storage (public)")]
 
   Web -- "1 upload reference images" --> API
   API -- "2 store uploads" --> GCS

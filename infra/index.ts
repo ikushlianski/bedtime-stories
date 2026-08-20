@@ -57,6 +57,18 @@ const storageBucket = new gcp.storage.Bucket(
   { dependsOn: enabledApis },
 )
 
+const referencesBucket = new gcp.storage.Bucket(
+  'bedtime-prod-references',
+  {
+    project: project.projectId,
+    location: 'EUROPE-WEST3',
+    name: 'bedtime-prod-references',
+    uniformBucketLevelAccess: true,
+    versioning: { enabled: true },
+  },
+  { dependsOn: enabledApis },
+)
+
 const apiSa = new gcp.serviceaccount.Account(
   'api-sa',
   {
@@ -73,14 +85,21 @@ new gcp.storage.BucketIAMMember('api-storage-object-admin', {
   member: pulumi.interpolate`serviceAccount:${apiSa.email}`,
 })
 
-new gcp.storage.BucketIAMMember('public-read-portraits-only', {
+new gcp.storage.BucketIAMMember('api-references-object-admin', {
+  bucket: referencesBucket.name,
+  role: 'roles/storage.objectAdmin',
+  member: pulumi.interpolate`serviceAccount:${apiSa.email}`,
+})
+
+// GCS IAM Conditions cannot be combined with a public (allUsers) grant — Google rejects
+// any conditional binding scoped to allUsers with "Conditions are not allowed on public
+// resources" (confirmed live, 2026-08-20). Portrait images are the only thing this bucket
+// holds going forward, so the whole bucket is public-read; reference uploads live in the
+// separate private `referencesBucket` instead.
+new gcp.storage.BucketIAMMember('public-read-portraits', {
   bucket: storageBucket.name,
   role: 'roles/storage.objectViewer',
   member: 'allUsers',
-  condition: {
-    title: 'public-read-portraits-only',
-    expression: pulumi.interpolate`resource.name.startsWith("projects/_/buckets/${storageBucket.name}/objects/portraits/")`,
-  },
 })
 
 new gcp.serviceaccount.IAMMember('api-sa-token-creator-self', {
@@ -301,5 +320,6 @@ export const apiUrl = apiService.statuses[0].url
 export const registryUrl = pulumi.interpolate`${region}-docker.pkg.dev/${project.projectId}/${registry.repositoryId}`
 export const ciSaEmail = ciSa.email
 export const bucketName = storageBucket.name
+export const referencesBucketName = referencesBucket.name
 export const domainMappingRecords = apiDomainMapping.statuses
 export const pipelineQueue = pipelineQueueResource.id

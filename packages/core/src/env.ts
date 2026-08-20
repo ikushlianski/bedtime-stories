@@ -15,6 +15,7 @@ const envSchema = z.object({
   OPENROUTER_API_KEY: z.string().min(1),
   JWT_SECRET: z.string().min(32),
   GCS_BUCKET_NAME: z.string().default('bedtime-prod-storage'),
+  GCS_REFERENCES_BUCKET_NAME: z.string().default('bedtime-prod-references'),
 })
 
 export const env = envSchema.parse(process.env)

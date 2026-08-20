@@ -30,18 +30,25 @@ async function getStorageClient(): Promise<GcsStorageClient> {
 }
 
 export class GcsObjectStorage implements ObjectStorage {
-  constructor(private readonly bucketName: string = env.GCS_BUCKET_NAME) {}
+  constructor(
+    private readonly publicBucketName: string = env.GCS_BUCKET_NAME,
+    private readonly privateBucketName: string = env.GCS_REFERENCES_BUCKET_NAME,
+  ) {}
+
+  private bucketNameFor(path: string): string {
+    return path.startsWith('references/') ? this.privateBucketName : this.publicBucketName
+  }
 
   async upload(input: UploadObjectInput): Promise<void> {
     const client = await getStorageClient()
-    const file = client.bucket(this.bucketName).file(input.path)
+    const file = client.bucket(this.bucketNameFor(input.path)).file(input.path)
 
     await file.save(input.data, { contentType: input.contentType, resumable: false })
   }
 
   async getSignedReadUrl(path: string, expiresInSeconds: number): Promise<string> {
     const client = await getStorageClient()
-    const file = client.bucket(this.bucketName).file(path)
+    const file = client.bucket(this.bucketNameFor(path)).file(path)
 
     const [url] = await file.getSignedUrl({
       version: 'v4',
@@ -54,7 +61,7 @@ export class GcsObjectStorage implements ObjectStorage {
 
   async delete(path: string): Promise<void> {
     const client = await getStorageClient()
-    const file = client.bucket(this.bucketName).file(path)
+    const file = client.bucket(this.bucketNameFor(path)).file(path)
 
     await file.delete()
   }

@@ -14,10 +14,11 @@ Every generation, regardless of tier, asks for one character alone in a clean po
 
 ## Storage split: private references, public portraits
 
-Uploaded reference images and generated portraits are treated differently because they carry different privacy risk — a reference image in this app could plausibly be a real photo of a real person, while a generated portrait is AI art with no such concern:
+Uploaded reference images and generated portraits are treated differently because they carry different privacy risk — a reference image in this app could plausibly be a real photo of a real person, while a generated portrait is AI art with no such concern. This split is enforced with **two separate GCS buckets**, not a prefix inside one bucket — Google Cloud IAM rejects a Condition combined with a public (`allUsers`) grant ("Conditions are not allowed on public resources"), so a single bucket can't be made public for one prefix and private for another:
 
-- Generated portraits live under a `portraits/` prefix in the GCS bucket and are public-read. The app never signs a URL for them — a portrait's public URL is always just deterministic string formatting from its stored path.
-- Uploaded references live under a separate `references/` prefix with no public grant at all. The only way to read one — for display in the UI, or for the one-time handoff to OpenRouter when a character's own references feed its own generation — is a signed, time-limited URL the API mints on demand (~1 hour for UI display, ~10 minutes for the one-time OpenRouter handoff).
+- Generated portraits live in `bedtime-prod-storage` (under a `portraits/` prefix, kept for path-shape consistency with references, though the whole bucket is public-read now). The app never signs a URL for them — a portrait's public URL is always just deterministic string formatting from its stored path.
+- Uploaded references live in the separate `bedtime-prod-references` bucket (under a `references/` prefix), which carries no public grant at all. The only way to read one — for display in the UI, or for the one-time handoff to OpenRouter when a character's own references feed its own generation — is a signed, time-limited URL the API mints on demand (~1 hour for UI display, ~10 minutes for the one-time OpenRouter handoff).
+- `GcsObjectStorage` picks the bucket per call by checking whether the object's stored path starts with `references/` — callers pass one path, never a bucket name.
 
 Both kinds of row store a bucket-relative storage path, never a URL — a portrait's URL is always re-derivable from its path, and a reference's "URL" would be wrong the moment it went stale.
 
