@@ -20,10 +20,11 @@ Single phase implementation. The work is naturally layered (derivers, then the O
 
 | Deriver | Inputs | Output | Scenarios covered |
 |---|---|---|---|
-| `deriveReferenceTier` | `{ ownReferenceUrls: string[], siblingPortraitUrls: string[] }` | `{ tier: 'own_reference' \| 'universe_sibling' \| 'default_style', referenceImageUrls: string[] }` (sibling list capped at 3 inside the function; `siblingPortraitUrls` must already exclude the character being generated — enforced by the caller, `load-portrait-candidates.ts`, not by this pure function) | 2, 3, 4, 5 |
+| `deriveReferenceTier` | `{ ownReferenceValues: string[], siblingPortraitValues: string[] }` (storage paths, not URLs — this deriver only picks and caps, it doesn't know or care whether a value ends up signed or public) | `{ tier: 'own_reference' \| 'universe_sibling' \| 'default_style', referenceValues: string[] }` (sibling list capped at 3 inside the function; `siblingPortraitValues` must already exclude the character being generated — enforced by the caller, `load-portrait-candidates.ts`, not by this pure function) | 2, 3, 4, 5 |
 | `buildPortraitPrompt` | `{ name, description, age, traits }` (character bible fields) + `tier` | prompt string — tier 1 asks the model to match the uploaded appearance; tiers 2/3 explicitly ask it to invent the character's appearance and match only the art style; all tiers state "single character, no scene, portrait/headshot" | 2, 3, 4 |
 | `validateReferenceUpload` | `{ mimetype: string, sizeBytes: number }` + current upload-batch count | `{ ok: true } \| { ok: false, reason: string }` | 1 |
-| `buildCharacterAssetPath` | `{ kind: 'reference' \| 'portrait', characterId: number, extension: string }` | GCS object path string | 1, 2, 3, 4, 5 |
+| `buildCharacterAssetPath` | `{ kind: 'reference' \| 'portrait', characterId: number, fileId: string, extension: string }` (`fileId` is caller-supplied, e.g. `crypto.randomUUID()` — kept an input rather than generated inside so this stays pure/testable) | GCS object path string — `kind` maps to a **top-level** prefix (`references/...` or `portraits/...`), not nested under a shared `characters/{id}/` prefix, so the two kinds can get different bucket-level IAM treatment by prefix alone (see Decisions) | 1, 2, 3, 4, 5 |
+| `buildPublicObjectUrl` | `{ bucketName: string, storagePath: string }` | the deterministic `https://storage.googleapis.com/<bucket>/<path>` URL — pure string formatting, no GCS call; only ever correct to use on a path under the publicly-readable `portraits/` prefix | 2, 3, 4, 5 |
 
 ### Files by scenario
 
@@ -49,31 +50,65 @@ packages/core/src/character-portraits/
   derive-reference-tier.test.ts
   build-portrait-prompt.ts              — pure: character bible + tier -> prompt text
   build-portrait-prompt.test.ts
-  build-character-asset-path.ts         — pure: GCS object path naming
+  build-character-asset-path.ts         — pure: GCS object path naming (top-level `references/`/`portraits/` prefix)
   build-character-asset-path.test.ts
+  build-public-object-url.ts            — pure: deterministic public URL for a path under `portraits/` — no GCS
+                                           call, just string formatting; never used for `references/` paths
+  build-public-object-url.test.ts
   validate-reference-upload.ts          — pure: mimetype/size/count checks
   validate-reference-upload.test.ts
-  load-portrait-candidates.ts           — DB reads: own references, sibling portraits (capped 3, most-recent-first,
-                                           EXCLUDES the character being generated)
-  load-characters-with-portrait.ts      — DB read: character rows joined with their current portrait row, used by
-                                           the existing character-list endpoints so the list payload doesn't change shape
-  save-reference-image.ts               — orchestration: one uploaded file -> GCS -> DB row
+  load-portrait-candidates.ts           — DB reads: own reference storage paths, sibling portrait storage paths
+                                           (capped 3, most-recent-first, EXCLUDES the character being generated) —
+                                           returns paths, never signs or builds URLs itself (core has no GCS SDK)
+  load-characters-with-portrait.ts      — DB read: character rows joined with their current portrait row's storage
+                                           path — the calling route layer converts that path to a public URL via
+                                           `build-public-object-url.ts` before it reaches the frontend
+  save-reference-image.ts               — orchestration: one uploaded file -> GCS `references/...` -> DB row
+                                           (stores the storage path, not a URL — see Decisions); returns the new
+                                           row's storage path back to the route, which signs it before responding
+                                           — this function itself does not sign, keeping "which URL a caller gets
+                                           and for how long" a route-layer concern, not baked into the write path
   generate-portrait.ts                  — orchestration: model_catalog pre-flight check -> tier resolution ->
-                                           OpenRouter -> GCS -> DB write (new current row, flip old current to
-                                           previous, prune previous rows beyond 3) -> cost record
+                                           for tier `own_reference`, sign each selected reference's storage path
+                                           fresh (short-lived, one-time use) right before the OpenRouter call; for
+                                           tier `universe_sibling`, build public URLs for the (already-public)
+                                           sibling portraits; for `default_style`, read+base64 the local asset ->
+                                           OpenRouter -> upload result to GCS `portraits/...` -> DB write (new
+                                           current row storing the storage path + which source values were used,
+                                           flip old current to previous, prune previous rows beyond 3) -> cost record
 packages/core/src/storage/
-  object-storage.interface.ts           — ObjectStorage interface (uploadPublic, delete), injected — core never imports @google-cloud/storage directly
+  object-storage.interface.ts           — ObjectStorage interface: `upload`, `getSignedReadUrl`, `delete` — no
+                                           `getPublicUrl` method here, that's the separate pure deriver above, since
+                                           a public URL needs no GCS call and no injected implementation at all;
+                                           core never imports `@google-cloud/storage` directly
 packages/api/src/storage/
-  gcs-object-storage.ts                 — ObjectStorage implementation, dynamic-imports @google-cloud/storage (mirrors the existing @google-cloud/tasks dynamic-import pattern in pipeline-dispatch.ts)
+  gcs-object-storage.ts                 — ObjectStorage implementation, dynamic-imports @google-cloud/storage
+                                           (mirrors the existing @google-cloud/tasks dynamic-import pattern in
+                                           pipeline-dispatch.ts); `getSignedReadUrl` calls the client's
+                                           `file.getSignedUrl({ version: 'v4', action: 'read', expires })`, which
+                                           on Cloud Run signs via the IAM `signBlob` API using the attached service
+                                           account's own identity (no key file) — needs the new self-impersonation
+                                           IAM binding described under Infrastructure below
 packages/api/src/routes/
-  universe-character-reference-images.ts — POST (multipart upload, multer memory storage) / GET / DELETE
-  universe-character-portrait.ts         — POST (trigger generation) / GET portrait-history (up to 3 previous)
+  universe-character-reference-images.ts — POST (multipart upload, multer memory storage) / GET / DELETE. POST and
+                                            GET both return each reference image as `{ id, url, uploadedAt }` where
+                                            `url` is a freshly signed, short-lived read URL generated at request
+                                            time (~1 hour expiry) — the response never includes the raw storage
+                                            path, and nothing about a reference image is ever publicly reachable
+                                            without going through this signing step.
+  universe-character-portrait.ts         — POST (trigger generation) / GET portrait-history (up to 3 previous).
+                                            Portraits are public, so these just return the plain public URL built
+                                            from the stored path — no signing needed here.
   delete-character-cascade.ts            — deletes a character's reference-image, portrait, and cost-tracking rows
                                             before the character row itself — mirrors delete-story-cascade.ts
 packages/web/src/components/
   character-portrait-panel.tsx          — current portrait, tier badge, Generate/Regenerate button, loading + error
                                            states, read-only "previous portraits" thumbnail strip (view-only, no restore)
-  character-reference-images.tsx        — multi-file upload input, thumbnail grid, per-image delete
+  character-reference-images.tsx        — multi-file upload input, thumbnail grid, per-image delete; renders each
+                                           thumbnail from the signed `url` the API already returned — never
+                                           constructs or guesses a GCS URL itself, and a stale signed URL (page left
+                                           open past its ~1 hour expiry) just means re-opening the character's
+                                           reference list re-fetches and re-signs, not a persistent broken image
 docs/architecture/
   06-character-portraits.md             — new numbered doc following this repo's existing flat docs/architecture/ convention
   diagrams/06-character-portraits.mmd
@@ -84,11 +119,16 @@ docs/architecture/
 
 ```
 packages/core/src/db/schema.ts
-  — add `characterReferenceImages` table (id, characterId FK -> universeCharacters, imageUrl, uploadedAt)
-  — add `characterPortraits` table (id, characterId FK -> universeCharacters, imageUrl, tier
-    ($type<'own_reference' | 'universe_sibling' | 'default_style'>()), sourceImageUrls (jsonb, nullable,
-    string[] — which reference/sibling URLs fed this generation; null for the default-style tier),
-    isCurrent (boolean, default false), generatedAt (timestamp, default now())
+  — add `characterReferenceImages` table (id, characterId FK -> universeCharacters, storagePath, uploadedAt) —
+    `storagePath` (not `imageUrl`) because a reference object has no stable public URL any more; it's a bucket-
+    relative path like `references/42/<uuid>.png` that only becomes reachable through a freshly signed URL
+  — add `characterPortraits` table (id, characterId FK -> universeCharacters, storagePath, tier
+    ($type<'own_reference' | 'universe_sibling' | 'default_style'>()), sourceStoragePaths (jsonb, nullable,
+    string[] — which reference/sibling storage paths fed this generation; null for the default-style tier),
+    isCurrent (boolean, default false), generatedAt (timestamp, default now())) — also `storagePath`, not a
+    URL, for the same reason and for consistency between the two tables, even though portraits happen to be
+    public: the public URL is always derivable from the path via `build-public-object-url.ts`, so storing
+    both would just be a redundant, driftable copy of the same information
   — add to `modelCalls`: characterId (integer, nullable, FK -> universeCharacters) alongside the existing
     nullable storyId — must not remove or change storyId's nullability
   — NOTE: no columns are added directly to `universeCharacters` — the "current portrait" is the row in
@@ -97,7 +137,9 @@ packages/core/src/db/schema.ts
 
 packages/core/src/ai/runner.interface.ts
   — add RunImageOptions ({ model, prompt, referenceImageUrls?: string[], stage?: string, characterId?: number })
-    and RunImageResult ({ imageBase64: string, mediaType: string })
+    and RunImageResult ({ imageBase64: string, mediaType: string }) — `referenceImageUrls` here is genuinely a
+    list of URLs (mixed signed-and-public is fine), already resolved by the caller (`generate-portrait.ts`)
+    before this options object is built; the OpenRouter layer itself has no concept of signing or paths
 
 packages/core/src/ai/index.ts
   — export the new types alongside the existing RunTextOptions/RunStructuredOptions exports
@@ -149,8 +191,11 @@ packages/api/src/routes/universes.ts
 
 packages/web/src/lib/api.ts
   — extend `UniverseCharacter` with `currentPortrait: { imageUrl: string; tier: 'own_reference' | 'universe_sibling' | 'default_style'; generatedAt: string } | null`
-  — add `CharacterReferenceImage { id, characterId, imageUrl, uploadedAt }`
-  — add `CharacterPortraitHistoryEntry { id, imageUrl, tier, generatedAt }`
+    (`imageUrl` here is the plain public URL — portraits need no signing)
+  — add `CharacterReferenceImage { id, characterId, url, uploadedAt }` — `url` is the API's freshly-signed,
+    short-lived read URL (see the reference-images route above), never a raw storage path; the frontend type
+    intentionally has no `storagePath` field at all, since it has no legitimate use for one
+  — add `CharacterPortraitHistoryEntry { id, imageUrl, tier, generatedAt }` (also a plain public URL)
   — add a `requestFormData<T>(path, formData, method)` helper alongside the existing `request`/`requestEmpty`
     (must NOT set a JSON `Content-Type` header — the browser sets the multipart boundary itself)
   — add under `api.universes`: `listReferenceImages`, `uploadReferenceImages`, `deleteReferenceImage`,
@@ -162,9 +207,21 @@ packages/web/src/components/universe-characters.tsx
   — render `CharacterReferenceImages` in the card's editing mode, alongside `CharacterBibleFields`
 
 infra/index.ts
-  — add two `gcp.storage.BucketIAMMember` resources scoped to `storageBucket.name` (bucket-level, not
-    `gcp.projects.IAMMember` project-wide): one granting `roles/storage.objectAdmin` to `apiSa.email`,
-    one granting `roles/storage.objectViewer` to `allUsers` (public read — see Decisions)
+  — add a `gcp.storage.BucketIAMMember` granting `roles/storage.objectAdmin` on `storageBucket.name` to
+    `apiSa.email` (bucket-scoped, not `gcp.projects.IAMMember` project-wide) — covers reading, writing, and
+    deleting objects under both `references/` and `portraits/`, needed regardless of which prefix
+  — add a second `gcp.storage.BucketIAMMember` granting `roles/storage.objectViewer` to `allUsers`, scoped
+    with a `condition` so it applies **only** to the `portraits/` prefix, not the whole bucket:
+    `condition: { title: "public-read-portraits-only", expression: 'resource.name.startsWith("projects/_/buckets/bedtime-prod-storage/objects/portraits/")' }`
+    (verified pattern — object-prefix IAM Conditions on Cloud Storage use exactly this `resource.name.startsWith(...)`
+    form, and require uniform bucket-level access, which this bucket already has). Objects under `references/`
+    are covered by neither binding, so they are unreachable except through a signed URL the API generates.
+  — add a `gcp.serviceaccount.IAMMember` granting `apiSa` `roles/iam.serviceAccountTokenCreator` **on itself**
+    (`serviceAccountId: apiSa.name`, `member: pulumi.interpolate\`serviceAccount:${apiSa.email}\``) — this is
+    what lets `@google-cloud/storage`'s `getSignedUrl()` work under Cloud Run's attached-identity credentials
+    with no private key file: without it, signing calls the IAM `signBlob` API, which requires this
+    self-impersonation permission; without the role, every signed-URL call (both reference-image display and
+    the own-reference tier of portrait generation) fails outright
 
 .env.example
   — add a commented `GCS_BUCKET_NAME=` line noting the default, and a one-line pointer to the local-dev
@@ -196,7 +253,9 @@ New table for uploaded baseline/reference images:
 character_reference_images
   id             serial primary key
   character_id   integer not null references universe_characters(id)
-  image_url      text not null
+  storage_path   text not null   -- e.g. "references/42/<uuid>.png" — a bucket-relative path, not a URL;
+                                  -- these objects carry no public-read grant (see Decisions), so a stable
+                                  -- URL doesn't exist — every read goes through a freshly signed URL instead
   uploaded_at    timestamp default now()
 ```
 
@@ -204,14 +263,17 @@ New table for generated portraits — **revised from this plan's first draft**. 
 
 ```
 character_portraits
-  id                 serial primary key
-  character_id       integer not null references universe_characters(id)
-  image_url          text not null
-  tier               text not null  -- 'own_reference' | 'universe_sibling' | 'default_style'
-  source_image_urls  jsonb, nullable  -- the specific reference/sibling URLs fed into this generation;
-                                      -- null for the default-style tier (nothing character-specific was used)
-  is_current         boolean not null default false
-  generated_at       timestamp default now()
+  id                    serial primary key
+  character_id          integer not null references universe_characters(id)
+  storage_path          text not null   -- e.g. "portraits/42/<uuid>.png" — a bucket-relative path; portraits ARE
+                                         -- publicly readable (see Decisions), so the public URL is always just
+                                         -- `build-public-object-url.ts` applied to this path, never stored twice
+  tier                  text not null  -- 'own_reference' | 'universe_sibling' | 'default_style'
+  source_storage_paths  jsonb, nullable  -- the specific reference/sibling storage paths fed into this generation
+                                         -- (own references' private paths, or sibling portraits' public paths);
+                                         -- null for the default-style tier (nothing character-specific was used)
+  is_current            boolean not null default false
+  generated_at          timestamp default now()
 ```
 
 A character's current portrait is the row with `is_current = true`. Generating a new portrait: (1) flips the existing current row, if any, to `is_current = false`; (2) inserts the new row as current; (3) if that character now has more than 3 non-current rows, deletes the oldest of them until exactly 3 remain. A dropped-off row's underlying GCS object is left in place (see reference-image deletion below) — bucket versioning is still the only recovery path *beyond* the 3 that are actively kept, which is a narrower gap than the first draft's "beyond 1," not a full history.
@@ -242,7 +304,7 @@ This repo has no scripted seed mechanism — automated tests mock the DB client 
 
 - `docs/architecture/06-character-portraits.md` created — new component doc following this repo's existing flat, numbered `docs/architecture/` convention (not a nested `<domain>/<component>` path — this repo doesn't use that layout; it uses one flat file per subsystem, each with a companion `.mmd`/`.png`, indexed in `README.md`). Plain-language explanation plus the diagram already produced for this plan (`architecture-diagram.mmd`/`.png` in this planning folder, to be copied/adapted into `diagrams/06-character-portraits.mmd` and `img/06-character-portraits.png`).
 - `docs/architecture/01-system-overview.md` updated — the GCS bucket bullet currently says "for future use"; this ships that use.
-- `docs/architecture/05-data-model.md` updated — ER diagram gains the new table, the three new `universe_characters` columns, and the new `model_calls.character_id` column.
+- `docs/architecture/05-data-model.md` updated — ER diagram gains `character_reference_images`, `character_portraits`, and the new `model_calls.character_id` column.
 - `docs/architecture/README.md` updated — new row in the doc index table.
 
 ### Decisions made autonomously
@@ -250,7 +312,9 @@ This repo has no scripted seed mechanism — automated tests mock the DB client 
 - Plan folder is `.planning/character-base-images/` (flat, no ticket prefix) — matches this repo's own existing `.planning/` layout (flat topic-slug folders; see `reference-story-input/`, `gh201-.../`), not the IE constitution's Linear-issue-keyed default — this repo has no Linear ticket and isn't an IE-platform repo.
 - Image generation is a new OpenRouter integration hitting `POST /images`, a separate endpoint from `/chat/completions` — this is now a verified fact, not just a documentation reading: a live call was made against production OpenRouter with `model: "google/gemini-2.5-flash-image"` and a plain text prompt (no references) during planning, and it returned exactly the documented shape — `data[0].b64_json` (a ~1.2MB base64 PNG), `data[0].media_type: "image/png"`, and `usage.cost: 0.0387509` (about 3.9 cents for that one call). The existing `chatNonStream`/`chatStream` methods have no image-generation contract for this model and cannot be reused. The `input_references` array (used for tiers 1 and 2) is still verified only against documentation, not a live call with references attached — a defensible remaining gap given the base contract is now confirmed and the failure path (Scenario 8) already handles a rejected request cleanly.
 - The task brief noted `model_catalog.image_usd_per_request` sits unused and framed this feature as what finally uses it. This plan does **not** use that field — it records the real, call-specific `usage.cost` OpenRouter returns instead (the same field text-generation cost recording already reads), because it's the actual billed amount rather than a catalog-level estimate. `image_usd_per_request` stays exactly as unused as it was; nothing about this decision requires touching it.
-- **Reference and portrait objects in the bucket are public-read, but this specific choice has NOT been confirmed against one real risk and should be treated as open, not settled** (see `todo.md`): a public URL can be handed straight to OpenRouter as an `input_references` entry with no re-download/re-encode step, and an AI-*generated* portrait carries no privacy concern either way. But "own uploaded reference images" (tier 1's source material) could plausibly be a real photo of a real family member in this specific app, and a public GCS URL is a permanent, unauthenticated, crawlable link with no built-in expiry — a materially different, harder-to-reverse call than making synthetic art public. This plan's default keeps the simpler bucket-wide public-read design (uploaded references and generated portraits treated the same) rather than inventing an unverified split (e.g. a GCS IAM Condition scoping public read to only a `portraits/` prefix, leaving `references/` private) — that split is a reasonable follow-up if the answer to the open question is "no, references shouldn't be public," but it wasn't built into this plan sight-unseen.
+- **RESOLVED by the product owner (this plan's open item is now closed):** generated portraits stay public-read; uploaded reference images are private, served only via signed, time-limited URLs the API generates on demand. This is implemented as a genuine split, not a policy applied uniformly and hoped for: the two kinds of object live under different top-level bucket prefixes (`portraits/` and `references/`, not both nested under a shared `characters/{id}/` prefix), and the bucket's public-read IAM binding carries a `condition` scoping it to `portraits/` only — verified against Google's own documented pattern for object-prefix IAM Conditions (`resource.name.startsWith("projects/_/buckets/<bucket>/objects/<prefix>")`), not invented. `references/` objects are covered by neither the public binding nor any other standing grant; the only way to read one is a signed URL minted at request time by the API (which already has read access to the whole bucket via its own `roles/storage.objectAdmin` binding). This needed one more IAM addition beyond what the original draft anticipated: the API's service account needs `roles/iam.serviceAccountTokenCreator` granted to *itself*, because generating a signed URL under Cloud Run's attached-identity credentials (no private key file) goes through the IAM `signBlob` API, which requires that self-impersonation permission — verified via the `@google-cloud/storage` client library's own documentation, not assumed.
+- Signed URLs use two different expiries for two different purposes: ~10 minutes when generated fresh right before an OpenRouter generation call (used once, by OpenRouter's backend, well within the app's own 180-second request timeout), and ~1 hour when generated for displaying reference-image thumbnails in the UI (long enough that a normal browsing session doesn't see them expire; if one does go stale, re-opening that character's reference list simply re-fetches and re-signs — no polling or background refresh was added to prevent this, since it's a minor, self-healing edge case, not a broken feature).
+- Both `character_reference_images` and `character_portraits` store a bucket-relative `storagePath`, never a URL — a public URL is always derivable from a portrait's path via a pure, no-network-call deriver, and a reference's path is only ever turned into a URL by signing it fresh at the moment it's actually needed (either for display, or for the one-time OpenRouter call). Storing a URL directly would mean storing something that's either redundant (portraits, since it's a pure function of the path) or actively wrong the moment it's read back (references, since a stored "URL" would imply a permanence the object was specifically designed not to have).
 - No fallback-model retry on a failed image generation call (unlike text calls, which retry against a fallback model) — a manual, cost-incurring action should surface a failure to the person rather than silently spend twice trying to route around it.
 - `GCS_BUCKET_NAME` is an optional env var defaulting to the real bucket's actual name (`bedtime-prod-storage`) — no new required secret in production or CI.
 - `@google-cloud/storage` and `multer` (pinned `^2.2.0`, the current stable major — verified via the npm registry) live in `packages/api/package.json`, not `packages/core` — mirrors the existing `@google-cloud/tasks` precedent (GCP/Express SDKs stay in the API package); core exposes a small `ObjectStorage` interface and receives an implementation via dependency injection, the same shape as the existing `Queue` and `CostRecorder` interfaces.
@@ -269,24 +333,32 @@ This repo has no scripted seed mechanism — automated tests mock the DB client 
 ### Implementation order
 
 1. Downscale `default-character-style-reference.png` to ~1024px on the long edge, re-export in place
-2. `buildCharacterAssetPath` — deriver, red-green-refactor
-3. `validateReferenceUpload` — deriver, red-green-refactor
-4. `deriveReferenceTier` — deriver, red-green-refactor, covers SCENARIO 2, 3, 4, 5
-5. `buildPortraitPrompt` — deriver, red-green-refactor, covers SCENARIO 2, 3, 4
-6. Schema migration: `characterReferenceImages` table, `characterPortraits` table, `modelCalls.characterId` — generate + apply via `npm run db:migrate`
-7. `cost-recorder.ts` — extend `RecordCallInput`/insert with `characterId`
-8. `object-storage.interface.ts` (core) + `gcs-object-storage.ts` (api, dynamic-imports `@google-cloud/storage`)
-9. `openrouter.client.ts` `generateImage()` — hits `POST /images`
-10. `openrouter.runner.ts` `generateImage()` — wires client + cost recorder + langfuse + the model_catalog pre-flight check, covers SCENARIO 8, 9, 10 (server side)
-11. `load-portrait-candidates.ts` (excludes self from siblings) + `load-characters-with-portrait.ts` — DB reads, covers SCENARIO 3
-12. `save-reference-image.ts` + `generate-portrait.ts` — orchestration including the current/previous retention rotation, covers SCENARIO 1, 2, 4, 5, 6, 8, 9
-13. `delete-character-cascade.ts`, wired into `universes.ts`'s existing character DELETE route — covers SCENARIO 11
-14. `universe-character-reference-images.ts` + `universe-character-portrait.ts` routes (incl. portrait-history GET), mount in `server.ts`
-15. `universes.ts`'s `toPublic()`/`GET /:id/characters` switched to `load-characters-with-portrait.ts`
-16. `packages/web/src/lib/api.ts` — types, `requestFormData`, new `api.universes.*` methods
-17. `character-reference-images.tsx` + `character-portrait-panel.tsx` (incl. previous-portraits strip), wired into `universe-characters.tsx`, covers SCENARIO 1, 5, 6, 7, 10 (client side)
-18. `infra/index.ts` IAM bindings — ships via the existing CI Infra job on push to `main`
-19. Documentation: `docs/architecture/06-character-portraits.md` (+ diagrams/img), update `01-system-overview.md`, `05-data-model.md`, `README.md`, `docs/ci-cd/local-dev.md`, `.env.example`
+2. `buildCharacterAssetPath` — deriver, red-green-refactor (top-level `references/`/`portraits/` prefixes)
+3. `buildPublicObjectUrl` — deriver, red-green-refactor
+4. `validateReferenceUpload` — deriver, red-green-refactor
+5. `deriveReferenceTier` — deriver, red-green-refactor, covers SCENARIO 2, 3, 4, 5
+6. `buildPortraitPrompt` — deriver, red-green-refactor, covers SCENARIO 2, 3, 4
+7. Schema migration: `characterReferenceImages` table, `characterPortraits` table, `modelCalls.characterId` — generate + apply via `npm run db:migrate`
+8. `cost-recorder.ts` — extend `RecordCallInput`/insert with `characterId`
+9. `object-storage.interface.ts` (core: `upload`/`getSignedReadUrl`/`delete`) + `gcs-object-storage.ts` (api,
+   dynamic-imports `@google-cloud/storage`, `getSignedReadUrl` via `file.getSignedUrl({ version: 'v4', ... })`)
+10. `openrouter.client.ts` `generateImage()` — hits `POST /images`
+11. `openrouter.runner.ts` `generateImage()` — wires client + cost recorder + langfuse + the model_catalog pre-flight check, covers SCENARIO 8, 9, 10 (server side)
+12. `load-portrait-candidates.ts` (excludes self from siblings) + `load-characters-with-portrait.ts` — DB reads, return storage paths only, covers SCENARIO 3
+13. `save-reference-image.ts` + `generate-portrait.ts` — orchestration including per-tier reference resolution
+    (sign own-references fresh, build public URLs for siblings, base64 the default asset) and the
+    current/previous retention rotation, covers SCENARIO 1, 2, 4, 5, 6, 8, 9
+14. `delete-character-cascade.ts`, wired into `universes.ts`'s existing character DELETE route — covers SCENARIO 11
+15. `universe-character-reference-images.ts` (signs on POST and GET) + `universe-character-portrait.ts` routes
+    (incl. portrait-history GET), mount in `server.ts`
+16. `universes.ts`'s `toPublic()`/`GET /:id/characters` switched to `load-characters-with-portrait.ts` +
+    `build-public-object-url.ts`
+17. `packages/web/src/lib/api.ts` — types, `requestFormData`, new `api.universes.*` methods
+18. `character-reference-images.tsx` + `character-portrait-panel.tsx` (incl. previous-portraits strip), wired into `universe-characters.tsx`, covers SCENARIO 1, 5, 6, 7, 10 (client side)
+19. `infra/index.ts` — bucket-scoped `objectAdmin` for `apiSa`, condition-scoped `objectViewer` for `allUsers`
+    on `portraits/` only, and `apiSa`'s self-impersonation `serviceAccountTokenCreator` binding — ships via
+    the existing CI Infra job on push to `main`
+20. Documentation: `docs/architecture/06-character-portraits.md` (+ diagrams/img), update `01-system-overview.md`, `05-data-model.md`, `README.md`, `docs/ci-cd/local-dev.md`, `.env.example`
 
 ### Scope boundary
 
@@ -294,6 +366,7 @@ This repo has no scripted seed mechanism — automated tests mock the DB client 
 - History is capped, not unlimited — 1 current + up to 3 previous portraits per character; older ones are only recoverable through GCS bucket versioning, same as before this table existed.
 - No "restore a previous portrait to current" action — the strip is view-only for this pass (see Decisions).
 - No automatic/triggered generation on character create or edit — manual button only, every time.
-- No signed URLs / private bucket access — objects are public-read; **whether that's acceptable for user-uploaded reference images specifically is an open question, not a settled decision** (see Decisions and `todo.md`).
+- No restore/rollback for a *reference* image once deleted — same as before, only the DB row goes away, deliberately, and there's no undo UI for that either.
+- No background refresh of a reference-image thumbnail's signed URL — it re-signs on next fetch, not proactively before expiry (see Decisions).
 - No total-count cap on reference images per character, only a per-upload-request cap.
 - No spend cap or running-cost display across repeated regenerations of the same character — matches how the rest of this app has no per-feature spend caps anywhere; the existing `model_calls` table already makes cost auditable after the fact, the same way every other pipeline stage's cost already is.

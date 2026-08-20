@@ -15,7 +15,7 @@ A person adds one or more of their own reference photos/drawings to a character 
 
 What to verify:
 - Multiple images can be selected and uploaded in one action; each becomes its own stored reference tied to that character.
-- Uploaded references appear immediately as thumbnails without a page reload.
+- Uploaded references appear immediately as thumbnails without a page reload, fetched through a short-lived signed link the app hands back right after upload — not a plain public address, since these may be real photos and are never made publicly reachable.
 - A non-image file, or a file over the size limit, is rejected with a message naming why, before anything is uploaded.
 - Uploading references never triggers portrait generation — it only stores material for a future manual generation.
 
