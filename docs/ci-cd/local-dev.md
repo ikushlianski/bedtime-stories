@@ -73,6 +73,18 @@ Migrations run against the real Neon database (same as prod). Run from outside D
 npm run db:migrate
 ```
 
+## Character reference images and portrait generation
+
+Uploading a character's reference images and generating a portrait both talk to Google Cloud Storage through the `@google-cloud/storage` client, which needs Google Application Default Credentials available inside the API container. The rest of the app runs fine without this — it's only needed to exercise these two endpoints locally.
+
+Set it up once:
+
+```bash
+gcloud auth application-default login
+```
+
+Then mount the resulting credentials file into the API container (e.g. via a docker-compose volume for `~/.config/gcloud`), or point `GOOGLE_APPLICATION_CREDENTIALS` at a downloaded service-account key. Without one of these, upload/generate requests fail with a GCS auth error while every other route keeps working.
+
 ## Create a user
 
 ```bash

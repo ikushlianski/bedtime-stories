@@ -1,6 +1,8 @@
 erDiagram
   story_groups ||--o{ stories : "owns"
   story_groups ||--o{ universe_characters : "defines"
+  universe_characters ||--o{ character_reference_images : "uploaded baselines"
+  universe_characters ||--o{ character_portraits : "generated (1 current + up to 3 previous)"
   story_groups ||--o{ topics : "collects"
   story_groups ||--o{ fragments : "collects"
   story_groups ||--o{ words : "collects"
@@ -12,6 +14,8 @@ erDiagram
   stories ||--o{ story_text_versions : "versions"
   stories ||--o{ run_snapshots : "pipeline runs"
   stories ||--o{ story_readings : "read log"
+  stories ||--o{ story_comments : "comments once finished"
+  story_groups ||--o{ story_comments : "attributes to universe"
   stories ||--o{ story_fragments : ""
   fragments ||--o{ story_fragments : ""
   stories ||--o{ story_words : ""
@@ -39,6 +43,18 @@ erDiagram
     int universe_id FK
     text name
     text traits
+  }
+  character_reference_images {
+    serial id PK
+    int character_id FK
+    text storage_path "private — signed URL only"
+  }
+  character_portraits {
+    serial id PK
+    int character_id FK
+    text storage_path "public-read"
+    text tier "own_reference universe_sibling default_style"
+    bool is_current
   }
   topics {
     serial id PK
@@ -70,9 +86,16 @@ erDiagram
   annotations {
     serial id PK
     int story_id FK
-    text selected_text
+    text selected_text "nullable — null means whole-story comment"
     text note_text
     text context "plan or text"
+  }
+  story_comments {
+    serial id PK
+    int story_id FK
+    int universe_id FK "nullable, denormalized from story.group_id"
+    text comment_text
+    text selected_text "nullable"
   }
   parent_reviews {
     serial id PK
@@ -90,7 +113,7 @@ erDiagram
     serial id PK
     int story_id FK
     int version_number
-    text stage "writer_initial writer_critic annotated_rewrite"
+    text stage "writer_initial writer_critic annotated_rewrite chat_patch"
   }
   run_snapshots {
     serial id PK

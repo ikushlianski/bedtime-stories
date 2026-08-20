@@ -9,6 +9,7 @@ Visual documentation of the bedtime-agent system. Each doc has a plain-language 
 | [03-telegram-flow.md](03-telegram-flow.md) | How the Telegram bot handles commands (`/new`, `/stories`, `/topic`, `/fragment`), plain text, and the story-ready notification. |
 | [04-feedback-and-review.md](04-feedback-and-review.md) | The proofreading/annotation/approve review loop and the two learning loops (reaction personalization + the legacy-only analyze loop). |
 | [05-data-model.md](05-data-model.md) | ER diagram of the core tables and their relationships. |
+| [06-character-portraits.md](06-character-portraits.md) | Character reference images and AI-generated portraits — the 3-tier style-matching fallback, the private-reference/public-portrait storage split, cost tracking, and the current/previous retention rotation. |
 | [story-retrieval.md](story-retrieval.md) | Vector search + tool-calling: how stories get embedded (approval-time trigger + one-off backfill) and how the plotter calls `search_past_stories` on its own initiative during a generation. |
 
 ## Rendering

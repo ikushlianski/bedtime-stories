@@ -67,6 +67,28 @@ const apiSa = new gcp.serviceaccount.Account(
   { dependsOn: enabledApis },
 )
 
+new gcp.storage.BucketIAMMember('api-storage-object-admin', {
+  bucket: storageBucket.name,
+  role: 'roles/storage.objectAdmin',
+  member: pulumi.interpolate`serviceAccount:${apiSa.email}`,
+})
+
+new gcp.storage.BucketIAMMember('public-read-portraits-only', {
+  bucket: storageBucket.name,
+  role: 'roles/storage.objectViewer',
+  member: 'allUsers',
+  condition: {
+    title: 'public-read-portraits-only',
+    expression: pulumi.interpolate`resource.name.startsWith("projects/_/buckets/${storageBucket.name}/objects/portraits/")`,
+  },
+})
+
+new gcp.serviceaccount.IAMMember('api-sa-token-creator-self', {
+  serviceAccountId: apiSa.name,
+  role: 'roles/iam.serviceAccountTokenCreator',
+  member: pulumi.interpolate`serviceAccount:${apiSa.email}`,
+})
+
 const ciSa = new gcp.serviceaccount.Account(
   'ci-sa',
   {

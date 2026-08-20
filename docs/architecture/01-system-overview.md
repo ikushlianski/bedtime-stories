@@ -4,6 +4,8 @@ The whole product runs as a **single Cloud Run service** (`bedtime-api`, region 
 
 Story generation never happens inline in a request. The API kicks off the pipeline **fire-and-forget** and returns immediately; the pipeline then talks to OpenRouter for the language-model calls and reads/writes the Neon Postgres database. Every pipeline run is wrapped in a Langfuse trace, and uncaught server errors go to Sentry. When a story is finished the pipeline calls back into the Telegram bot to notify the parent.
 
+A Google Cloud Storage bucket holds character image assets: uploaded baseline reference photos/drawings (private, served only through short-lived signed URLs) and AI-generated character portraits (public-read, served as plain URLs). See [06-character-portraits.md](06-character-portraits.md) for the generation flow.
+
 ![System overview](img/01-system-overview.png)
 
 ```mermaid
