@@ -6,11 +6,14 @@ import {
   isNoteTextWithinLimit,
   SELECTION_TOO_LONG_MESSAGE,
 } from './annotation-limits'
+import { isIllustrationMarkerLimitReached, ILLUSTRATION_MARKER_LIMIT_MESSAGE } from './illustration-marker-limits'
 
 interface AnnotationToolbarProps {
   onAnnotate: (type: AnnotationType, selectedText: string, noteText?: string) => void
   selectedText: string
   onChatAboutThis?: (selectedText: string) => void
+  onMarkForIllustration?: (selectedText: string) => void
+  illustrationMarkerCount?: number
 }
 
 const REACTION_BUTTONS: Array<{ type: AnnotationType; label: string }> = [
@@ -19,9 +22,10 @@ const REACTION_BUTTONS: Array<{ type: AnnotationType; label: string }> = [
   { type: 'sasha_disliked', label: 'Слабо' },
 ]
 
-function AnnotationToolbar({ onAnnotate, selectedText }: AnnotationToolbarProps) {
+function AnnotationToolbar({ onAnnotate, selectedText, onMarkForIllustration, illustrationMarkerCount }: AnnotationToolbarProps) {
   const [noteMode, setNoteMode] = useState(false)
   const [noteText, setNoteText] = useState('')
+  const illustrationCapReached = isIllustrationMarkerLimitReached(illustrationMarkerCount ?? 0)
 
   if (!selectedText) return null
 
@@ -104,6 +108,21 @@ function AnnotationToolbar({ onAnnotate, selectedText }: AnnotationToolbarProps)
       <button className="btn btn-primary btn-xs" onClick={() => setNoteMode(true)}>
         Заметка
       </button>
+
+      {onMarkForIllustration && (
+        illustrationCapReached ? (
+          <span className="text-xs text-neutral-content/50" title={ILLUSTRATION_MARKER_LIMIT_MESSAGE}>
+            Лимит иллюстраций
+          </span>
+        ) : (
+          <button
+            className="btn btn-ghost btn-xs text-neutral-content hover:bg-neutral-content/10"
+            onClick={() => onMarkForIllustration(selectedText)}
+          >
+            Иллюстрация
+          </button>
+        )
+      )}
     </div>
   )
 }

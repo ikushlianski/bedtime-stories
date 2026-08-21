@@ -410,6 +410,43 @@ describe('OpenRouterRunner.generateImage', () => {
     })
   })
 
+  it('attributes cost to a story when storyId is provided (illustration path)', async () => {
+    const recorder = makeRecorder()
+    const generateImage = vi.fn(async () => ({
+      imageBase64: 'base64data',
+      mediaType: 'image/png',
+      usage: { promptTokens: 0, completionTokens: 0, costUsd: 0.0387509 },
+    }))
+    const client = { generateImage } as unknown as OpenRouterClient
+
+    const runner = new OpenRouterRunner(client, recorder)
+
+    await runner.generateImage({
+      model: 'google/gemini-2.5-flash-image',
+      prompt: 'a scene',
+      stage: 'story_illustration',
+      storyId: 812,
+    })
+
+    expect(recorder.calls[0]).toMatchObject({ storyId: 812, stage: 'story_illustration' })
+  })
+
+  it('records a failed cost row still tied to the story when the OpenRouter call itself fails', async () => {
+    const recorder = makeRecorder()
+    const generateImage = vi.fn(async () => {
+      throw new OpenRouterHttpError(502, 'provider error')
+    })
+    const client = { generateImage } as unknown as OpenRouterClient
+
+    const runner = new OpenRouterRunner(client, recorder)
+
+    await expect(
+      runner.generateImage({ model: 'google/gemini-2.5-flash-image', prompt: 'a scene', storyId: 812 }),
+    ).rejects.toThrow('OpenRouter HTTP 502')
+
+    expect(recorder.calls[0]).toMatchObject({ storyId: 812, success: false })
+  })
+
   it('refuses to call OpenRouter when the model is missing from model_catalog', async () => {
     const { db } = (await import('../db/client.js')) as unknown as {
       db: { select: ReturnType<typeof vi.fn> }

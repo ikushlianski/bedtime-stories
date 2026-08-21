@@ -64,6 +64,8 @@ describe('deleteStoryCascade', () => {
       'story_text_versions',
       'story_embeddings',
       'story_universes',
+      'story_illustrations',
+      'story_illustration_markers',
     ]
 
     for (const table of expectedChildTables) {

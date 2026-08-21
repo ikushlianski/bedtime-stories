@@ -94,6 +94,15 @@ export const LiveTopicSuggesterOutputSchema = z.object({
   topicIds: z.array(z.number().int()),
 })
 
+export const IllustrationMomentSelectorOutputSchema = z.object({
+  moments: z.array(
+    z.object({
+      scene_description: z.string(),
+      character_names: z.array(z.string()),
+    }),
+  ),
+})
+
 export type PsychologistOutput = z.infer<typeof PsychologistOutputSchema>
 export type CriticOutput = z.infer<typeof CriticOutputSchema>
 export type ImproverOutput = z.infer<typeof ImproverOutputSchema>
@@ -103,3 +112,4 @@ export type IdeaSuggesterOutput = z.infer<typeof IdeaSuggesterOutputSchema>
 export type TopicCombinerOutput = z.infer<typeof TopicCombinerOutputSchema>
 export type TopicCandidateSuggesterOutput = z.infer<typeof TopicCandidateSuggesterOutputSchema>
 export type LiveTopicSuggesterOutput = z.infer<typeof LiveTopicSuggesterOutputSchema>
+export type IllustrationMomentSelectorOutput = z.infer<typeof IllustrationMomentSelectorOutputSchema>

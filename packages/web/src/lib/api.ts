@@ -106,6 +106,23 @@ export interface CharacterPortraitHistoryEntry {
   generatedAt: string | null
 }
 
+export interface StoryIllustration {
+  id: number
+  imageUrl: string
+  momentDescription: string
+  source: 'automatic' | 'manual'
+  orderIndex: number
+}
+
+export interface StoryIllustrationMarker {
+  id: number
+  storyId: number
+  markedText: string
+  positionStart: number
+  positionEnd: number
+  createdAt: string
+}
+
 export interface UniverseSuggestion {
   id: number
   universeId: number
@@ -696,6 +713,32 @@ export const api = {
     restoreTextVersion: (storyId: number, versionId: number) =>
       request<{ ok: boolean; story: Story }>(`/api/stories/${storyId}/text-versions/${versionId}/restore`, {
         method: 'POST',
+      }),
+
+    listIllustrations: (storyId: number) =>
+      request<StoryIllustration[]>(`/api/stories/${storyId}/illustrations`),
+
+    regenerateIllustrations: (storyId: number) =>
+      request<StoryIllustration[]>(`/api/stories/${storyId}/illustrations/regenerate`, {
+        method: 'POST',
+      }),
+
+    listIllustrationMarkers: (storyId: number) =>
+      request<StoryIllustrationMarker[]>(`/api/stories/${storyId}/illustration-markers`),
+
+    createIllustrationMarker: (storyId: number, input: { text: string; positionStart: number; positionEnd: number }) =>
+      request<StoryIllustrationMarker>(`/api/stories/${storyId}/illustration-markers`, {
+        method: 'POST',
+        body: JSON.stringify({
+          text: input.text,
+          position_start: input.positionStart,
+          position_end: input.positionEnd,
+        }),
+      }),
+
+    deleteIllustrationMarker: (storyId: number, markerId: number) =>
+      requestEmpty(`/api/stories/${storyId}/illustration-markers/${markerId}`, {
+        method: 'DELETE',
       }),
   },
 

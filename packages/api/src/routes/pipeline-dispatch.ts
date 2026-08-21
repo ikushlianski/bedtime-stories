@@ -1,5 +1,6 @@
 import { triggerAutoPipeline, type AutoPipelineParams } from './pipeline-auto-trigger'
 import { triggerAnalysis } from './story-analysis'
+import { triggerIllustrationAlbum } from './story-illustration-trigger'
 
 async function enqueueTask(path: string, body: unknown): Promise<void> {
   const queue = process.env['PIPELINE_QUEUE']
@@ -55,4 +56,17 @@ export async function dispatchAnalysis(storyId: number): Promise<void> {
   }
 
   triggerAnalysis(storyId)
+}
+
+export async function dispatchIllustrationAlbum(storyId: number): Promise<void> {
+  if (process.env['PIPELINE_QUEUE']) {
+    try {
+      await enqueueTask('/api/internal/worker/illustrations', { storyId })
+      return
+    } catch (err) {
+      console.error(`[dispatch] illustration album enqueue failed for storyId=${storyId}, running in-process:`, err)
+    }
+  }
+
+  triggerIllustrationAlbum(storyId)
 }

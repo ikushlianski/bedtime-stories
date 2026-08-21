@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { annotations, characterPortraits, characterReferenceImages, childDiary, childProfiles, childReactions, feedback, fragments, parentReviews, planConversations, planQuestions, prompts, runSnapshots, stories, storyFragments, storyGroups, storyReadings, storyTextVersions, storyTopics, telegramPendingActions, topics, universeCharacters, universeSuggestions } from './schema.js'
+import { annotations, characterPortraits, characterReferenceImages, childDiary, childProfiles, childReactions, feedback, fragments, parentReviews, planConversations, planQuestions, prompts, runSnapshots, stories, storyFragments, storyGroups, storyIllustrationMarkers, storyIllustrations, storyReadings, storyTextVersions, storyTopics, telegramPendingActions, topics, universeCharacters, universeSuggestions } from './schema.js'
 
 export type Fragment = typeof fragments.$inferSelect
 export type NewFragment = typeof fragments.$inferInsert
@@ -308,6 +308,12 @@ export type NewUniverseSuggestion = typeof universeSuggestions.$inferInsert
 
 export type StoryReading = typeof storyReadings.$inferSelect
 export type NewStoryReading = typeof storyReadings.$inferInsert
+
+export type StoryIllustration = typeof storyIllustrations.$inferSelect
+export type NewStoryIllustration = typeof storyIllustrations.$inferInsert
+
+export type StoryIllustrationMarker = typeof storyIllustrationMarkers.$inferSelect
+export type NewStoryIllustrationMarker = typeof storyIllustrationMarkers.$inferInsert
 
 export const childDiarySchema = z.object({
   id: z.number().int(),

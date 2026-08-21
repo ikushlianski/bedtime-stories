@@ -5,6 +5,8 @@ import { db } from '@bedtime/core/db/client'
 import { stories } from '@bedtime/core/db/schema'
 import { runAutoPipeline } from './pipeline-auto-trigger'
 import { analyzeStoryAndLearn } from './story-analysis'
+import { generateIllustrationAlbum } from '@bedtime/core/story-illustrations/generate-illustration-album'
+import { objectStorage } from '../storage/gcs-object-storage'
 
 const router = Router()
 
@@ -19,6 +21,10 @@ const pipelineTaskSchema = z.object({
 })
 
 const analyzeTaskSchema = z.object({
+  storyId: z.number().int().positive(),
+})
+
+const illustrationsTaskSchema = z.object({
   storyId: z.number().int().positive(),
 })
 
@@ -77,6 +83,23 @@ router.post('/analyze', async (req, res) => {
   } catch (err) {
     console.error(`[worker] analyze task failed for storyId=${parsed.data.storyId}:`, err)
     res.status(500).json({ error: 'Analyze task failed' })
+  }
+})
+
+router.post('/illustrations', async (req, res) => {
+  const parsed = illustrationsTaskSchema.safeParse(req.body)
+
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Invalid task payload' })
+    return
+  }
+
+  try {
+    await generateIllustrationAlbum(parsed.data.storyId, objectStorage)
+    res.json({ ok: true })
+  } catch (err) {
+    console.error(`[worker] illustration album task failed for storyId=${parsed.data.storyId}:`, err)
+    res.status(500).json({ error: 'Illustration album task failed' })
   }
 })
 

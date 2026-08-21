@@ -5,7 +5,7 @@ const FALLBACK = 'deepseek/deepseek-v4-flash'
 const CHEAP_MODEL = 'deepseek/deepseek-v4-flash'
 
 export const DEFAULT_STAGE_MODELS: PerStageModels = PIPELINE_STAGES.reduce((acc, stage) => {
-  if (stage === 'ideaSuggester') {
+  if (stage === 'ideaSuggester' || stage === 'illustrationMomentSelector') {
     acc[stage] = { model: CHEAP_MODEL, fallback: PRIMARY }
   } else {
     acc[stage] = { model: PRIMARY, fallback: FALLBACK }

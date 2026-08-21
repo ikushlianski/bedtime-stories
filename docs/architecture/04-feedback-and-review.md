@@ -24,6 +24,8 @@ flowchart TD
   approve --> read
 ```
 
+The same text-selection mechanism that creates annotations also supports one more, distinct selection action on the reading page: marking a passage as "illustrate this." A mark is not an annotation — it's stored in its own `story_illustration_markers` table, never mixed into `annotations` or the story's narrative text, and it feeds the illustration-album feature rather than the review/rewrite loop above. See [story-illustration-album.md](story-illustration-album.md).
+
 ## Chat-based feedback
 
 A single chat surface (`StoryChatPanel`, backed by `POST /api/pipeline/conversations/:storyId`) is reachable from the plan-review, text-review, and story-reader pages. It takes a `context` (`'plan'` or `'text'`) that decides which source it reads and, when a patch is applied, which mechanism mutates it:

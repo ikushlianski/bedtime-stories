@@ -24,6 +24,7 @@ const STAGE_REQUIREMENTS: Record<PipelineStage, ModelRequirements> = {
   styleGuideUpdater:     { needsJsonSchema: false, minOutputTokens: 1000 },
   universeContextUpdater:{ needsJsonSchema: false, minOutputTokens: 1000 },
   ideaSuggester:         { needsJsonSchema: true,  minOutputTokens: 1000 },
+  illustrationMomentSelector: { needsJsonSchema: true, minOutputTokens: 500 },
 }
 
 export async function recommendModelForStage(stage: PipelineStage): Promise<string | null> {

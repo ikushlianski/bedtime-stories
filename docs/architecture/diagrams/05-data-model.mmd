@@ -16,6 +16,8 @@ erDiagram
   stories ||--o{ story_readings : "read log"
   stories ||--o{ story_comments : "comments once finished"
   story_groups ||--o{ story_comments : "attributes to universe"
+  stories ||--o{ story_illustrations : "generated album"
+  stories ||--o{ story_illustration_markers : "marked passages"
   stories ||--o{ story_fragments : ""
   fragments ||--o{ story_fragments : ""
   stories ||--o{ story_words : ""
@@ -140,4 +142,20 @@ erDiagram
     serial id PK
     int story_id FK
     int topic_id FK
+  }
+  story_illustrations {
+    serial id PK
+    int story_id FK
+    text storage_path "public-read"
+    text moment_description
+    text source "automatic or manual"
+    jsonb character_ids "nullable int[]"
+    int order_index
+  }
+  story_illustration_markers {
+    serial id PK
+    int story_id FK
+    text marked_text
+    int position_start
+    int position_end
   }

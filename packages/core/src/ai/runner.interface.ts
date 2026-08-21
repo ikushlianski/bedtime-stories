@@ -46,6 +46,7 @@ export interface RunImageOptions {
   referenceImageUrls?: string[]
   stage?: string
   characterId?: number
+  storyId?: number
 }
 
 export interface RunImageResult {

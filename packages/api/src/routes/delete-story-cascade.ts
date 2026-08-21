@@ -21,6 +21,8 @@ import {
   modelSwapEvents,
   valueForMoneyFeedback,
   universeSuggestions,
+  storyIllustrations,
+  storyIllustrationMarkers,
 } from '@bedtime/core/db/schema'
 
 export async function deleteStoryCascade(storyId: number): Promise<void> {
@@ -44,5 +46,7 @@ export async function deleteStoryCascade(storyId: number): Promise<void> {
   await db.delete(storyTextVersions).where(eq(storyTextVersions.storyId, storyId))
   await db.delete(storyEmbeddings).where(eq(storyEmbeddings.storyId, storyId))
   await db.delete(storyUniverses).where(eq(storyUniverses.storyId, storyId))
+  await db.delete(storyIllustrations).where(eq(storyIllustrations.storyId, storyId))
+  await db.delete(storyIllustrationMarkers).where(eq(storyIllustrationMarkers.storyId, storyId))
   await db.delete(stories).where(eq(stories.id, storyId))
 }

@@ -11,6 +11,7 @@ Visual documentation of the bedtime-agent system. Each doc has a plain-language 
 | [05-data-model.md](05-data-model.md) | ER diagram of the core tables and their relationships. |
 | [06-character-portraits.md](06-character-portraits.md) | Character reference images and AI-generated portraits — the 3-tier style-matching fallback, the private-reference/public-portrait storage split, cost tracking, and the current/previous retention rotation. |
 | [story-retrieval.md](story-retrieval.md) | Vector search + tool-calling: how stories get embedded (approval-time trigger + one-off backfill) and how the plotter calls `search_past_stories` on its own initiative during a generation. |
+| [story-illustration-album.md](story-illustration-album.md) | The automatic 2-illustration album every story gets on becoming ready, manual passage-marking that fills its own slots first, identity/style reuse from character portraits, and the manual regenerate action. |
 
 ## Rendering
 

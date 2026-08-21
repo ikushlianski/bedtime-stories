@@ -14,6 +14,7 @@ export const PIPELINE_STAGES = [
   'styleGuideUpdater',
   'universeContextUpdater',
   'ideaSuggester',
+  'illustrationMomentSelector',
 ] as const
 
 export type PipelineStage = (typeof PIPELINE_STAGES)[number]

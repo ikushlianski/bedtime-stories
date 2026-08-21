@@ -1,6 +1,4 @@
 import { randomUUID } from 'node:crypto'
-import { readFile } from 'node:fs/promises'
-import { join } from 'node:path'
 import { and, desc, eq, ne } from 'drizzle-orm'
 import { db } from '../db/client.js'
 import { characterPortraits, universeCharacters } from '../db/schema.js'
@@ -13,14 +11,11 @@ import { buildPortraitPrompt } from './build-portrait-prompt.js'
 import { buildCharacterAssetPath } from './build-character-asset-path.js'
 import { buildPublicObjectUrl } from './build-public-object-url.js'
 import { loadPortraitCandidates } from './load-portrait-candidates.js'
+import { loadDefaultStyleImageDataUri } from '../pipeline/assets/load-default-style-image.js'
 
 export const PORTRAIT_MODEL = 'google/gemini-2.5-flash-image'
 const SIGNED_REFERENCE_URL_TTL_SECONDS = 600
 const MAX_PREVIOUS_PORTRAITS = 3
-const DEFAULT_STYLE_REFERENCE_PATH = join(
-  import.meta.dirname,
-  '../pipeline/assets/default-character-style-reference.png',
-)
 
 export class PortraitGenerationError extends Error {}
 
@@ -54,11 +49,6 @@ function mediaTypeToExtension(mediaType: string): string {
   if (mediaType.includes('jpeg')) return 'jpg'
   if (mediaType.includes('webp')) return 'webp'
   return 'png'
-}
-
-async function loadDefaultStyleImageDataUri(): Promise<string> {
-  const defaultImageBuffer = await readFile(DEFAULT_STYLE_REFERENCE_PATH)
-  return `data:image/png;base64,${defaultImageBuffer.toString('base64')}`
 }
 
 async function resolveReferenceImageUrls(

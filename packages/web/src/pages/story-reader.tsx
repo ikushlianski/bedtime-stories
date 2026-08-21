@@ -1,7 +1,16 @@
 import { useState, useEffect, useRef, useCallback, type RefObject } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { api, isReactionAnnotation, type Story, type Annotation, type AnnotationType, type PipelineStatusValue } from '../lib/api'
-import { AnnotationToolbar, PageHeader, StatusCallout, Toast, StoryTagEditor, EditableStoryTitle } from '../components'
+import { api, isReactionAnnotation, type Story, type Annotation, type AnnotationType, type PipelineStatusValue, type StoryIllustrationMarker } from '../lib/api'
+import {
+  AnnotationToolbar,
+  PageHeader,
+  StatusCallout,
+  Toast,
+  StoryTagEditor,
+  EditableStoryTitle,
+  StoryIllustrationGallery,
+  StoryIllustrationMarkersPanel,
+} from '../components'
 import { TextVersionHistory } from '../components/text-version-history'
 import ParentReviewForm from '../components/parent-review-form'
 import ChildReactionForm from '../components/child-reaction-form'
@@ -179,6 +188,9 @@ export function StoryReaderPage() {
   const [chatSelection, setChatSelection] = useState<string | null>(null)
   const [annotations, setAnnotations] = useState<Annotation[]>([])
   const [annotationError, setAnnotationError] = useState<string | null>(null)
+  const [illustrationMarkers, setIllustrationMarkers] = useState<StoryIllustrationMarker[]>([])
+  const [illustrationMarkerError, setIllustrationMarkerError] = useState<string | null>(null)
+  const [deletingMarkerId, setDeletingMarkerId] = useState<number | null>(null)
   const [markingRead, setMarkingRead] = useState(false)
   const [reverting, setReverting] = useState(false)
   const [currentStatus, setCurrentStatus] = useState<string | null>(null)
@@ -258,7 +270,54 @@ setStoryTags((story.tags as string[] | null) ?? [])
       })
   }, [storyId])
 
+  useEffect(() => {
+    if (isNaN(storyId)) return
+
+    api.stories
+      .listIllustrationMarkers(storyId)
+      .then(setIllustrationMarkers)
+      .catch(() => {
+        /* surfaced inline on write failure; list endpoint errors are non-critical */
+      })
+  }, [storyId])
+
   const handleAnnotationDismiss = useCallback(() => setSelection(null), [])
+
+  const handleMarkForIllustration = useCallback(
+    async (text: string, start: number, end: number) => {
+      setIllustrationMarkerError(null)
+
+      try {
+        const created = await api.stories.createIllustrationMarker(storyId, {
+          text,
+          positionStart: start,
+          positionEnd: end,
+        })
+
+        setIllustrationMarkers((current) => [...current, created])
+        showToast('Отмечено для иллюстрации')
+      } catch (err) {
+        setIllustrationMarkerError(err instanceof Error ? err.message : 'Не удалось сохранить отметку')
+      }
+    },
+    [storyId, showToast],
+  )
+
+  const handleDeleteIllustrationMarker = useCallback(
+    async (markerId: number) => {
+      setDeletingMarkerId(markerId)
+
+      try {
+        await api.stories.deleteIllustrationMarker(storyId, markerId)
+        setIllustrationMarkers((current) => current.filter((m) => m.id !== markerId))
+      } catch (err) {
+        setIllustrationMarkerError(err instanceof Error ? err.message : 'Не удалось удалить отметку')
+      } finally {
+        setDeletingMarkerId(null)
+      }
+    },
+    [storyId],
+  )
 
   const handleAnnotate = useCallback(
     async (type: AnnotationType, text: string, start: number, end: number, noteText?: string) => {
@@ -466,6 +525,10 @@ setStoryTags((story.tags as string[] | null) ?? [])
         />
       </div>
 
+      {((currentStatus ?? story.status) === 'ready' || (currentStatus ?? story.status) === 'read') && (
+        <StoryIllustrationGallery storyId={storyId} />
+      )}
+
       {story.cost && story.cost.perStage.length > 0 && (
         <div className="mb-6 rounded-box border border-base-300 bg-base-100 p-4 shadow-sm">
           <div className="mb-2 flex items-baseline justify-between">
@@ -606,10 +669,32 @@ setStoryTags((story.tags as string[] | null) ?? [])
                         }
                       : undefined
                   }
+                  onMarkForIllustration={(text) => {
+                    const storyText = textToDisplay ?? ''
+                    const globalOffset = findTextOffset(storyText, text)
+                    const start = globalOffset?.start ?? selection.start
+                    const end = globalOffset?.end ?? selection.end
+
+                    void handleMarkForIllustration(text, start, end)
+                    handleAnnotationDismiss()
+                  }}
+                  illustrationMarkerCount={illustrationMarkers.length}
                 />
               </div>
             )}
           </div>
+
+          <StoryIllustrationMarkersPanel
+            markers={illustrationMarkers}
+            onDelete={(markerId) => void handleDeleteIllustrationMarker(markerId)}
+            deletingId={deletingMarkerId}
+          />
+
+          {illustrationMarkerError && (
+            <div className="mb-4">
+              <StatusCallout tone="error" title="Ошибка сохранения отметки" message={illustrationMarkerError} />
+            </div>
+          )}
 
           {isDirty && (
             <div className="mt-2 flex items-center justify-end gap-2">

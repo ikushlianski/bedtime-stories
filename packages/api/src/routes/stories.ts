@@ -17,7 +17,7 @@ import { createStorySchema, resolveCreateStoryMode } from './create-story-schema
 import { extractReferenceStoryIdFromSeed } from './extract-reference-story-id'
 import { createAnnotationSchema } from './create-annotation-schema'
 import { analyzeStoryAndLearn } from './story-analysis'
-import { dispatchAnalysis } from './pipeline-dispatch'
+import { dispatchAnalysis, dispatchIllustrationAlbum } from './pipeline-dispatch'
 import { loadUniverseContext } from './load-universe-context'
 import { getStoryUniverseIds, getStoryUniverseIdsBatch, setStoryUniverses } from './story-universe-links'
 import { getReactionCountsBatch } from './story-reaction-counts'
@@ -107,6 +107,12 @@ router.post('/', validate(createStorySchema), async (req, res) => {
       }
       const [created] = await db.insert(stories).values(legacyStory).returning()
 
+      if (resolved.addToReadingList) {
+        void dispatchIllustrationAlbum((created as Story).id).catch((err) => {
+          console.error(`Failed to dispatch illustration album for storyId=${(created as Story).id}:`, err)
+        })
+      }
+
       res.status(201).json(toSnakeCase(created as Story))
       return
     }
@@ -122,6 +128,10 @@ router.post('/', validate(createStorySchema), async (req, res) => {
         ...(resolved.groupId !== undefined ? { groupId: resolved.groupId } : {}),
       }
       const [created] = await db.insert(stories).values(userStory).returning()
+
+      void dispatchIllustrationAlbum((created as Story).id).catch((err) => {
+        console.error(`Failed to dispatch illustration album for storyId=${(created as Story).id}:`, err)
+      })
 
       res.status(201).json(toSnakeCase(created as Story))
       return
@@ -481,6 +491,12 @@ router.patch('/:id/status', validate(updateStatusSchema), async (req, res) => {
       return
     }
 
+    if (status === 'ready') {
+      void dispatchIllustrationAlbum(storyId).catch((err) => {
+        console.error(`Failed to dispatch illustration album for storyId=${storyId}:`, err)
+      })
+    }
+
     res.json(toSnakeCase(story as Story))
   } catch (err) {
     console.error('PATCH /stories/:id/status failed:', err)
@@ -808,6 +824,10 @@ router.post('/:id/approve-text', validate(approveTextSchema), async (req, res) =
 
     void dispatchAnalysis(storyId).catch((err) => {
       console.error(`Failed to dispatch analysis for storyId=${storyId}:`, err)
+    })
+
+    void dispatchIllustrationAlbum(storyId).catch((err) => {
+      console.error(`Failed to dispatch illustration album for storyId=${storyId}:`, err)
     })
 
     res.json(toSnakeCase(story as Story))

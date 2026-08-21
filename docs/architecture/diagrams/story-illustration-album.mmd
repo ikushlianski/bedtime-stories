@@ -1,0 +1,57 @@
+flowchart TD
+  classDef default fill:#e8eaf6,stroke:#455a64,stroke-width:1.5px,color:#000
+  linkStyle default stroke:#455a64,stroke-width:1.5px
+
+  A["Approve text route"]
+  B["Create story route<br/>(legacy import / user story)"]
+  C["Update status route"]
+  D["Regenerate album route<br/>(manual, from reader page)"]
+  P["Mark fragment for illustration<br/>(text-selection UI, reader page)"]
+
+  Q[("Illustration markers<br/>(DB, editable)")]
+
+  E{"Illustration dispatcher<br/>(fire-and-forget, skips if<br/>album already exists)"}
+
+  F["Illustration album orchestrator"]
+  R{"Remaining slots =<br/>2 minus mark count"}
+  G["Moment selector<br/>(cheap LLM call, fills<br/>only remaining slots)"]
+  H["Parallel illustration<br/>image generation calls<br/>(OpenRouter)"]
+  N["No retry on individual failure —<br/>partial album shown as-is"]
+
+  I[("Character portraits<br/>(existing)")]
+  J["Default style reference<br/>(bundled asset)"]
+
+  K[("Public storage bucket<br/>(GCS)")]
+  L[("Story illustrations<br/>(DB)")]
+  M[("Cost tracking<br/>(model_calls)")]
+
+  O["Story reader UI<br/>(gallery + lightbox)"]
+
+  P -->|"create / delete"| Q
+
+  A -->|"status becomes ready"| E
+  B -->|"status becomes ready"| E
+  C -->|"status becomes ready"| E
+  D -->|"forces regeneration"| F
+  E --> F
+
+  Q -->|"marks illustrated first,<br/>one call per mark"| F
+  F -->|"manual moments"| H
+  F --> R
+  R -->|"greater than 0: ask for<br/>exactly that many, marks<br/>passed as already-covered"| G
+  G -->|"remaining moments"| H
+
+  I -->|"identity reference"| H
+  J -->|"style anchor"| H
+
+  H -.- N
+
+  H -->|"successful images"| K
+  H -->|"one row per image"| L
+  G --> M
+  H --> M
+
+  L -->|"GET album"| O
+  Q -->|"GET markers"| O
+  O --> D
+  O --> P

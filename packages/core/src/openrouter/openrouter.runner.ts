@@ -256,7 +256,7 @@ export class OpenRouterRunner implements AiRunner {
       console.log(`[ai] ${label} done model=${options.model} stage=${stage} usd=${result.usage.costUsd} latencyMs=${latencyMs}`)
 
       await this.recorder.record({
-        storyId: null,
+        storyId: options.storyId ?? null,
         characterId: options.characterId ?? null,
         stage,
         modelId: options.model,
@@ -281,7 +281,7 @@ export class OpenRouterRunner implements AiRunner {
       console.error(`[ai] ${label} failed model=${options.model} latencyMs=${latencyMs}:`, err)
 
       await this.recorder.record({
-        storyId: null,
+        storyId: options.storyId ?? null,
         characterId: options.characterId ?? null,
         stage,
         modelId: options.model,

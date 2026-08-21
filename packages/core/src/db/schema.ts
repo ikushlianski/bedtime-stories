@@ -423,6 +423,26 @@ export const storyEmbeddings = pgTable('story_embeddings', {
   updatedAt: timestamp('updated_at').defaultNow(),
 })
 
+export const storyIllustrations = pgTable('story_illustrations', {
+  id: serial('id').primaryKey(),
+  storyId: integer('story_id').references(() => stories.id).notNull(),
+  storagePath: text('storage_path').notNull(),
+  momentDescription: text('moment_description').notNull(),
+  source: text('source').$type<'automatic' | 'manual'>().notNull(),
+  characterIds: jsonb('character_ids').$type<number[] | null>().default(null),
+  orderIndex: integer('order_index').notNull(),
+  generatedAt: timestamp('generated_at').defaultNow(),
+})
+
+export const storyIllustrationMarkers = pgTable('story_illustration_markers', {
+  id: serial('id').primaryKey(),
+  storyId: integer('story_id').references(() => stories.id).notNull(),
+  markedText: text('marked_text').notNull(),
+  positionStart: integer('position_start').notNull(),
+  positionEnd: integer('position_end').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+})
+
 export const appSettings = pgTable('app_settings', {
   id: integer('id').primaryKey().default(1),
   stageModels: jsonb('stage_models').$type<Record<string, { model?: string; fallback?: string }>>(),
