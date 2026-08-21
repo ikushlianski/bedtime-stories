@@ -45,7 +45,9 @@ export function buildPortraitPrompt(
       : 'the attached reference image'
 
   return [
-    `Invent this character's own appearance from the description below — do not copy the identity, face, or outfit shown in ${styleSourceLabel}.`,
+    `This is a DIFFERENT, unrelated character from anyone shown in ${styleSourceLabel} — even though a reference image is attached, it depicts a completely different individual, not this one.`,
+    `Invent this character's own appearance from the description below. Give them their own distinct hair color and style, face shape, expression, and outfit — do not copy the face, hairstyle, or outfit shown in ${styleSourceLabel}.`,
+    `If the description below is sparse or does not specify appearance details, invent plausible, distinct ones yourself (consistent with the name/age/traits given) rather than defaulting to what's shown in ${styleSourceLabel} — a thin description is never a reason to reuse someone else's face.`,
     `Only match the art style (linework, coloring, rendering technique) of ${styleSourceLabel}.`,
     description,
     COMMON_INSTRUCTIONS,

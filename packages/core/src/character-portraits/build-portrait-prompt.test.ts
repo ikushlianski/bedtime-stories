@@ -39,7 +39,17 @@ describe('buildPortraitPrompt', () => {
 
     expect(prompt).toMatch(/invent/i)
     expect(prompt).toMatch(/art style/i)
-    expect(prompt).toMatch(/do not copy the identity/i)
+    expect(prompt).toMatch(/different, unrelated character/i)
+    expect(prompt).toMatch(/do not copy the face, hairstyle, or outfit/i)
+  })
+
+  it('tells the model a sparse description is never a reason to reuse the reference\'s face', () => {
+    for (const tier of ['universe_sibling', 'default_style'] as const) {
+      const prompt = buildPortraitPrompt(character, tier)
+
+      expect(prompt).toMatch(/sparse or does not specify/i)
+      expect(prompt).toMatch(/never a reason to reuse/i)
+    }
   })
 
   it('asks the model to invent the appearance and match only style for the default_style tier', () => {
