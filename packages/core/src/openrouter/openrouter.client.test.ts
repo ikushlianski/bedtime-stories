@@ -65,3 +65,56 @@ describe('OpenRouterClient request timeout', () => {
     })
   })
 })
+
+describe('OpenRouterClient.generateImage', () => {
+  const originalFetch = global.fetch
+
+  afterEach(() => {
+    global.fetch = originalFetch
+  })
+
+  it('sends each reference URL as an image_url object, per OpenRouter\'s documented shape', async () => {
+    const fetchMock = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ data: [{ b64_json: 'abc', media_type: 'image/png' }], usage: {} }),
+      } as Response),
+    )
+    global.fetch = fetchMock as unknown as typeof fetch
+
+    const client = new OpenRouterClient('test-key')
+
+    await client.generateImage({
+      model: 'google/gemini-2.5-flash-image',
+      prompt: 'a friendly character portrait',
+      inputReferences: ['https://example.com/ref-1.png', 'https://example.com/ref-2.png'],
+    })
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    const body = JSON.parse(init.body as string)
+
+    expect(body.input_references).toEqual([
+      { type: 'image_url', image_url: { url: 'https://example.com/ref-1.png' } },
+      { type: 'image_url', image_url: { url: 'https://example.com/ref-2.png' } },
+    ])
+  })
+
+  it('omits input_references entirely when no references are given', async () => {
+    const fetchMock = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ data: [{ b64_json: 'abc', media_type: 'image/png' }], usage: {} }),
+      } as Response),
+    )
+    global.fetch = fetchMock as unknown as typeof fetch
+
+    const client = new OpenRouterClient('test-key')
+
+    await client.generateImage({ model: 'google/gemini-2.5-flash-image', prompt: 'a friendly character portrait' })
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    const body = JSON.parse(init.body as string)
+
+    expect(body.input_references).toBeUndefined()
+  })
+})

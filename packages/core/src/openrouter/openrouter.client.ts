@@ -190,7 +190,7 @@ export class OpenRouterClient {
       model: req.model,
       prompt: req.prompt,
       ...(req.inputReferences !== undefined && req.inputReferences.length > 0
-        ? { input_references: req.inputReferences }
+        ? { input_references: req.inputReferences.map((url) => ({ type: 'image_url', image_url: { url } })) }
         : {}),
     }
     const { signal, clear } = withTimeout()
