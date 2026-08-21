@@ -180,6 +180,7 @@ export function StoryReaderPage() {
   const [annotations, setAnnotations] = useState<Annotation[]>([])
   const [annotationError, setAnnotationError] = useState<string | null>(null)
   const [markingRead, setMarkingRead] = useState(false)
+  const [reverting, setReverting] = useState(false)
   const [currentStatus, setCurrentStatus] = useState<string | null>(null)
   const [pipelineStatus, setPipelineStatus] = useState<PipelineStatusValue | null>(null)
   const [approvingText, setApprovingText] = useState(false)
@@ -199,6 +200,22 @@ export function StoryReaderPage() {
       })
       .finally(() => setMarkingRead(false))
   }, [storyId, showToast])
+
+  const handleRevertToProofreading = useCallback(() => {
+    if (!window.confirm('Вернуть историю на вычитку? Текущий финальный текст будет очищен.')) return
+
+    setReverting(true)
+    api.stories
+      .revertToProofreading(storyId)
+      .then(() => {
+        showToast('Возвращено на вычитку')
+        navigate(`/stories/${storyId}/text-review`)
+      })
+      .catch((err) => {
+        showToast(err instanceof Error ? err.message : 'Не удалось вернуть на вычитку')
+      })
+      .finally(() => setReverting(false))
+  }, [storyId, showToast, navigate])
 
   const [storyTags, setStoryTags] = useState<string[]>([])
   const [allTags, setAllTags] = useState<string[]>([])
@@ -400,6 +417,15 @@ setStoryTags((story.tags as string[] | null) ?? [])
               <span className="badge badge-primary badge-outline">
                 {reactionCount} реакций · {counts.my_note} заметок
               </span>
+            )}
+            {(currentStatus ?? story.status) === 'ready' && (
+              <button
+                className="btn btn-ghost btn-sm"
+                disabled={reverting}
+                onClick={handleRevertToProofreading}
+              >
+                {reverting ? '...' : '← На вычитку'}
+              </button>
             )}
             {((currentStatus ?? story.status) === 'ready' || (currentStatus ?? story.status) === 'read') && (
               <button

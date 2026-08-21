@@ -817,6 +817,45 @@ router.post('/:id/approve-text', validate(approveTextSchema), async (req, res) =
   }
 })
 
+router.post('/:id/revert-to-proofreading', async (req, res) => {
+  try {
+    const storyId = parseIntParam(req.params['id'])
+
+    if (isNaN(storyId)) {
+      res.status(400).json({ error: 'Invalid story id' })
+      return
+    }
+
+    const [current] = await db.select().from(stories).where(eq(stories.id, storyId))
+
+    if (!current) {
+      res.status(404).json({ error: 'Story not found' })
+      return
+    }
+
+    if (current.status !== 'ready') {
+      res.status(422).json({ error: `Cannot revert a story with status "${current.status}" to proofreading — only a ready story can be sent back` })
+      return
+    }
+
+    const [story] = await db
+      .update(stories)
+      .set({ status: 'proofreading', textFinal: null, readyAt: null, updatedAt: new Date() })
+      .where(eq(stories.id, storyId))
+      .returning()
+
+    if (!story) {
+      res.status(404).json({ error: 'Story not found' })
+      return
+    }
+
+    res.json(toSnakeCase(story as Story))
+  } catch (err) {
+    console.error('POST /stories/:id/revert-to-proofreading failed:', err)
+    res.status(500).json({ error: 'Failed to revert story to proofreading' })
+  }
+})
+
 router.post('/:id/annotations', validate(createAnnotationSchema), async (req, res) => {
   try {
     const storyId = parseIntParam(req.params['id'])

@@ -566,6 +566,11 @@ export const api = {
         body: JSON.stringify({ approved }),
       }),
 
+    revertToProofreading: (id: number) =>
+      request<Story>(`/api/stories/${id}/revert-to-proofreading`, {
+        method: 'POST',
+      }),
+
     updateStatus: (id: number, status: 'draft' | 'proofreading' | 'ready' | 'read' | 'archived') =>
       request<Story>(`/api/stories/${id}/status`, {
         method: 'PATCH',
