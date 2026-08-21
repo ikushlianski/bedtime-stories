@@ -25,6 +25,7 @@ A person clicks "Generate portrait" for a character that already has one or more
 
 What to verify:
 - All of that character's uploaded references are used as image-editing/composition input — none are skipped for having "enough already."
+- The uploaded references supply identity only (face, body, outfit) — the app's bundled default style image is always attached alongside them as the sole source of art style, so a photo-realistic or differently-styled upload never leaks its own style into the result.
 - The resulting portrait shows one character alone, in a clean headshot/portrait presentation, not a scene.
 - The character record shows this portrait came from its own references (not the universe-sibling or default-style tier), so a person auditing why it looks a certain way can tell at a glance.
 

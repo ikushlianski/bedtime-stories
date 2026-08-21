@@ -116,8 +116,12 @@ describe('generatePortrait', () => {
     const call = vi.mocked(aiRunner.generateImage).mock.calls[0]?.[0]
     expect(call?.model).toBe(PORTRAIT_MODEL)
     expect(call?.characterId).toBe(1)
-    expect(call?.referenceImageUrls).toEqual(['https://signed.example.com/references/1/a.png'])
+    expect(call?.referenceImageUrls).toEqual([
+      'https://signed.example.com/references/1/a.png',
+      expect.stringMatching(/^data:image\/png;base64,/),
+    ])
     expect(call?.prompt).toMatch(/match/i)
+    expect(call?.prompt).toMatch(/style guide/i)
 
     expect(insertedRows[0]).toMatchObject({ characterId: 1, tier: 'own_reference', isCurrent: true, sourceStoragePaths: ['references/1/a.png'] })
     expect(updateCalls).toEqual([{ isCurrent: false }])

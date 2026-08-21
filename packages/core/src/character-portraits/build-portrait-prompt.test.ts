@@ -10,11 +10,28 @@ const character = {
 
 describe('buildPortraitPrompt', () => {
   it('asks the model to match the uploaded appearance for the own_reference tier', () => {
-    const prompt = buildPortraitPrompt(character, 'own_reference')
+    const prompt = buildPortraitPrompt(character, 'own_reference', 2)
 
     expect(prompt).toMatch(/reference image/i)
     expect(prompt).toMatch(/match/i)
     expect(prompt).not.toMatch(/invent/i)
+  })
+
+  it('tells the model identity comes from the reference(s) but style always comes from the final attached style guide, for own_reference', () => {
+    const prompt = buildPortraitPrompt(character, 'own_reference', 2)
+
+    expect(prompt).toMatch(/first 2 attached reference images/i)
+    expect(prompt).toMatch(/identity only/i)
+    expect(prompt).toMatch(/never style/i)
+    expect(prompt).toMatch(/final attached reference image is a separate style guide/i)
+    expect(prompt).toMatch(/style.*always wins/i)
+  })
+
+  it('uses singular phrasing for exactly one identity reference', () => {
+    const prompt = buildPortraitPrompt(character, 'own_reference', 1)
+
+    expect(prompt).toMatch(/first attached reference image shows/i)
+    expect(prompt).not.toMatch(/first 1 attached/i)
   })
 
   it('asks the model to invent the appearance and match only style for the universe_sibling tier', () => {

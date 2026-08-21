@@ -4,7 +4,7 @@ Every character in a universe's character bible can carry a set of uploaded base
 
 Generating a portrait always resolves exactly one reference source through a fixed, three-tier fallback, evaluated fresh on every click:
 
-1. **Own references** — if the character has any uploaded reference images, all of them are used as identity references, and the model is asked to match the character's appearance to them.
+1. **Own references** — if the character has any uploaded reference images, all of them are used as identity references (face, body, outfit) — never style. The app's bundled default style image is always attached alongside them as the one and only style source, so an uploaded photo (or anything not already in the app's comic style) never leaks its own rendering style into the result.
 2. **Universe sibling style** — if the character has no references of its own but another character in the same universe already has a generated portrait, up to 3 of the most recent sibling portraits are used purely as art-style references (never identity references) — the model still invents this character's own appearance from its bible fields. A character never sees its own past portraits offered back to it as a sibling.
 3. **Default style** — if neither of the above exists (typically the very first character generated in a brand-new universe), the app's own bundled default-style image is used the same way: style only, appearance invented from the bible fields.
 

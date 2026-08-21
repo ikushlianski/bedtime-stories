@@ -56,21 +56,31 @@ function mediaTypeToExtension(mediaType: string): string {
   return 'png'
 }
 
+async function loadDefaultStyleImageDataUri(): Promise<string> {
+  const defaultImageBuffer = await readFile(DEFAULT_STYLE_REFERENCE_PATH)
+  return `data:image/png;base64,${defaultImageBuffer.toString('base64')}`
+}
+
 async function resolveReferenceImageUrls(
   tier: PortraitTier,
   referenceValues: string[],
   storage: ObjectStorage,
 ): Promise<string[]> {
   if (tier === 'own_reference') {
-    return Promise.all(referenceValues.map((path) => storage.getSignedReadUrl(path, SIGNED_REFERENCE_URL_TTL_SECONDS)))
+    const identityUrls = await Promise.all(
+      referenceValues.map((path) => storage.getSignedReadUrl(path, SIGNED_REFERENCE_URL_TTL_SECONDS)),
+    )
+    // The character's own uploads are identity-only — style always comes from the bundled
+    // default style image, appended last, never from whatever style the uploaded photo happens
+    // to be in (a real photo, a different art style, etc).
+    return [...identityUrls, await loadDefaultStyleImageDataUri()]
   }
 
   if (tier === 'universe_sibling') {
     return referenceValues.map((path) => buildPublicObjectUrl({ bucketName: env.GCS_BUCKET_NAME, storagePath: path }))
   }
 
-  const defaultImageBuffer = await readFile(DEFAULT_STYLE_REFERENCE_PATH)
-  return [`data:image/png;base64,${defaultImageBuffer.toString('base64')}`]
+  return [await loadDefaultStyleImageDataUri()]
 }
 
 async function prunePreviousPortraits(characterId: number): Promise<void> {
@@ -103,6 +113,7 @@ export async function generatePortrait(
   const prompt = buildPortraitPrompt(
     { name: character.name, description: character.description, age: character.age, traits: character.traits },
     tier,
+    tier === 'own_reference' ? referenceValues.length : 0,
   )
 
   const referenceImageUrls = await resolveReferenceImageUrls(tier, referenceValues, storage)
