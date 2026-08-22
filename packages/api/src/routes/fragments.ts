@@ -11,12 +11,14 @@ const createFragmentSchema = z.object({
   text: z.string().min(1).max(2000),
   universeId: z.number().int().positive().nullable().optional(),
   rank: z.number().int().optional(),
+  exactQuote: z.boolean().optional(),
 })
 
 const updateFragmentSchema = z.object({
   text: z.string().min(1).max(2000).optional(),
   universeId: z.number().int().positive().nullable().optional(),
   rank: z.number().int().optional(),
+  exactQuote: z.boolean().optional(),
 })
 
 const usedCount = sql<number>`(
@@ -51,7 +53,7 @@ router.get('/', async (_req, res) => {
 
 router.post('/', validate(createFragmentSchema), async (req, res) => {
   try {
-    const { text, universeId, rank } = req.body as z.infer<typeof createFragmentSchema>
+    const { text, universeId, rank, exactQuote } = req.body as z.infer<typeof createFragmentSchema>
 
     const [created] = await db
       .insert(fragments)
@@ -59,6 +61,7 @@ router.post('/', validate(createFragmentSchema), async (req, res) => {
         text,
         universeId: universeId ?? null,
         ...(rank !== undefined ? { rank } : {}),
+        ...(exactQuote !== undefined ? { exactQuote } : {}),
       })
       .returning()
 
@@ -79,7 +82,7 @@ router.patch('/:id', validate(updateFragmentSchema), async (req, res) => {
       return
     }
 
-    const { text, universeId, rank } = req.body as z.infer<typeof updateFragmentSchema>
+    const { text, universeId, rank, exactQuote } = req.body as z.infer<typeof updateFragmentSchema>
 
     const [updated] = await db
       .update(fragments)
@@ -87,6 +90,7 @@ router.patch('/:id', validate(updateFragmentSchema), async (req, res) => {
         ...(text !== undefined ? { text } : {}),
         ...(universeId !== undefined ? { universeId } : {}),
         ...(rank !== undefined ? { rank } : {}),
+        ...(exactQuote !== undefined ? { exactQuote } : {}),
         updatedAt: new Date(),
       })
       .where(eq(fragments.id, id))

@@ -16,6 +16,7 @@ export function FragmentsPage() {
   const [draft, setDraft] = useState('')
   const [draftUniverse, setDraftUniverse] = useState<string>(GLOBAL_VALUE)
   const [draftRank, setDraftRank] = useState('0')
+  const [draftExactQuote, setDraftExactQuote] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -49,11 +50,13 @@ export function FragmentsPage() {
         text: draft.trim(),
         universeId: draftUniverse === GLOBAL_VALUE ? null : Number(draftUniverse),
         rank: Number.parseInt(draftRank, 10) || 0,
+        exactQuote: draftExactQuote,
       })
 
       setItems((prev) => [created, ...prev])
       setDraft('')
       setDraftRank('0')
+      setDraftExactQuote(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Не удалось сохранить фрагмент')
     } finally {
@@ -81,6 +84,16 @@ export function FragmentsPage() {
       )
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Не удалось изменить приоритет')
+    }
+  }
+
+  const handleToggleExactQuote = async (frag: Fragment) => {
+    try {
+      const updated = await api.fragments.update(frag.id, { exactQuote: !frag.exactQuote })
+
+      setItems((prev) => prev.map((f) => (f.id === frag.id ? { ...f, exactQuote: updated.exactQuote } : f)))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Не удалось изменить фрагмент')
     }
   }
 
@@ -140,6 +153,16 @@ export function FragmentsPage() {
             />
           </label>
 
+          <label className="flex cursor-pointer items-center gap-2">
+            <input
+              type="checkbox"
+              className="checkbox checkbox-sm"
+              checked={draftExactQuote}
+              onChange={(e) => setDraftExactQuote(e.target.checked)}
+            />
+            <span className="text-xs text-base-content/60">Дословная цитата — вставлять в текст слово в слово</span>
+          </label>
+
           <button
             className={`btn btn-primary btn-sm ml-auto ${saving || draft.trim().length === 0 ? 'btn-disabled' : ''}`}
             onClick={() => void handleCreate()}
@@ -180,6 +203,15 @@ export function FragmentsPage() {
 
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <span className="badge badge-ghost badge-sm">{universeName(universes, frag.universeId)}</span>
+
+                <button
+                  type="button"
+                  className={`badge badge-sm ${frag.exactQuote ? 'badge-secondary' : 'badge-outline'}`}
+                  title="Вставлять этот фрагмент в текст слово в слово, без пересказа"
+                  onClick={() => void handleToggleExactQuote(frag)}
+                >
+                  Дословная цитата
+                </button>
 
                 {frag.usedCount > 0 && (
                   <span className="badge badge-warning badge-sm">использован {frag.usedCount}×</span>

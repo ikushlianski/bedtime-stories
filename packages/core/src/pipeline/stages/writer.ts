@@ -6,6 +6,7 @@ import { selectStoryStructure, buildStructureBlock, type StoryStructure } from '
 import { selectCharacterLens, buildCharacterLensBlock, type CharacterLens } from './character-lenses'
 import type { CriticOutput } from '../schemas'
 import type { Exemplar } from '../load-exemplars'
+import type { ChosenFragment } from '../load-fragments'
 
 const WRITER_TEMPERATURE = 0.9
 
@@ -46,7 +47,7 @@ export async function runWriter(options: {
   characterLens?: CharacterLens
   exemplars?: Exemplar[]
   referenceStory?: { title: string; textFinal: string }
-  chosenFragments?: string[]
+  chosenFragments?: ChosenFragment[]
   targetWords?: TargetWord[]
   userAnnotations?: string
   onChunk?: (chunk: string) => void
@@ -96,7 +97,7 @@ export async function runWriter(options: {
     : ''
 
   const fragmentBlock = options.chosenFragments && options.chosenFragments.length > 0 && !isRevision
-    ? `\n\n---\nФРАГМЕНТЫ ДЛЯ ВПЛЕТЕНИЯ (родитель хотел увидеть эти детали — впиши каждую органично и естественно, не выпячивая и не сваливая в одну сцену; если это короткая фраза или образ — сохрани её узнаваемой):\n${options.chosenFragments.map((f) => `- ${f}`).join('\n')}\n---\n`
+    ? `\n\n---\nФРАГМЕНТЫ ДЛЯ ВПЛЕТЕНИЯ (родитель хотел увидеть эти детали — впиши каждую органично и естественно, не выпячивая и не сваливая в одну сцену; если это короткая фраза или образ — сохрани её узнаваемой):\n${options.chosenFragments.map((f) => (f.exactQuote ? `- [ДОСЛОВНАЯ ЦИТАТА — вставь эту фразу СЛОВО В СЛОВО, без пересказа и замены синонимами] ${f.text}` : `- ${f.text}`)).join('\n')}\n---\n`
     : ''
 
   const endingRuleBlock = '\n\n---\nПРО КОНЦОВКУ: не заканчивай историю тем, что кто-то говорит что-то смешное и все вокруг начинают смеяться — этот приём приелся и повторяется из истории в историю. Юмор распределяй по всему тексту, а финал строй строго по типу развязки из плана (open / hopeful / resolved). Концовка каждой истории должна ощущаться по-своему, а не сводиться к общему смеху.\n---\n'

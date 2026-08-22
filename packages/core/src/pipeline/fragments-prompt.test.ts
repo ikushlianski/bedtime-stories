@@ -65,13 +65,22 @@ describe('buildFragmentsBlock', () => {
 
   it('marks previously-used fragments and states the per-story cap', () => {
     const block = buildFragmentsBlock([
-      { id: 1, text: 'свежий фрагмент', rank: 0, usedCount: 0 },
-      { id: 2, text: 'старый фрагмент', rank: 0, usedCount: 3 },
+      { id: 1, text: 'свежий фрагмент', rank: 0, usedCount: 0, exactQuote: false },
+      { id: 2, text: 'старый фрагмент', rank: 0, usedCount: 3, exactQuote: false },
     ])
 
     expect(block).toContain('[Фрагмент #1] свежий фрагмент')
     expect(block).toContain('[Фрагмент #2 (уже использован ранее)] старый фрагмент')
     expect(block).toContain(`от нуля до ${MAX_FRAGMENTS_PER_STORY}`)
     expect(block).toContain('ФРАГМЕНТЫ: <id выбранных фрагментов через запятую или слово нет>')
+  })
+
+  it('marks fragments flagged as exact quotes and adds the verbatim rule', () => {
+    const block = buildFragmentsBlock([
+      { id: 1, text: 'Пришел, наскандалил и ушел', rank: 0, usedCount: 0, exactQuote: true },
+    ])
+
+    expect(block).toContain('[Фрагмент #1 (ДОСЛОВНАЯ ЦИТАТА)] Пришел, наскандалил и ушел')
+    expect(block).toContain('СЛОВО В СЛОВО')
   })
 })

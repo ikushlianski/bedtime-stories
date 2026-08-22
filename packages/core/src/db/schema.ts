@@ -110,6 +110,7 @@ export const fragments = pgTable('fragments', {
   text: text('text').notNull(),
   universeId: integer('universe_id').references(() => storyGroups.id),
   rank: integer('rank').notNull().default(0),
+  exactQuote: boolean('exact_quote').notNull().default(false),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 })

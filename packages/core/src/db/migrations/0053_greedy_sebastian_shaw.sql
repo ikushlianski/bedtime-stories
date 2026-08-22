@@ -1,0 +1,1 @@
+ALTER TABLE "fragments" ADD COLUMN "exact_quote" boolean DEFAULT false NOT NULL;

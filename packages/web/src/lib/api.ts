@@ -317,6 +317,7 @@ export interface Fragment {
   text: string
   universeId: number | null
   rank: number
+  exactQuote: boolean
   usedCount: number
   createdAt: string | null
   updatedAt: string | null
@@ -840,12 +841,12 @@ export const api = {
 
   fragments: {
     list: () => request<Fragment[]>('/api/fragments'),
-    create: (data: { text: string; universeId?: number | null; rank?: number }) =>
+    create: (data: { text: string; universeId?: number | null; rank?: number; exactQuote?: boolean }) =>
       request<Fragment>('/api/fragments', {
         method: 'POST',
         body: JSON.stringify(data),
       }),
-    update: (id: number, data: Partial<{ text: string; universeId: number | null; rank: number }>) =>
+    update: (id: number, data: Partial<{ text: string; universeId: number | null; rank: number; exactQuote: boolean }>) =>
       request<Fragment>(`/api/fragments/${id}`, {
         method: 'PATCH',
         body: JSON.stringify(data),

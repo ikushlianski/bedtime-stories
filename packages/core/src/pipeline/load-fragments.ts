@@ -26,6 +26,7 @@ export async function loadEligibleFragments(
       text: fragments.text,
       rank: fragments.rank,
       usedCount,
+      exactQuote: fragments.exactQuote,
     })
     .from(fragments)
     .where(scopeFilter)
@@ -35,27 +36,32 @@ export async function loadEligibleFragments(
   return rows
 }
 
-export async function loadFragmentTexts(fragmentIds: number[]): Promise<string[]> {
+export interface ChosenFragment {
+  text: string
+  exactQuote: boolean
+}
+
+export async function loadFragmentTexts(fragmentIds: number[]): Promise<ChosenFragment[]> {
   if (fragmentIds.length === 0) return []
 
   const rows = await db
-    .select({ id: fragments.id, text: fragments.text })
+    .select({ id: fragments.id, text: fragments.text, exactQuote: fragments.exactQuote })
     .from(fragments)
     .where(inArray(fragments.id, fragmentIds))
 
-  const byId = new Map(rows.map((r) => [r.id, r.text]))
+  const byId = new Map(rows.map((r) => [r.id, { text: r.text, exactQuote: r.exactQuote }]))
 
-  return fragmentIds.map((id) => byId.get(id)).filter((t): t is string => t !== undefined)
+  return fragmentIds.map((id) => byId.get(id)).filter((f): f is ChosenFragment => f !== undefined)
 }
 
-export async function loadStoryFragmentTexts(storyId: number): Promise<string[]> {
+export async function loadStoryFragmentTexts(storyId: number): Promise<ChosenFragment[]> {
   const rows = await db
-    .select({ text: fragments.text })
+    .select({ text: fragments.text, exactQuote: fragments.exactQuote })
     .from(storyFragments)
     .innerJoin(fragments, eq(fragments.id, storyFragments.fragmentId))
     .where(eq(storyFragments.storyId, storyId))
 
-  return rows.map((r) => r.text)
+  return rows
 }
 
 export async function recordStoryFragments(storyId: number, fragmentIds: number[]): Promise<void> {

@@ -3,7 +3,7 @@ import { runWriter, WRITER_SYSTEM_PROMPT_DEFAULT } from './stages/writer'
 import { runPlotterQuestions, type PlotterQuestionItem } from './stages/plotter-questions'
 import { generateStoryTitle } from './stages/title-generator'
 import { resolvePrompt, type ResolvedPrompt } from './prompt-resolver'
-import { loadEligibleFragments, extractFragmentMarkers, MAX_FRAGMENTS_PER_STORY } from './load-fragments'
+import { loadEligibleFragments, extractFragmentMarkers, MAX_FRAGMENTS_PER_STORY, type ChosenFragment } from './load-fragments'
 import { loadEligibleTopics, loadTopicsByIds, extractTopicMarkers, MAX_TOPICS_PER_STORY } from './load-topics'
 import { loadReactionPreferences, MIN_REACTIONS } from './load-reaction-preferences'
 import { loadMemorableMoments } from './load-memorable-moments'
@@ -421,7 +421,7 @@ export async function runWriterOnly(options: {
   styleGuide?: string
   sashaContext?: string | null
   exemplars?: Exemplar[]
-  chosenFragments?: string[]
+  chosenFragments?: ChosenFragment[]
   targetWords?: TargetWord[]
   previousText?: string
   userAnnotations?: string
