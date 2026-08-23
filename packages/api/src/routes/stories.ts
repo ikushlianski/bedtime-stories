@@ -461,7 +461,7 @@ router.get('/:id', async (req, res) => {
     const validCallRows = callRows.filter((r): r is typeof r & { usdMicros: number; createdAt: Date } => r.usdMicros !== null && r.createdAt !== null)
     const cost = validCallRows.length > 0 ? deriveStoryCostBreakdown(validCallRows) : null
 
-    const usedFragmentTexts = await loadStoryFragmentTexts(storyId)
+    const usedFragmentTexts = (await loadStoryFragmentTexts(storyId)).map((f) => f.text)
 
     res.json({ ...toSnakeCase(story as Story), cost, active_text: activeText, used_fragment_texts: usedFragmentTexts })
   } catch (err) {
