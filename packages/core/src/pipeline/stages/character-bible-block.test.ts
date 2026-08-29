@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildCharacterBibleBlock, type CharacterBibleEntry } from './character-bible-block'
+import { buildCharacterBibleBlock, extractCharacterMarkers, type CharacterBibleEntry } from './character-bible-block'
 
 describe('buildCharacterBibleBlock', () => {
   describe('when the roster is empty', () => {
@@ -93,6 +93,70 @@ describe('buildCharacterBibleBlock', () => {
 
       expect(block).toContain('5/5')
       expect(block).toContain('появляется часто')
+    })
+  })
+
+  describe('usage-based fairness', () => {
+    it('sorts characters of equal importance by ascending usage count, least-used first', () => {
+      const block = buildCharacterBibleBlock([
+        { id: 1, name: 'Частый', setting: 'x', importance: 4, usedCount: 12 },
+        { id: 2, name: 'Редкий', setting: 'x', importance: 4, usedCount: 1 },
+      ])
+
+      expect(block.indexOf('Редкий')).toBeLessThan(block.indexOf('Частый'))
+    })
+
+    it('annotates each character with its id and usage count when ids are present', () => {
+      const block = buildCharacterBibleBlock([{ id: 7, name: 'Гоша', setting: 'x', usedCount: 3 }])
+
+      expect(block).toContain('#7')
+      expect(block).toContain('использован в 3 готовых историях')
+    })
+
+    it('adds the fairness instruction and marker request only when usage data is present', () => {
+      const withIds = buildCharacterBibleBlock([{ id: 1, name: 'Гоша', setting: 'x' }])
+      const withoutIds = buildCharacterBibleBlock([{ name: 'Гоша', setting: 'x' }])
+
+      expect(withIds).toContain('ID_ПЕРСОНАЖЕЙ')
+      expect(withIds).toContain('МЕНЬШИМ числом появлений')
+      expect(withoutIds).not.toContain('ID_ПЕРСОНАЖЕЙ')
+      expect(withoutIds).not.toContain('МЕНЬШИМ числом появлений')
+    })
+
+    it('omits the marker request when includeMarker is false, for JSON-output callers', () => {
+      const block = buildCharacterBibleBlock([{ id: 1, name: 'Гоша', setting: 'x' }], { includeMarker: false })
+
+      expect(block).not.toContain('ID_ПЕРСОНАЖЕЙ')
+      expect(block).toContain('#1')
+    })
+  })
+
+  describe('extractCharacterMarkers', () => {
+    it('extracts ids from a well-formed marker line and strips it from the text', () => {
+      const { cleanedText, characterIds } = extractCharacterMarkers('план истории...\nID_ПЕРСОНАЖЕЙ: #3, #7')
+
+      expect(characterIds).toEqual([3, 7])
+      expect(cleanedText).not.toContain('ID_ПЕРСОНАЖЕЙ')
+      expect(cleanedText).toContain('план истории...')
+    })
+
+    it('returns an empty array when the marker says нет', () => {
+      const { characterIds } = extractCharacterMarkers('план истории...\nID_ПЕРСОНАЖЕЙ: нет')
+
+      expect(characterIds).toEqual([])
+    })
+
+    it('returns an empty array and the original text when no marker is present', () => {
+      const result = extractCharacterMarkers('план истории без маркера')
+
+      expect(result.characterIds).toEqual([])
+      expect(result.cleanedText).toBe('план истории без маркера')
+    })
+
+    it('deduplicates repeated ids', () => {
+      const { characterIds } = extractCharacterMarkers('текст\nID_ПЕРСОНАЖЕЙ: 3, 3, 7')
+
+      expect(characterIds).toEqual([3, 7])
     })
   })
 

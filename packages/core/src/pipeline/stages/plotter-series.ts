@@ -7,6 +7,7 @@ export interface SeriesPlanItem {
   outline: string
   titleHint: string
   usedFragmentIds: number[]
+  usedCharacterIds: number[]
 }
 
 export async function runPlotterSeries(options: {
@@ -58,7 +59,12 @@ export async function runPlotterSeries(options: {
     ? `, "usedFragmentIds": [<id выбранных фрагментов или пусто>]`
     : ''
 
-  const characterBibleBlock = buildCharacterBibleBlock(options.bibleCharacters ?? [])
+  const bibleCharacters = options.bibleCharacters ?? []
+  const characterBibleBlock = buildCharacterBibleBlock(bibleCharacters, { includeMarker: false })
+  const hasCharacterUsageData = bibleCharacters.some((c) => c.id != null)
+  const characterField = hasCharacterUsageData
+    ? `, "usedCharacterIds": [<id персонажей из библии, использованных в этом плане, или пусто>]`
+    : ''
 
   const prompt = [
     `${basePrompt}${characterBibleBlock}${universeContextBlock}${styleGuideBlock}${sashaContextBlock}${fragmentsBlock}`,
@@ -74,9 +80,9 @@ export async function runPlotterSeries(options: {
     `Верни ТОЛЬКО валидный JSON без markdown, без комментариев:`,
     `{`,
     `  "plans": [`,
-    `    { "outline": "<полный план на русском со всеми разделами>", "titleHint": "<название 3-5 слов>"${fragmentField} },`,
-    `    { "outline": "...", "titleHint": "..."${fragmentField} },`,
-    `    { "outline": "...", "titleHint": "..."${fragmentField} }`,
+    `    { "outline": "<полный план на русском со всеми разделами>", "titleHint": "<название 3-5 слов>"${fragmentField}${characterField} },`,
+    `    { "outline": "...", "titleHint": "..."${fragmentField}${characterField} },`,
+    `    { "outline": "...", "titleHint": "..."${fragmentField}${characterField} }`,
     `  ]`,
     `}`,
   ].join('\n')
@@ -135,10 +141,16 @@ function parsePlotterSeriesResponse(raw: string): SeriesPlanItem[] {
       ? Array.from(new Set(rawFragmentIds.filter((v): v is number => typeof v === 'number' && Number.isInteger(v)))).slice(0, MAX_FRAGMENTS_PER_STORY)
       : []
 
+    const rawCharacterIds = (item as Record<string, unknown>)['usedCharacterIds']
+    const usedCharacterIds = Array.isArray(rawCharacterIds)
+      ? Array.from(new Set(rawCharacterIds.filter((v): v is number => typeof v === 'number' && Number.isInteger(v))))
+      : []
+
     return {
       outline: ((item as Record<string, unknown>)['outline'] as string).trim(),
       titleHint: ((item as Record<string, unknown>)['titleHint'] as string).trim(),
       usedFragmentIds,
+      usedCharacterIds,
     }
   })
 }

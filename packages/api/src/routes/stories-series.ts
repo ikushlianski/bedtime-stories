@@ -8,6 +8,7 @@ import type { NewStory } from '@bedtime/core/db/types'
 import { validate } from '../middleware/validate'
 import { runPlotterSeries } from '@bedtime/core/pipeline/stages/plotter-series'
 import { loadEligibleFragments, recordStoryFragments } from '@bedtime/core/pipeline/load-fragments'
+import { recordStoryCharacters } from '@bedtime/core/pipeline/character-usage'
 import { synthesizeSashaContext } from '@bedtime/core/pipeline/feedback-synthesizer'
 import type { CharacterBibleEntry } from '@bedtime/core/pipeline/stages/character-bible-block'
 import { resolvePipelineModels } from './pipeline-defaults'
@@ -69,6 +70,7 @@ router.post('/', validate(createSeriesSchema), async (req, res) => {
     const seriesId = randomUUID()
 
     const eligibleFragmentIds = new Set(eligibleFragments.map((f) => f.id))
+    const eligibleCharacterIds = new Set(bibleCharacters.map((c) => c.id).filter((id): id is number => id != null))
 
     const inserts: NewStory[] = plans.map(({ outline, titleHint }) => ({
       title: titleHint || 'Без названия',
@@ -88,8 +90,12 @@ router.post('/', validate(createSeriesSchema), async (req, res) => {
 
     await Promise.all(
       created.map((row, i) => {
-        const ids = (plans[i]?.usedFragmentIds ?? []).filter((id) => eligibleFragmentIds.has(id))
-        return recordStoryFragments(row.id, ids)
+        const fragmentIds = (plans[i]?.usedFragmentIds ?? []).filter((id) => eligibleFragmentIds.has(id))
+        const characterIds = (plans[i]?.usedCharacterIds ?? []).filter((id) => eligibleCharacterIds.has(id))
+        return Promise.all([
+          recordStoryFragments(row.id, fragmentIds),
+          recordStoryCharacters(row.id, characterIds),
+        ])
       }),
     )
 

@@ -599,6 +599,7 @@ setStoryTags((story.tags as string[] | null) ?? [])
             setSwapStage(null)
             navigate(`/stories/${storyId}/pipeline`)
           }}
+          requireInputs={false}
         />
       )}
 

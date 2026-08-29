@@ -122,6 +122,13 @@ export const storyFragments = pgTable('story_fragments', {
   createdAt: timestamp('created_at').defaultNow(),
 }, (t) => [unique('story_fragments_story_fragment_unique').on(t.storyId, t.fragmentId)])
 
+export const storyCharacters = pgTable('story_characters', {
+  id: serial('id').primaryKey(),
+  storyId: integer('story_id').references(() => stories.id).notNull(),
+  characterId: integer('character_id').references(() => universeCharacters.id).notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (t) => [unique('story_characters_story_character_unique').on(t.storyId, t.characterId)])
+
 export const words = pgTable('words', {
   id: serial('id').primaryKey(),
   word: text('word').notNull(),

@@ -15,6 +15,7 @@ import {
   storyEmbeddings,
   storyUniverses,
   storyFragments,
+  storyCharacters,
   storyWords,
   storyTopics,
   storyComments,
@@ -41,6 +42,7 @@ export async function deleteStoryCascade(storyId: number): Promise<void> {
   await db.delete(parentReviews).where(eq(parentReviews.storyId, storyId))
   await db.delete(childReactions).where(eq(childReactions.storyId, storyId))
   await db.delete(storyFragments).where(eq(storyFragments.storyId, storyId))
+  await db.delete(storyCharacters).where(eq(storyCharacters.storyId, storyId))
   await db.delete(storyWords).where(eq(storyWords.storyId, storyId))
   await db.delete(storyTopics).where(eq(storyTopics.storyId, storyId))
   await db.delete(storyTextVersions).where(eq(storyTextVersions.storyId, storyId))

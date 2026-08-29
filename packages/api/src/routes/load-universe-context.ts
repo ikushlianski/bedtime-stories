@@ -1,4 +1,4 @@
-import { inArray } from 'drizzle-orm'
+import { inArray, sql } from 'drizzle-orm'
 import { db } from '@bedtime/core/db/client'
 import { storyGroups, universeCharacters } from '@bedtime/core/db/schema'
 import type { CharacterBibleEntry } from '@bedtime/core/pipeline/stages/character-bible-block'
@@ -33,9 +33,31 @@ export async function loadUniverseContext(universeIds: number[]): Promise<Univer
 
   if (ids.length === 0) return EMPTY_CONTEXT
 
+  const usedCount = sql<number>`(
+    select count(distinct "story_characters"."story_id")::int from "story_characters"
+    join "stories" on "stories"."id" = "story_characters"."story_id"
+    where "story_characters"."character_id" = "universe_characters"."id"
+      and "stories"."status" in ('proofreading', 'ready', 'read')
+  )`
+
   const [groups, chars] = await Promise.all([
     db.select().from(storyGroups).where(inArray(storyGroups.id, ids)),
-    db.select().from(universeCharacters).where(inArray(universeCharacters.universeId, ids)),
+    db
+      .select({
+        id: universeCharacters.id,
+        universeId: universeCharacters.universeId,
+        name: universeCharacters.name,
+        description: universeCharacters.description,
+        age: universeCharacters.age,
+        setting: universeCharacters.setting,
+        traits: universeCharacters.traits,
+        relationships: universeCharacters.relationships,
+        coOccurrenceNote: universeCharacters.coOccurrenceNote,
+        importance: universeCharacters.importance,
+        usedCount,
+      })
+      .from(universeCharacters)
+      .where(inArray(universeCharacters.universeId, ids)),
   ])
 
   if (groups.length === 0) return EMPTY_CONTEXT
@@ -50,6 +72,7 @@ export async function loadUniverseContext(universeIds: number[]): Promise<Univer
   }
 
   const bibleCharacters: CharacterBibleEntry[] = chars.map((c) => ({
+    id: c.id,
     name: c.name,
     age: c.age,
     setting: c.setting,
@@ -58,6 +81,7 @@ export async function loadUniverseContext(universeIds: number[]): Promise<Univer
     coOccurrenceNote: c.coOccurrenceNote,
     description: c.description,
     importance: c.importance,
+    usedCount: c.usedCount,
   }))
 
   if (!isBlend) {

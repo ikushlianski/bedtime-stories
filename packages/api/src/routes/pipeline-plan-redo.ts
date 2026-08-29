@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { runPlotterOnly } from '@bedtime/core/pipeline/orchestrator'
+import { recordStoryCharacters } from '@bedtime/core/pipeline/character-usage'
 import { synthesizeSashaContext } from '@bedtime/core/pipeline/feedback-synthesizer'
 import { generatePlanChangeSummary } from '@bedtime/core/pipeline/plan-change-summarizer'
 import { resolveAnnotations } from '@bedtime/core/pipeline/annotation-resolver'
@@ -112,6 +113,8 @@ export function triggerPlanRedo(
         .update(stories)
         .set({ ...buildPlotterOnlyStoriesUpdate(result), planChangeSummary: changeSummary })
         .where(eq(stories.id, storyId))
+
+      await recordStoryCharacters(storyId, result.usedCharacterIds)
 
       setPipelineStatus(storyId, 'plan_ready')
     } catch (dbError) {

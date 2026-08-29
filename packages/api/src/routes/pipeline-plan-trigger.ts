@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm'
 import { runPlotterOnly } from '@bedtime/core/pipeline/orchestrator'
 import { recordStoryFragments } from '@bedtime/core/pipeline/load-fragments'
 import { recordStoryTopics } from '@bedtime/core/pipeline/load-topics'
+import { recordStoryCharacters } from '@bedtime/core/pipeline/character-usage'
 import { synthesizeSashaContext } from '@bedtime/core/pipeline/feedback-synthesizer'
 import { db } from '@bedtime/core/db/client'
 import { runSnapshots, stories } from '@bedtime/core/db/schema'
@@ -78,6 +79,7 @@ export function triggerPlanPhaseFromAnswers(
       await db.update(stories).set(buildPlotterOnlyStoriesUpdate(result)).where(eq(stories.id, storyId))
       await recordStoryFragments(storyId, result.usedFragmentIds)
       await recordStoryTopics(storyId, result.usedTopicIds)
+      await recordStoryCharacters(storyId, result.usedCharacterIds)
       setPipelineStatus(storyId, 'plan_ready')
     } catch (dbError) {
       console.error(`Failed to persist plan phase for storyId=${storyId}:`, dbError)

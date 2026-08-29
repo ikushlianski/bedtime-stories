@@ -11,7 +11,7 @@ import { loadReferenceStory } from './load-reference-story'
 import { loadRecentTitles } from './load-recent-titles'
 import { resolveStoryStructureChoice } from './resolve-story-structure-choice'
 import { extractWordMarkers, MAX_WORDS_PER_STORY, type TargetWord } from './stages/words-block'
-import type { CharacterBibleEntry } from './stages/character-bible-block'
+import { extractCharacterMarkers, type CharacterBibleEntry } from './stages/character-bible-block'
 import type { CriticOutput } from './schemas'
 import type { Exemplar } from './load-exemplars'
 import { withPipelineTrace, withPipelineTraceIfNone, addStoryContext } from '@bedtime/observability'
@@ -50,6 +50,7 @@ export interface PlanPhaseResult {
   sashaContext: string | null
   usedFragmentIds: number[]
   usedTopicIds: number[]
+  usedCharacterIds: number[]
 }
 
 export interface PlotterOnlyResult {
@@ -60,6 +61,7 @@ export interface PlotterOnlyResult {
   sashaContext: string | null
   usedFragmentIds: number[]
   usedTopicIds: number[]
+  usedCharacterIds: number[]
 }
 
 export interface WriterOnlyResult {
@@ -178,13 +180,16 @@ export async function runPlanPhase(options: {
 
   const fragmentMarker = extractFragmentMarkers(planRaw)
   const topicMarker = extractTopicMarkers(fragmentMarker.cleanedText)
-  const planV1 = topicMarker.cleanedText
+  const characterMarker = extractCharacterMarkers(topicMarker.cleanedText)
+  const planV1 = characterMarker.cleanedText
   const eligibleFragmentIds = new Set(eligibleFragments.map((f) => f.id))
   const usedFragmentIds = fragmentMarker.fragmentIds.filter((id) => eligibleFragmentIds.has(id)).slice(0, MAX_FRAGMENTS_PER_STORY)
   const eligibleTopicIds = new Set(eligibleTopics.map((t) => t.id))
   const usedTopicIds = manualTopicIds.length > 0
     ? eligibleTopics.map((t) => t.id)
     : topicMarker.topicIds.filter((id) => eligibleTopicIds.has(id)).slice(0, MAX_TOPICS_PER_STORY)
+  const eligibleCharacterIds = new Set((options.bibleCharacters ?? []).map((c) => c.id).filter((id): id is number => id != null))
+  const usedCharacterIds = characterMarker.characterIds.filter((id) => eligibleCharacterIds.has(id))
 
   notify('TitleGenerator')
   const titleSuggested = await generateStoryTitle({
@@ -206,6 +211,7 @@ export async function runPlanPhase(options: {
     sashaContext: options.sashaContext ?? null,
     usedFragmentIds,
     usedTopicIds,
+    usedCharacterIds,
   }
 }
 
@@ -381,13 +387,16 @@ export async function runPlotterOnly(options: {
 
   const fragmentMarker = extractFragmentMarkers(planRaw)
   const topicMarker = extractTopicMarkers(fragmentMarker.cleanedText)
-  const planV1 = topicMarker.cleanedText
+  const characterMarker = extractCharacterMarkers(topicMarker.cleanedText)
+  const planV1 = characterMarker.cleanedText
   const eligibleFragmentIds = new Set(eligibleFragments.map((f) => f.id))
   const usedFragmentIds = fragmentMarker.fragmentIds.filter((id) => eligibleFragmentIds.has(id)).slice(0, MAX_FRAGMENTS_PER_STORY)
   const eligibleTopicIds = new Set(eligibleTopics.map((t) => t.id))
   const usedTopicIds = manualTopicIds.length > 0
     ? eligibleTopics.map((t) => t.id)
     : topicMarker.topicIds.filter((id) => eligibleTopicIds.has(id)).slice(0, MAX_TOPICS_PER_STORY)
+  const eligibleCharacterIds = new Set((options.bibleCharacters ?? []).map((c) => c.id).filter((id): id is number => id != null))
+  const usedCharacterIds = characterMarker.characterIds.filter((id) => eligibleCharacterIds.has(id))
 
   notify('TitleGenerator')
   const titleSuggested = await generateStoryTitle({
@@ -406,6 +415,7 @@ export async function runPlotterOnly(options: {
     sashaContext: options.sashaContext ?? null,
     usedFragmentIds,
     usedTopicIds,
+    usedCharacterIds,
   }
 }
 
