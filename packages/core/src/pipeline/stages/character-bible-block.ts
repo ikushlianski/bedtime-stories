@@ -55,7 +55,8 @@ function renderCharacter(entry: CharacterBibleEntry): string {
 }
 
 export function buildCharacterBibleBlock(characters: CharacterBibleEntry[], opts: { includeMarker?: boolean } = {}): string {
-  if (!characters.some(hasStructuredField)) {
+  const isOptedIn = characters.some(hasStructuredField) || characters.some((c) => c.id != null)
+  if (!isOptedIn) {
     return ''
   }
 

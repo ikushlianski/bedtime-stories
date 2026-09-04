@@ -139,8 +139,12 @@ describe('generatePortrait', () => {
 
     expect(storage.getSignedReadUrl).not.toHaveBeenCalled()
     const call = vi.mocked(aiRunner.generateImage).mock.calls[0]?.[0]
-    expect(call?.referenceImageUrls).toEqual(['https://storage.googleapis.com/bedtime-prod-storage/portraits/2/sib.png'])
+    expect(call?.referenceImageUrls).toEqual([
+      'https://storage.googleapis.com/bedtime-prod-storage/portraits/2/sib.png',
+      expect.stringMatching(/^data:image\/png;base64,/),
+    ])
     expect(call?.prompt).toMatch(/invent/i)
+    expect(call?.prompt).toMatch(/style guide/i)
     expect(insertedRows[0]).toMatchObject({ tier: 'universe_sibling', sourceStoragePaths: ['portraits/2/sib.png'] })
   })
 

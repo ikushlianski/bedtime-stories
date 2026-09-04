@@ -39,10 +39,20 @@ export function buildPortraitPrompt(
     ].join('\n\n')
   }
 
-  const styleSourceLabel =
-    tier === 'universe_sibling'
-      ? 'the attached reference image(s) of other characters from the same story universe'
-      : 'the attached reference image'
+  if (tier === 'universe_sibling') {
+    const identityLabel = 'the attached reference image(s) of other characters from the same story universe'
+
+    return [
+      `This is a DIFFERENT, unrelated character from anyone shown in ${identityLabel} — even though reference image(s) are attached, they depict a completely different individual, not this one.`,
+      `Invent this character's own appearance from the description below. Give them their own distinct hair color and style, face shape, expression, and outfit — do not copy the face, hairstyle, or outfit shown in ${identityLabel}. Take identity ONLY from what those images rule OUT, never style.`,
+      `If the description below is sparse or does not specify appearance details, invent plausible, distinct ones yourself (consistent with the name/age/traits given) rather than defaulting to what's shown in ${identityLabel} — a thin description is never a reason to reuse someone else's face.`,
+      'The final attached reference image is a separate style guide only — match its art style (linework, coloring, rendering technique) exactly. Ignore whatever style the other character reference(s) above happen to be in — the final image\'s style always wins, so this character\'s look stays visually consistent with the rest of the universe instead of drifting from character to character.',
+      description,
+      COMMON_INSTRUCTIONS,
+    ].join('\n\n')
+  }
+
+  const styleSourceLabel = 'the attached reference image'
 
   return [
     `This is a DIFFERENT, unrelated character from anyone shown in ${styleSourceLabel} — even though a reference image is attached, it depicts a completely different individual, not this one.`,

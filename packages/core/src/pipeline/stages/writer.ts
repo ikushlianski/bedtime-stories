@@ -4,6 +4,7 @@ import { buildWordsBlock, type TargetWord } from './words-block'
 import { buildMemorableMomentsBlock, type MemorableMomentRow } from './memorable-moments'
 import { selectStoryStructure, buildStructureBlock, type StoryStructure } from './story-structures'
 import { selectCharacterLens, buildCharacterLensBlock, type CharacterLens } from './character-lenses'
+import { selectVoiceRegister, buildVoiceBlock, type VoiceRegister } from './voice-registers'
 import type { CriticOutput } from '../schemas'
 import type { Exemplar } from '../load-exemplars'
 import type { ChosenFragment } from '../load-fragments'
@@ -14,7 +15,7 @@ export const WRITER_SYSTEM_PROMPT_DEFAULT = `You are a writer creating a bedtime
 Write the full story text in Russian based on the plan provided. Requirements:
 - Language: Russian only. Use warm, vivid, conversational language suitable for reading aloud to a child.
 - Length: 800–1200 words
-- Humor distribution: Include at least one light moment (funny observation, physical comedy, invented word, absurd question) every 200–250 words. Do not save all humor for one scene or the postscript — humor must work throughout the story.
+- Humor distribution: Include at least one genuinely funny beat (not just a mild observation) every 200–250 words — physical comedy, an absurd misunderstanding, a mismatch between how a character sees something and how it really is, an unexpected comparison, or invented wordplay. Vary the TYPE of joke across the story — don't lean on the same comic device twice. Do not save all humor for one scene or the postscript — humor must work throughout the story.
 - Verbal invention: At least once, let a character or the narrator invent a word or give something an unexpected childlike name (the way a 6-year-old would). Pure situational humor is not enough.
 - Idioms: Use 1–2 natural Russian idiomatic expressions per story. Pick different ones each time — do not default to the same handful of examples across stories (a large, living language has hundreds of natural options; treat any idiom you've reached for recently as off-limits for this story). Occasionally — not in every story — build a light joke on Gosha taking the idiom literally. Never do this more than once per story, and not in every story — vary whether you use it or not so it stays fresh.
 - Postscript: A P.S. is optional. If used, it must NOT be the primary or only humor in the story. The main text must stand on its own comedically.
@@ -45,6 +46,7 @@ export async function runWriter(options: {
   memorableMoments?: MemorableMomentRow[]
   structure?: StoryStructure
   characterLens?: CharacterLens
+  voice?: VoiceRegister
   exemplars?: Exemplar[]
   referenceStory?: { title: string; textFinal: string }
   chosenFragments?: ChosenFragment[]
@@ -81,6 +83,7 @@ export async function runWriter(options: {
 
   const structureBlock = buildStructureBlock(options.structure ?? selectStoryStructure(options.storyId))
   const characterLensBlock = buildCharacterLensBlock(options.characterLens ?? selectCharacterLens(options.storyId))
+  const voiceBlock = buildVoiceBlock(options.voice ?? selectVoiceRegister(options.storyId))
 
   const exemplarsBlock = options.exemplars && options.exemplars.length > 0
     ? `\n\n---\nКАНОНИЧЕСКИЕ ПРИМЕРЫ (эталонные истории — следуй тону, ритму, юмору и структуре; не копируй сюжет):\n${options.exemplars
@@ -104,12 +107,14 @@ export async function runWriter(options: {
 
   const idiomRuleBlock = '\n\n---\nОБРАЗНЫЕ ВЫРАЖЕНИЯ: вплетай в каждую историю от одного до трёх устойчивых образных выражений — таких как «голова раскалывается», «вертится на языке», «на носу праздник», «глаза на мокром месте», «ушки на макушке», «душа в пятки ушла», «как снег на голову», «кот наплакал». Ребёнок должен постепенно к ним привыкать. Вставляй их естественно, по ходу речи персонажей или рассказчика. Если выражение не ложится органично — НЕ придумывай ради него лишние строчки или сюжетные повороты; лучше меньше, но к месту. Старайся каждый раз брать РАЗНЫЕ выражения, а не повторять одни и те же из истории в историю.\n---\n'
 
+  const emotionRuleBlock = '\n\n---\nЯЗЫК ЧУВСТВ: ЗАПРЕЩЕНО описывать внутреннее состояние Гоши расплывчатыми штампами вроде «внутри что-то бумкнуло», «внутри ёкнуло», «что-то сжалось внутри» — это повторяется из истории в историю и ничего не называет конкретно. Вместо этого называй чувство по имени и через конкретное, узнаваемое для шестилетки телесное ощущение или действие. Примеры разных чувств (не копируй дословно, комбинируй и придумывай похожие): страх — «ноги стали тяжёлыми, как будто приросли к полу»; смущение — «щёки вспыхнули, и захотелось стать маленьким-маленьким»; восторг — «он подпрыгнул на месте, не удержавшись»; досада/злость — «кулаки сжались сами собой, а губы сложились в тонкую линию»; грусть — «в горле встал колючий комок, и глаза защипало»; гордость — «спина сама выпрямилась, а на лице расползлась улыбка». Каждый раз выбирай своё, конкретное чувство и своё телесное проявление под ситуацию — не подставляй один и тот же шаблон в разные истории.\n---\n'
+
   const wordsBlock = options.targetWords && options.targetWords.length > 0 && !isRevision
     ? buildWordsBlock(options.targetWords)
     : ''
 
   const parts: string[] = [
-    `${basePrompt}${universeContextBlock}${styleGuideBlock}${sashaContextBlock}${memorableMomentsBlock}${structureBlock}${characterLensBlock}${exemplarsBlock}${referenceStoryBlock}${fragmentBlock}${wordsBlock}${endingRuleBlock}${idiomRuleBlock}`,
+    `${basePrompt}${universeContextBlock}${styleGuideBlock}${sashaContextBlock}${memorableMomentsBlock}${structureBlock}${characterLensBlock}${voiceBlock}${exemplarsBlock}${referenceStoryBlock}${fragmentBlock}${wordsBlock}${endingRuleBlock}${idiomRuleBlock}${emotionRuleBlock}`,
     '',
     `STORY PLAN:\n${plan}`,
   ]

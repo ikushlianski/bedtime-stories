@@ -43,6 +43,13 @@ describe('buildPortraitPrompt', () => {
     expect(prompt).toMatch(/do not copy the face, hairstyle, or outfit/i)
   })
 
+  it('points style at the final canonical style image, not the sibling references, for the universe_sibling tier', () => {
+    const prompt = buildPortraitPrompt(character, 'universe_sibling')
+
+    expect(prompt).toMatch(/final attached reference image is a separate style guide/i)
+    expect(prompt).toMatch(/identity only.*never style|take identity only/i)
+  })
+
   it('tells the model a sparse description is never a reason to reuse the reference\'s face', () => {
     for (const tier of ['universe_sibling', 'default_style'] as const) {
       const prompt = buildPortraitPrompt(character, tier)

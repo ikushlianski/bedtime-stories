@@ -67,7 +67,11 @@ async function resolveReferenceImageUrls(
   }
 
   if (tier === 'universe_sibling') {
-    return referenceValues.map((path) => buildPublicObjectUrl({ bucketName: env.GCS_BUCKET_NAME, storagePath: path }))
+    const siblingUrls = referenceValues.map((path) => buildPublicObjectUrl({ bucketName: env.GCS_BUCKET_NAME, storagePath: path }))
+    // Sibling portraits are identity-exclusion references only ("don't reuse this face") — style
+    // always comes from the bundled default style image, appended last, so style can't drift from
+    // one character's portrait to the next as siblings accumulate across a universe.
+    return [...siblingUrls, await loadDefaultStyleImageDataUri()]
   }
 
   return [await loadDefaultStyleImageDataUri()]

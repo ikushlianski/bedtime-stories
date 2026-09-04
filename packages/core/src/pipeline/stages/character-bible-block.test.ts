@@ -123,6 +123,18 @@ describe('buildCharacterBibleBlock', () => {
       expect(withoutIds).not.toContain('МЕНЬШИМ числом появлений')
     })
 
+    it('renders the roster when characters have real DB ids even with no structured fields set (production shape)', () => {
+      const block = buildCharacterBibleBlock([
+        { id: 1, name: 'Гоша', description: 'главный герой', importance: 3 },
+        { id: 2, name: 'Юра', description: 'друг', importance: 3 },
+      ])
+
+      expect(block).not.toBe('')
+      expect(block).toContain('Гоша')
+      expect(block).toContain('Юра')
+      expect(block).toContain('ID_ПЕРСОНАЖЕЙ')
+    })
+
     it('omits the marker request when includeMarker is false, for JSON-output callers', () => {
       const block = buildCharacterBibleBlock([{ id: 1, name: 'Гоша', setting: 'x' }], { includeMarker: false })
 
