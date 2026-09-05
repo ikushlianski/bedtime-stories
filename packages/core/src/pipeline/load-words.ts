@@ -1,9 +1,11 @@
-import { inArray, isNull, or, sql } from 'drizzle-orm'
+import { and, inArray, isNull, lt, or, sql } from 'drizzle-orm'
 import { db } from '../db/client'
 import { words, storyWords } from '../db/schema'
 import type { TargetWord } from './stages/words-block'
 
 export * from './stages/words-block'
+
+export const MAX_STORY_USES_PER_WORD = 7
 
 export async function loadEligibleWords(
   universeIds: number[],
@@ -29,7 +31,7 @@ export async function loadEligibleWords(
       usedCount,
     })
     .from(words)
-    .where(scopeFilter)
+    .where(and(scopeFilter, lt(usedCount, MAX_STORY_USES_PER_WORD)))
     .orderBy(usedCount, sql`${words.rank} desc`, sql`random()`)
     .limit(limit)
 
