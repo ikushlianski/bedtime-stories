@@ -110,7 +110,7 @@ export interface StoryIllustration {
   id: number
   imageUrl: string
   momentDescription: string
-  source: 'automatic' | 'manual'
+  source: 'automatic' | 'manual' | 'custom'
   orderIndex: number
 }
 
@@ -722,6 +722,12 @@ export const api = {
     regenerateIllustrations: (storyId: number) =>
       request<StoryIllustration[]>(`/api/stories/${storyId}/illustrations/regenerate`, {
         method: 'POST',
+      }),
+
+    generateCustomIllustrations: (storyId: number, input: { prompt: string; count?: number }) =>
+      request<StoryIllustration[]>(`/api/stories/${storyId}/illustrations/custom`, {
+        method: 'POST',
+        body: JSON.stringify({ prompt: input.prompt, count: input.count }),
       }),
 
     listIllustrationMarkers: (storyId: number) =>

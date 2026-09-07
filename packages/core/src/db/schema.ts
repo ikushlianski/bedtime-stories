@@ -436,7 +436,7 @@ export const storyIllustrations = pgTable('story_illustrations', {
   storyId: integer('story_id').references(() => stories.id).notNull(),
   storagePath: text('storage_path').notNull(),
   momentDescription: text('moment_description').notNull(),
-  source: text('source').$type<'automatic' | 'manual'>().notNull(),
+  source: text('source').$type<'automatic' | 'manual' | 'custom'>().notNull(),
   characterIds: jsonb('character_ids').$type<number[] | null>().default(null),
   orderIndex: integer('order_index').notNull(),
   generatedAt: timestamp('generated_at').defaultNow(),

@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { ObjectStorage } from '../storage/object-storage.interface'
 
+vi.mock('drizzle-orm', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('drizzle-orm')>()
+  return { ...actual, and: vi.fn(actual.and), ne: vi.fn(actual.ne) }
+})
+
 let selectQueue: unknown[][] = []
 let selectCallIndex = 0
 let insertedValues: unknown[] = []
@@ -49,6 +54,8 @@ import { generateIllustrationAlbum, ILLUSTRATION_MODEL } from './generate-illust
 import { aiRunner } from '../ai/index.js'
 import { selectIllustrationMoments } from '../pipeline/stages/select-illustration-moments.js'
 import { loadStoryCast } from './load-story-cast.js'
+import { ne } from 'drizzle-orm'
+import { storyIllustrations } from '../db/schema.js'
 
 function makeStorage(): ObjectStorage & { uploadCalls: unknown[] } {
   const uploadCalls: unknown[] = []
@@ -92,6 +99,7 @@ describe('generateIllustrationAlbum', () => {
     vi.mocked(aiRunner.generateImage).mockReset()
     vi.mocked(selectIllustrationMoments).mockReset()
     vi.mocked(loadStoryCast).mockReset()
+    vi.mocked(ne).mockClear()
   })
 
   it('returns nothing and makes no AI calls when the story has no usable text yet (Scenario 15)', async () => {
@@ -247,6 +255,34 @@ describe('generateIllustrationAlbum', () => {
     expect(deleteCalls).toHaveLength(1)
     expect(operationsOrder).toEqual(['delete', 'insert'])
     expect(result).toHaveLength(1)
+    expect(ne).toHaveBeenCalledWith(storyIllustrations.source, 'custom')
+  })
+
+  it('excludes custom rows from the idempotency check so a not-yet-run automatic album is never suppressed by them (Scenario 9 regression, Decision 4)', async () => {
+    selectQueue = [[storyWithText], [], []]
+    vi.mocked(loadStoryCast).mockResolvedValueOnce([])
+    vi.mocked(selectIllustrationMoments).mockResolvedValueOnce({ moments: [] })
+    const storage = makeStorage()
+
+    await generateIllustrationAlbum(1, storage)
+
+    expect(ne).toHaveBeenCalledWith(storyIllustrations.source, 'custom')
+    expect(loadStoryCast).toHaveBeenCalled()
+    expect(selectIllustrationMoments).toHaveBeenCalled()
+  })
+
+  it('excludes custom rows from the force-regenerate delete when the fresh moment set is empty', async () => {
+    vi.mocked(ne).mockClear()
+    selectQueue = [[storyWithText], []]
+    vi.mocked(loadStoryCast).mockResolvedValueOnce([])
+    vi.mocked(selectIllustrationMoments).mockResolvedValueOnce({ moments: [] })
+    const storage = makeStorage()
+
+    const result = await generateIllustrationAlbum(1, storage, { force: true })
+
+    expect(result).toEqual([])
+    expect(deleteCalls).toHaveLength(1)
+    expect(ne).toHaveBeenCalledWith(storyIllustrations.source, 'custom')
   })
 
   it('force still re-runs generation even if a non-forced album already exists, never short-circuiting', async () => {

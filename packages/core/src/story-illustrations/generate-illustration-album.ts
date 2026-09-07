@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { asc, eq } from 'drizzle-orm'
+import { and, asc, eq, ne } from 'drizzle-orm'
 import { db } from '../db/client.js'
 import { stories, storyIllustrationMarkers, storyIllustrations } from '../db/schema.js'
 import type { StoryIllustration } from '../db/types.js'
@@ -56,7 +56,7 @@ export async function generateIllustrationAlbum(
     const existingRows = await db
       .select()
       .from(storyIllustrations)
-      .where(eq(storyIllustrations.storyId, storyId))
+      .where(and(eq(storyIllustrations.storyId, storyId), ne(storyIllustrations.source, 'custom')))
       .orderBy(asc(storyIllustrations.orderIndex))
 
     if (existingRows.length > 0) return existingRows
@@ -110,7 +110,7 @@ export async function generateIllustrationAlbum(
 
   if (combinedMoments.length === 0) {
     if (force) {
-      await db.delete(storyIllustrations).where(eq(storyIllustrations.storyId, storyId))
+      await db.delete(storyIllustrations).where(and(eq(storyIllustrations.storyId, storyId), ne(storyIllustrations.source, 'custom')))
     }
 
     return []
@@ -212,7 +212,7 @@ export async function generateIllustrationAlbum(
   }
 
   if (force) {
-    await db.delete(storyIllustrations).where(eq(storyIllustrations.storyId, storyId))
+    await db.delete(storyIllustrations).where(and(eq(storyIllustrations.storyId, storyId), ne(storyIllustrations.source, 'custom')))
   }
 
   if (uploaded.length === 0) return []
