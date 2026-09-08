@@ -7,6 +7,8 @@ import { aiRunner } from '../ai/index.js'
 import type { ObjectStorage } from '../storage/object-storage.interface.js'
 import { ILLUSTRATION_MODEL } from './generate-illustration-album.js'
 import { buildStoryIllustrationAssetPath } from './build-story-illustration-asset-path.js'
+import { loadDefaultStyleImageDataUri } from '../pipeline/assets/load-default-style-image.js'
+import { buildIllustrationStyleDirective } from './illustration-style-directive.js'
 
 export const CUSTOM_ILLUSTRATION_ORDER_INDEX_BASE = 1000
 export const MAX_CUSTOM_ILLUSTRATION_COUNT = 6
@@ -31,12 +33,15 @@ export async function generateCustomIllustrations(
   const [story] = await db.select({ id: stories.id }).from(stories).where(eq(stories.id, input.storyId))
   if (!story) return []
 
+  const styleImageDataUri = await loadDefaultStyleImageDataUri()
+  const prompt = `${input.prompt}\n\n${buildIllustrationStyleDirective()}`
+
   const settled = await Promise.allSettled(
     Array.from({ length: input.count }, () =>
       aiRunner.generateImage({
         model: ILLUSTRATION_MODEL,
-        prompt: input.prompt,
-        referenceImageUrls: [],
+        prompt,
+        referenceImageUrls: [styleImageDataUri],
         storyId: input.storyId,
         stage: 'story_illustration_custom',
       }),

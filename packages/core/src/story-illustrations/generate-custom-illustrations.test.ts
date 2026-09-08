@@ -29,6 +29,9 @@ vi.mock('../db/client.js', () => ({
 
 vi.mock('../ai/index.js', () => ({ aiRunner: { generateImage: vi.fn() } }))
 vi.mock('./generate-illustration-album.js', () => ({ ILLUSTRATION_MODEL: 'google/gemini-2.5-flash-image' }))
+vi.mock('../pipeline/assets/load-default-style-image.js', () => ({
+  loadDefaultStyleImageDataUri: vi.fn(async () => 'data:image/png;base64,ZGVmYXVsdA=='),
+}))
 
 import {
   generateCustomIllustrations,
@@ -73,7 +76,7 @@ describe('generateCustomIllustrations', () => {
     expect(aiRunner.generateImage).not.toHaveBeenCalled()
   })
 
-  it('generates exactly the requested count of images verbatim from the prompt with no reference images', async () => {
+  it('generates exactly the requested count of images from the prompt, anchored to the default style reference image', async () => {
     selectQueue = [[existingStory], [{ existingCustomCount: 0 }]]
     vi.mocked(aiRunner.generateImage).mockResolvedValue(image())
     insertReturnRows = [
@@ -90,11 +93,13 @@ describe('generateCustomIllustrations', () => {
     expect(aiRunner.generateImage).toHaveBeenCalledTimes(2)
     for (const call of vi.mocked(aiRunner.generateImage).mock.calls) {
       expect(call[0]).toMatchObject({
-        prompt: 'A fox reading a book under a blue moon',
-        referenceImageUrls: [],
+        referenceImageUrls: ['data:image/png;base64,ZGVmYXVsdA=='],
         stage: 'story_illustration_custom',
         storyId: 1,
       })
+      const promptSent = (call[0] as { prompt: string }).prompt
+      expect(promptSent).toContain('A fox reading a book under a blue moon')
+      expect(promptSent).toMatch(/style anchor/i)
     }
     expect(result).toHaveLength(2)
   })
