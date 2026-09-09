@@ -217,7 +217,7 @@ describe('generateIllustrationAlbum', () => {
     expect(insertedBatch).toHaveLength(1)
   })
 
-  it('uses an already-generated character portrait as an identity reference, capped at 3, with the default style image always last', async () => {
+  it('uses an already-generated character portrait as an identity reference, capped at 6, with the default style image always last', async () => {
     selectQueue = [[storyWithText], [], []]
     vi.mocked(loadStoryCast).mockResolvedValueOnce([
       { ...gosha, currentPortrait: { storagePath: 'portraits/1/a.png', tier: 'own_reference', generatedAt: new Date() } },
@@ -239,6 +239,29 @@ describe('generateIllustrationAlbum', () => {
       'https://storage.googleapis.com/bedtime-prod-storage/portraits/1/a.png',
       'data:image/png;base64,ZGVmYXVsdA==',
     ])
+  })
+
+  it('never sends more than 7 reference images total (6 identity + 1 style anchor) even with more matched characters', async () => {
+    const manyCharacters = Array.from({ length: 8 }, (_, i) => ({
+      ...gosha,
+      id: i + 1,
+      name: `Персонаж${i + 1}`,
+      currentPortrait: { storagePath: `portraits/1/${i + 1}.png`, tier: 'own_reference' as const, generatedAt: new Date() },
+    }))
+    selectQueue = [[storyWithText], [], []]
+    vi.mocked(loadStoryCast).mockResolvedValueOnce(manyCharacters)
+    vi.mocked(selectIllustrationMoments).mockResolvedValueOnce({
+      moments: [{ scene_description: 'Все герои вместе', character_names: manyCharacters.map((c) => c.name) }],
+    })
+    vi.mocked(aiRunner.generateImage).mockResolvedValueOnce({ imageBase64: Buffer.from('img').toString('base64'), mediaType: 'image/png' })
+    insertReturnRows = [{ id: 1, storyId: 1, source: 'automatic', orderIndex: 0 }]
+    const storage = makeStorage()
+
+    await generateIllustrationAlbum(1, storage)
+
+    const call = vi.mocked(aiRunner.generateImage).mock.calls[0]?.[0]
+    expect(call?.referenceImageUrls).toHaveLength(7)
+    expect(call?.referenceImageUrls?.at(-1)).toBe('data:image/png;base64,ZGVmYXVsdA==')
   })
 
   it('deletes prior rows before inserting the fresh set when force is set (Scenario 12)', async () => {

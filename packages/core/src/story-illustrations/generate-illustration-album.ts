@@ -16,9 +16,13 @@ import { detectCastMembersInText } from './detect-cast-members-in-text.js'
 import { loadStoryCast } from './load-story-cast.js'
 import type { CharacterWithPortrait } from '../character-portraits/load-characters-with-portrait.js'
 
-export const ILLUSTRATION_MODEL = 'google/gemini-2.5-flash-image'
+export const ILLUSTRATION_MODEL = 'google/gemini-3.1-flash-image'
 const TARGET_COUNT = 2
-const MAX_IDENTITY_REFERENCES = 3
+// google/gemini-3.1-flash-image ("Nano Banana 2") accepts up to 14 input_references total
+// (confirmed live via GET https://openrouter.ai/api/v1/images/models — the prior model,
+// gemini-2.5-flash-image, capped at 3, which forced identity references down to 2). One slot is
+// always reserved for the style anchor image below, so identity references are capped at 6.
+const MAX_IDENTITY_REFERENCES = 6
 
 export interface GenerateIllustrationAlbumOptions {
   force?: boolean
