@@ -28,6 +28,7 @@ vi.mock('../db/client.js', () => ({
 }))
 
 vi.mock('../ai/index.js', () => ({ aiRunner: { generateImage: vi.fn() } }))
+vi.mock('../env.js', () => ({ env: { GCS_BUCKET_NAME: 'bedtime-prod-storage' } }))
 vi.mock('./generate-illustration-album.js', () => ({ ILLUSTRATION_MODEL: 'google/gemini-3.1-flash-image' }))
 vi.mock('../pipeline/assets/load-default-style-image.js', () => ({
   loadDefaultStyleImageDataUri: vi.fn(async () => 'data:image/png;base64,ZGVmYXVsdA=='),
