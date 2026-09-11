@@ -9,6 +9,14 @@ vi.mock('../../ai', () => ({
   aiRunner: { runText: vi.fn().mockResolvedValue('plan text') },
 }))
 
+vi.mock('../load-fragments', () => ({
+  buildFragmentsBlock: vi.fn().mockReturnValue(''),
+}))
+
+vi.mock('../load-topics', () => ({
+  buildTopicsBlock: vi.fn().mockReturnValue(''),
+}))
+
 import { aiRunner } from '../../ai'
 
 describe('runPlotter', () => {
