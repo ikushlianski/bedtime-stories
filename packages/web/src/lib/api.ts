@@ -403,6 +403,7 @@ export interface StoryComment {
   commentText: string
   selectedText: string | null
   source: 'chat' | 'revision_reason'
+  appliedAt: string | null
   createdAt: string
 }
 

@@ -1,14 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+function tableName(t: unknown): string {
+  if (typeof t !== 'object' || t === null) return ''
+  const sym = Object.getOwnPropertySymbols(t).find((s) => s.toString() === 'Symbol(drizzle:OriginalName)')
+  return sym ? String((t as Record<symbol, unknown>)[sym]) : ''
+}
+
 const dbState = {
   annotationRows: [] as Array<{ id: number; selectedText: string | null; noteText: string | null }>,
+  bankedComments: [] as Array<{ id: number; commentText: string }>,
   insertedComment: null as null | Record<string, unknown>,
 }
 
 vi.mock('@bedtime/core/db/client', () => {
-  const select = vi.fn(() => ({
-    from: vi.fn(() => ({
-      where: vi.fn(() => Promise.resolve(dbState.annotationRows)),
+  const select = vi.fn((_cols: unknown) => ({
+    from: vi.fn((tbl: unknown) => ({
+      where: vi.fn(() =>
+        Promise.resolve(tableName(tbl) === 'story_comments' ? dbState.bankedComments : dbState.annotationRows),
+      ),
     })),
   }))
 
@@ -27,6 +36,7 @@ import { gatherRedoFeedback } from './gather-redo-feedback'
 describe('gatherRedoFeedback', () => {
   beforeEach(() => {
     dbState.annotationRows = []
+    dbState.bankedComments = []
     dbState.insertedComment = null
   })
 
@@ -84,5 +94,24 @@ describe('gatherRedoFeedback', () => {
 
     expect(result.userFeedback).not.toContain('фрагмент')
     expect(result.userFeedback).toContain('причина')
+  })
+
+  it('folds unapplied chat comments into the feedback sent to the plotter/writer', async () => {
+    dbState.bankedComments = [
+      { id: 11, commentText: 'пусть дракон будет добрее' },
+      { id: 12, commentText: 'меньше диалогов' },
+    ]
+
+    const result = await gatherRedoFeedback({ storyId: 7, context: 'text' })
+
+    expect(result.userFeedback).toContain('пусть дракон будет добрее')
+    expect(result.userFeedback).toContain('меньше диалогов')
+    expect(result.bankedCommentIds).toEqual([11, 12])
+  })
+
+  it('produces no banked-comment ids when there are no unapplied chat comments', async () => {
+    const result = await gatherRedoFeedback({ storyId: 7, context: 'text' })
+
+    expect(result.bankedCommentIds).toEqual([])
   })
 })

@@ -1,5 +1,6 @@
 import { aiRunner } from '../../ai'
 import { resolvePrompt, type ResolvedPrompt } from '../prompt-resolver'
+import { wrapUserDataBlock } from '../wrap-user-data-block'
 import { buildWordsBlock, type TargetWord } from './words-block'
 import { buildMemorableMomentsBlock, type MemorableMomentRow } from './memorable-moments'
 import { selectStoryStructure, buildStructureBlock, type StoryStructure } from './story-structures'
@@ -124,7 +125,7 @@ export async function runWriter(options: {
   }
 
   if (options.userAnnotations) {
-    parts.push(`\nEDITOR NOTES — apply ALL of these without exception; preserve everything else in the story unchanged. Some notes are phrased as open questions (e.g. "what ideas do you have for X?") rather than direct instructions — you are a one-shot story generator, not a conversational partner, so treat every note, question or not, as something you must resolve yourself: make the best creative decision and commit to it fully in the rewritten story. NEVER respond with a list of options, a "here are a few ideas" discussion, or anything other than the complete, finished story text (e.g. do not write something like "Вот несколько вариантов, куда можно перенести действие... Вариант А... Вариант Б..." — pick one and write the story):\n${options.userAnnotations}`)
+    parts.push(`\nEDITOR NOTES — apply ALL of these without exception; preserve everything else in the story unchanged. Some notes are phrased as open questions (e.g. "what ideas do you have for X?") rather than direct instructions — you are a one-shot story generator, not a conversational partner, so treat every note, question or not, as something you must resolve yourself: make the best creative decision and commit to it fully in the rewritten story. NEVER respond with a list of options, a "here are a few ideas" discussion, or anything other than the complete, finished story text (e.g. do not write something like "Вот несколько вариантов, куда можно перенести действие... Вариант А... Вариант Б..." — pick one and write the story):\n${wrapUserDataBlock('ЗАМЕТКИ РЕДАКТОРА', options.userAnnotations)}`)
   }
 
   if (criticNotes !== undefined) {

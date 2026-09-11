@@ -27,28 +27,30 @@ import {
 } from '@bedtime/core/db/schema'
 
 export async function deleteStoryCascade(storyId: number): Promise<void> {
-  await db.update(universeSuggestions).set({ sourceStoryId: null }).where(eq(universeSuggestions.sourceStoryId, storyId))
-  await db.execute(sql`delete from character_memories where story_id = ${storyId}`)
-  await db.delete(annotations).where(eq(annotations.storyId, storyId))
-  await db.delete(runSnapshots).where(eq(runSnapshots.storyId, storyId))
-  await db.delete(feedback).where(eq(feedback.storyId, storyId))
-  await db.delete(planQuestions).where(eq(planQuestions.storyId, storyId))
-  await db.delete(planConversations).where(eq(planConversations.storyId, storyId))
-  await db.delete(storyReadings).where(eq(storyReadings.storyId, storyId))
-  await db.delete(modelCalls).where(eq(modelCalls.storyId, storyId))
-  await db.delete(modelSwapEvents).where(eq(modelSwapEvents.storyId, storyId))
-  await db.delete(valueForMoneyFeedback).where(eq(valueForMoneyFeedback.storyId, storyId))
-  await db.delete(storyComments).where(eq(storyComments.storyId, storyId))
-  await db.delete(parentReviews).where(eq(parentReviews.storyId, storyId))
-  await db.delete(childReactions).where(eq(childReactions.storyId, storyId))
-  await db.delete(storyFragments).where(eq(storyFragments.storyId, storyId))
-  await db.delete(storyCharacters).where(eq(storyCharacters.storyId, storyId))
-  await db.delete(storyWords).where(eq(storyWords.storyId, storyId))
-  await db.delete(storyTopics).where(eq(storyTopics.storyId, storyId))
-  await db.delete(storyTextVersions).where(eq(storyTextVersions.storyId, storyId))
-  await db.delete(storyEmbeddings).where(eq(storyEmbeddings.storyId, storyId))
-  await db.delete(storyUniverses).where(eq(storyUniverses.storyId, storyId))
-  await db.delete(storyIllustrations).where(eq(storyIllustrations.storyId, storyId))
-  await db.delete(storyIllustrationMarkers).where(eq(storyIllustrationMarkers.storyId, storyId))
-  await db.delete(stories).where(eq(stories.id, storyId))
+  await db.batch([
+    db.update(universeSuggestions).set({ sourceStoryId: null }).where(eq(universeSuggestions.sourceStoryId, storyId)),
+    db.execute(sql`delete from character_memories where story_id = ${storyId}`),
+    db.delete(annotations).where(eq(annotations.storyId, storyId)),
+    db.delete(runSnapshots).where(eq(runSnapshots.storyId, storyId)),
+    db.delete(feedback).where(eq(feedback.storyId, storyId)),
+    db.delete(planQuestions).where(eq(planQuestions.storyId, storyId)),
+    db.delete(planConversations).where(eq(planConversations.storyId, storyId)),
+    db.delete(storyReadings).where(eq(storyReadings.storyId, storyId)),
+    db.delete(modelCalls).where(eq(modelCalls.storyId, storyId)),
+    db.delete(modelSwapEvents).where(eq(modelSwapEvents.storyId, storyId)),
+    db.delete(valueForMoneyFeedback).where(eq(valueForMoneyFeedback.storyId, storyId)),
+    db.delete(storyComments).where(eq(storyComments.storyId, storyId)),
+    db.delete(parentReviews).where(eq(parentReviews.storyId, storyId)),
+    db.delete(childReactions).where(eq(childReactions.storyId, storyId)),
+    db.delete(storyFragments).where(eq(storyFragments.storyId, storyId)),
+    db.delete(storyCharacters).where(eq(storyCharacters.storyId, storyId)),
+    db.delete(storyWords).where(eq(storyWords.storyId, storyId)),
+    db.delete(storyTopics).where(eq(storyTopics.storyId, storyId)),
+    db.delete(storyTextVersions).where(eq(storyTextVersions.storyId, storyId)),
+    db.delete(storyEmbeddings).where(eq(storyEmbeddings.storyId, storyId)),
+    db.delete(storyUniverses).where(eq(storyUniverses.storyId, storyId)),
+    db.delete(storyIllustrations).where(eq(storyIllustrations.storyId, storyId)),
+    db.delete(storyIllustrationMarkers).where(eq(storyIllustrationMarkers.storyId, storyId)),
+    db.delete(stories).where(eq(stories.id, storyId)),
+  ])
 }

@@ -1,8 +1,8 @@
-import { eq, and, isNull, or, desc } from 'drizzle-orm'
+import { eq, and, isNull, or, desc, inArray } from 'drizzle-orm'
 import { runAnnotatedRewrite } from '@bedtime/core/pipeline/orchestrator'
 import { validateWriterOutput } from '@bedtime/core/pipeline/validate-writer-output'
 import { db } from '@bedtime/core/db/client'
-import { annotations, runSnapshots, stories } from '@bedtime/core/db/schema'
+import { annotations, runSnapshots, stories, storyComments } from '@bedtime/core/db/schema'
 import { buildAnnotatedRewriteStoriesUpdate, buildAnnotatedRewriteSnapshotUpdate, insertTextVersion } from './pipeline-persistence'
 import { setPipelineStatus, setCurrentStep, setStepSummary, emitPipelineEvent } from './pipeline-state'
 import { defaultPromptVersions, resolvePipelineModels, loadStoryOverrides } from './pipeline-defaults'
@@ -100,6 +100,10 @@ export function triggerTextRewrite(
         : and(eq(annotations.storyId, storyId), eq(annotations.context, 'text'))
 
       await db.delete(annotations).where(deleteFilter)
+
+      if (feedback.bankedCommentIds.length > 0) {
+        await db.update(storyComments).set({ appliedAt: new Date() }).where(inArray(storyComments.id, feedback.bankedCommentIds))
+      }
 
       console.log(`[TEXT-REWRITE] story=${storyId} — cleared text annotations after successful rewrite`)
 

@@ -1,0 +1,10 @@
+{
+  "sessionId": "bcb7ce74-c9a4-48ec-a423-0d43311e2a91",
+  "startedAt": "2026-09-08T00:03:30.000Z",
+  "stopBoundHours": 8,
+  "status": "running",
+  "activeDirections": ["story-pipeline-feedback-loop", "story-quality", "platform-reliability"],
+  "commitPushGranted": false,
+  "timeBoundBlocks": 0,
+  "note": "No nextx hooks installed in this project; enforcement is self-managed, not hook-backed. No subagent dispatch per standing user instruction — implemented items stay unchecked pending independent review unless explicitly marked otherwise."
+}

@@ -283,6 +283,7 @@ export const storyComments = pgTable('story_comments', {
   commentText: text('comment_text').notNull(),
   selectedText: text('selected_text'),
   source: text('source').$type<'chat' | 'revision_reason'>().notNull().default('chat'),
+  appliedAt: timestamp('applied_at'),
   createdAt: timestamp('created_at').defaultNow(),
 })
 

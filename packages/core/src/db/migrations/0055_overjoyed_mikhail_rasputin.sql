@@ -1,0 +1,1 @@
+ALTER TABLE "story_comments" ADD COLUMN "applied_at" timestamp;
