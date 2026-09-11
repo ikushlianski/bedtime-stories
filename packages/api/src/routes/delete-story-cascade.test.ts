@@ -4,6 +4,7 @@ const dbState = {
   deletedTables: [] as string[],
   updatedTables: [] as string[],
   executedSql: [] as unknown[],
+  batchedQueries: [] as unknown[][],
 }
 
 function tableName(t: unknown): string {
@@ -13,24 +14,33 @@ function tableName(t: unknown): string {
 }
 
 vi.mock('@bedtime/core/db/client', () => {
-  const del = vi.fn((tbl: unknown) => {
-    dbState.deletedTables.push(tableName(tbl))
-    return { where: vi.fn(() => Promise.resolve()) }
-  })
+  const del = vi.fn((tbl: unknown) => ({
+    where: vi.fn(() => {
+      dbState.deletedTables.push(tableName(tbl))
+      return { __kind: 'delete', table: tableName(tbl) }
+    }),
+  }))
 
   const update = vi.fn((tbl: unknown) => ({
-    set: vi.fn(() => {
-      dbState.updatedTables.push(tableName(tbl))
-      return { where: vi.fn(() => Promise.resolve()) }
-    }),
+    set: vi.fn(() => ({
+      where: vi.fn(() => {
+        dbState.updatedTables.push(tableName(tbl))
+        return { __kind: 'update', table: tableName(tbl) }
+      }),
+    })),
   }))
 
   const execute = vi.fn((query: unknown) => {
     dbState.executedSql.push(query)
-    return Promise.resolve()
+    return { __kind: 'execute', query }
   })
 
-  return { db: { delete: del, update, execute } }
+  const batch = vi.fn((queries: unknown[]) => {
+    dbState.batchedQueries.push(queries)
+    return Promise.resolve([])
+  })
+
+  return { db: { delete: del, update, execute, batch } }
 })
 
 import { deleteStoryCascade } from './delete-story-cascade'
@@ -40,6 +50,7 @@ describe('deleteStoryCascade', () => {
     dbState.deletedTables = []
     dbState.updatedTables = []
     dbState.executedSql = []
+    dbState.batchedQueries = []
   })
 
   it('deletes from every table with a foreign key to stories, ending with stories itself', async () => {
@@ -87,5 +98,12 @@ describe('deleteStoryCascade', () => {
     await deleteStoryCascade(129)
 
     expect(dbState.executedSql).toHaveLength(1)
+  })
+
+  it('sends every delete/update as a single atomic batch instead of separate sequential statements', async () => {
+    await deleteStoryCascade(129)
+
+    expect(dbState.batchedQueries).toHaveLength(1)
+    expect(dbState.batchedQueries[0]!.length).toBe(dbState.deletedTables.length + dbState.updatedTables.length + dbState.executedSql.length)
   })
 })

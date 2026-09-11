@@ -1,3 +1,5 @@
+import { buildIllustrationStyleDirective } from './illustration-style-directive.js'
+
 export interface BuildIllustrationPromptMoment {
   kind: 'scene_description' | 'story_excerpt'
   text: string
@@ -57,9 +59,7 @@ export function buildIllustrationPrompt(
     parts.push(identityLines.join('\n'))
   }
 
-  parts.push(
-    'The final attached image is the sole style anchor for this picture — match its art style (linework, coloring, rendering technique) exactly. Do not copy its subject or scene.',
-  )
+  parts.push(buildIllustrationStyleDirective())
 
   if (inventCharacters.length > 0) {
     const inventLines = inventCharacters.map(
@@ -72,10 +72,6 @@ export function buildIllustrationPrompt(
 
   const allDescriptions = charactersInMoment.map(characterDescriptionBlock).join('\n\n')
   if (allDescriptions) parts.push(allDescriptions)
-
-  parts.push(
-    "Picture-book illustration style suitable for a children's bedtime story — warm, gentle, appropriate for a young child. Depict the full scene, not an isolated portrait.",
-  )
 
   return parts.join('\n\n')
 }

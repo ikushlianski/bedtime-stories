@@ -13,6 +13,10 @@ function StoryIllustrationGallery({ storyId }: StoryIllustrationGalleryProps) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
   const [regenerating, setRegenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [customPrompt, setCustomPrompt] = useState('')
+  const [customCount, setCustomCount] = useState(2)
+  const [generatingCustom, setGeneratingCustom] = useState(false)
+  const [customError, setCustomError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -66,6 +70,34 @@ function StoryIllustrationGallery({ storyId }: StoryIllustrationGalleryProps) {
     }
   }
 
+  async function handleGenerateCustom() {
+    if (
+      !window.confirm(
+        'Сгенерировать иллюстрации по этому промпту? Это платный запрос — картинки будут добавлены к альбому.',
+      )
+    ) {
+      return
+    }
+
+    setGeneratingCustom(true)
+    setCustomError(null)
+
+    try {
+      const newRows = await api.stories.generateCustomIllustrations(storyId, { prompt: customPrompt, count: customCount })
+      setIllustrations((prev) => [...prev, ...newRows])
+
+      if (newRows.length < customCount) {
+        setCustomError(`Сгенерировано ${newRows.length} из ${customCount} — часть запросов не удалась`)
+      } else {
+        setCustomPrompt('')
+      }
+    } catch (err) {
+      setCustomError(err instanceof Error ? err.message : 'Не удалось сгенерировать иллюстрации')
+    } finally {
+      setGeneratingCustom(false)
+    }
+  }
+
   if (!loaded) return null
 
   const activeIllustration = lightboxIndex !== null ? illustrations[lightboxIndex] : undefined
@@ -84,6 +116,34 @@ function StoryIllustrationGallery({ storyId }: StoryIllustrationGalleryProps) {
       </div>
 
       {error && <p className="mb-2 text-xs text-error">{error}</p>}
+
+      <div className="mb-3 rounded-box border border-base-200 bg-base-200/40 p-3">
+        <textarea
+          className="textarea textarea-bordered w-full bg-base-100"
+          placeholder="Промпт для генерации иллюстрации (используется дословно)"
+          rows={2}
+          value={customPrompt}
+          onChange={(e) => setCustomPrompt(e.target.value)}
+        />
+        <div className="mt-2 flex items-center gap-2">
+          <input
+            type="number"
+            className="input input-bordered input-sm w-20 bg-base-100"
+            min={1}
+            max={6}
+            value={customCount}
+            onChange={(e) => setCustomCount(Number(e.target.value))}
+          />
+          <button
+            className={`btn btn-xs btn-outline ${generatingCustom ? 'loading' : ''}`}
+            disabled={generatingCustom || customPrompt.trim().length === 0}
+            onClick={() => void handleGenerateCustom()}
+          >
+            {generatingCustom ? 'Генерируем...' : 'Сгенерировать по промпту'}
+          </button>
+        </div>
+        {customError && <p className="mt-2 text-xs text-error">{customError}</p>}
+      </div>
 
       {illustrations.length === 0 ? (
         <p className="text-xs text-base-content/40">Иллюстрации ещё не готовы.</p>

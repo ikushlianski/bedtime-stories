@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { ObjectStorage } from '../storage/object-storage.interface'
 
+vi.mock('drizzle-orm', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('drizzle-orm')>()
+  return { ...actual, and: vi.fn(actual.and), ne: vi.fn(actual.ne) }
+})
+
 let selectQueue: unknown[][] = []
 let selectCallIndex = 0
 let insertedValues: unknown[] = []
@@ -49,6 +54,8 @@ import { generateIllustrationAlbum, ILLUSTRATION_MODEL } from './generate-illust
 import { aiRunner } from '../ai/index.js'
 import { selectIllustrationMoments } from '../pipeline/stages/select-illustration-moments.js'
 import { loadStoryCast } from './load-story-cast.js'
+import { ne } from 'drizzle-orm'
+import { storyIllustrations } from '../db/schema.js'
 
 function makeStorage(): ObjectStorage & { uploadCalls: unknown[] } {
   const uploadCalls: unknown[] = []
@@ -92,6 +99,7 @@ describe('generateIllustrationAlbum', () => {
     vi.mocked(aiRunner.generateImage).mockReset()
     vi.mocked(selectIllustrationMoments).mockReset()
     vi.mocked(loadStoryCast).mockReset()
+    vi.mocked(ne).mockClear()
   })
 
   it('returns nothing and makes no AI calls when the story has no usable text yet (Scenario 15)', async () => {
@@ -209,7 +217,7 @@ describe('generateIllustrationAlbum', () => {
     expect(insertedBatch).toHaveLength(1)
   })
 
-  it('uses an already-generated character portrait as an identity reference, capped at 3, with the default style image always last', async () => {
+  it('uses an already-generated character portrait as an identity reference, capped at 6, with the default style image always last', async () => {
     selectQueue = [[storyWithText], [], []]
     vi.mocked(loadStoryCast).mockResolvedValueOnce([
       { ...gosha, currentPortrait: { storagePath: 'portraits/1/a.png', tier: 'own_reference', generatedAt: new Date() } },
@@ -233,6 +241,29 @@ describe('generateIllustrationAlbum', () => {
     ])
   })
 
+  it('never sends more than 7 reference images total (6 identity + 1 style anchor) even with more matched characters', async () => {
+    const manyCharacters = Array.from({ length: 8 }, (_, i) => ({
+      ...gosha,
+      id: i + 1,
+      name: `Персонаж${i + 1}`,
+      currentPortrait: { storagePath: `portraits/1/${i + 1}.png`, tier: 'own_reference' as const, generatedAt: new Date() },
+    }))
+    selectQueue = [[storyWithText], [], []]
+    vi.mocked(loadStoryCast).mockResolvedValueOnce(manyCharacters)
+    vi.mocked(selectIllustrationMoments).mockResolvedValueOnce({
+      moments: [{ scene_description: 'Все герои вместе', character_names: manyCharacters.map((c) => c.name) }],
+    })
+    vi.mocked(aiRunner.generateImage).mockResolvedValueOnce({ imageBase64: Buffer.from('img').toString('base64'), mediaType: 'image/png' })
+    insertReturnRows = [{ id: 1, storyId: 1, source: 'automatic', orderIndex: 0 }]
+    const storage = makeStorage()
+
+    await generateIllustrationAlbum(1, storage)
+
+    const call = vi.mocked(aiRunner.generateImage).mock.calls[0]?.[0]
+    expect(call?.referenceImageUrls).toHaveLength(7)
+    expect(call?.referenceImageUrls?.at(-1)).toBe('data:image/png;base64,ZGVmYXVsdA==')
+  })
+
   it('deletes prior rows before inserting the fresh set when force is set (Scenario 12)', async () => {
     const marker = { id: 1, storyId: 1, markedText: 'Отмеченный отрывок', positionStart: 0, positionEnd: 10 }
     selectQueue = [[storyWithText], [marker]]
@@ -247,6 +278,34 @@ describe('generateIllustrationAlbum', () => {
     expect(deleteCalls).toHaveLength(1)
     expect(operationsOrder).toEqual(['delete', 'insert'])
     expect(result).toHaveLength(1)
+    expect(ne).toHaveBeenCalledWith(storyIllustrations.source, 'custom')
+  })
+
+  it('excludes custom rows from the idempotency check so a not-yet-run automatic album is never suppressed by them (Scenario 9 regression, Decision 4)', async () => {
+    selectQueue = [[storyWithText], [], []]
+    vi.mocked(loadStoryCast).mockResolvedValueOnce([])
+    vi.mocked(selectIllustrationMoments).mockResolvedValueOnce({ moments: [] })
+    const storage = makeStorage()
+
+    await generateIllustrationAlbum(1, storage)
+
+    expect(ne).toHaveBeenCalledWith(storyIllustrations.source, 'custom')
+    expect(loadStoryCast).toHaveBeenCalled()
+    expect(selectIllustrationMoments).toHaveBeenCalled()
+  })
+
+  it('excludes custom rows from the force-regenerate delete when the fresh moment set is empty', async () => {
+    vi.mocked(ne).mockClear()
+    selectQueue = [[storyWithText], []]
+    vi.mocked(loadStoryCast).mockResolvedValueOnce([])
+    vi.mocked(selectIllustrationMoments).mockResolvedValueOnce({ moments: [] })
+    const storage = makeStorage()
+
+    const result = await generateIllustrationAlbum(1, storage, { force: true })
+
+    expect(result).toEqual([])
+    expect(deleteCalls).toHaveLength(1)
+    expect(ne).toHaveBeenCalledWith(storyIllustrations.source, 'custom')
   })
 
   it('force still re-runs generation even if a non-forced album already exists, never short-circuiting', async () => {

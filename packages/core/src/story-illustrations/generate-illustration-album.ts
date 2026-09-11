@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { asc, eq } from 'drizzle-orm'
+import { and, asc, eq, ne } from 'drizzle-orm'
 import { db } from '../db/client.js'
 import { stories, storyIllustrationMarkers, storyIllustrations } from '../db/schema.js'
 import type { StoryIllustration } from '../db/types.js'
@@ -16,9 +16,13 @@ import { detectCastMembersInText } from './detect-cast-members-in-text.js'
 import { loadStoryCast } from './load-story-cast.js'
 import type { CharacterWithPortrait } from '../character-portraits/load-characters-with-portrait.js'
 
-export const ILLUSTRATION_MODEL = 'google/gemini-2.5-flash-image'
+export const ILLUSTRATION_MODEL = 'google/gemini-3.1-flash-image'
 const TARGET_COUNT = 2
-const MAX_IDENTITY_REFERENCES = 3
+// google/gemini-3.1-flash-image ("Nano Banana 2") accepts up to 14 input_references total
+// (confirmed live via GET https://openrouter.ai/api/v1/images/models — the prior model,
+// gemini-2.5-flash-image, capped at 3, which forced identity references down to 2). One slot is
+// always reserved for the style anchor image below, so identity references are capped at 6.
+const MAX_IDENTITY_REFERENCES = 6
 
 export interface GenerateIllustrationAlbumOptions {
   force?: boolean
@@ -56,7 +60,7 @@ export async function generateIllustrationAlbum(
     const existingRows = await db
       .select()
       .from(storyIllustrations)
-      .where(eq(storyIllustrations.storyId, storyId))
+      .where(and(eq(storyIllustrations.storyId, storyId), ne(storyIllustrations.source, 'custom')))
       .orderBy(asc(storyIllustrations.orderIndex))
 
     if (existingRows.length > 0) return existingRows
@@ -110,7 +114,7 @@ export async function generateIllustrationAlbum(
 
   if (combinedMoments.length === 0) {
     if (force) {
-      await db.delete(storyIllustrations).where(eq(storyIllustrations.storyId, storyId))
+      await db.delete(storyIllustrations).where(and(eq(storyIllustrations.storyId, storyId), ne(storyIllustrations.source, 'custom')))
     }
 
     return []
@@ -212,7 +216,7 @@ export async function generateIllustrationAlbum(
   }
 
   if (force) {
-    await db.delete(storyIllustrations).where(eq(storyIllustrations.storyId, storyId))
+    await db.delete(storyIllustrations).where(and(eq(storyIllustrations.storyId, storyId), ne(storyIllustrations.source, 'custom')))
   }
 
   if (uploaded.length === 0) return []

@@ -21,6 +21,7 @@ export interface GatherRedoFeedbackInput {
 export interface GatherRedoFeedbackResult {
   userFeedback: string
   annotationRows: AnnotationFeedbackRow[]
+  bankedCommentIds: number[]
 }
 
 const CONTEXT_LABEL: Record<'plan' | 'text', string> = {
@@ -49,11 +50,15 @@ export async function gatherRedoFeedback({
 }: GatherRedoFeedbackInput): Promise<GatherRedoFeedbackResult> {
   const trimmedReason = reason?.trim() ?? ''
 
-  const [annotationRows] = await Promise.all([
+  const [annotationRows, bankedComments] = await Promise.all([
     db
       .select({ id: annotations.id, selectedText: annotations.selectedText, noteText: annotations.noteText })
       .from(annotations)
       .where(buildAnnotationFilter(storyId, context, activeTextVersionId)),
+    db
+      .select({ id: storyComments.id, commentText: storyComments.commentText })
+      .from(storyComments)
+      .where(and(eq(storyComments.storyId, storyId), eq(storyComments.source, 'chat'), isNull(storyComments.appliedAt))),
     trimmedReason
       ? db.insert(storyComments).values(
           buildStoryCommentRecord({
@@ -72,7 +77,11 @@ export async function gatherRedoFeedback({
     : ''
 
   const annotationsFeedback = formatCommentsAsFeedback(annotationRows)
-  const userFeedback = [reasonBlock, annotationsFeedback].filter(Boolean).join('\n\n')
+  const bankedCommentsFeedback =
+    bankedComments.length > 0
+      ? `Комментарии из чата, ожидающие применения:\n${bankedComments.map((c) => `— ${c.commentText}`).join('\n')}`
+      : ''
+  const userFeedback = [reasonBlock, annotationsFeedback, bankedCommentsFeedback].filter(Boolean).join('\n\n')
 
-  return { userFeedback, annotationRows }
+  return { userFeedback, annotationRows, bankedCommentIds: bankedComments.map((c) => c.id) }
 }

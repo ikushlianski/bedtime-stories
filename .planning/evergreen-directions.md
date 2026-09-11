@@ -1,0 +1,3 @@
+- story-pipeline-feedback-loop: How feedback (chat comments, redo requests, past-story history, universe memory) actually reaches the Plotter/Writer and stays correct as stories/universes accumulate.
+- story-quality: Reducing cookie-cutter story output — idiom/character/conflict repetition, moral-telling resolutions, illustration style consistency.
+- platform-reliability: Data-integrity and operational gaps outside the generation pipeline itself — transactional deletes, nightly batch jobs, dev environment.

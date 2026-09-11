@@ -1,11 +1,11 @@
-import { eq } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import { runPlotterOnly } from '@bedtime/core/pipeline/orchestrator'
 import { recordStoryCharacters } from '@bedtime/core/pipeline/character-usage'
 import { synthesizeSashaContext } from '@bedtime/core/pipeline/feedback-synthesizer'
 import { generatePlanChangeSummary } from '@bedtime/core/pipeline/plan-change-summarizer'
 import { resolveAnnotations } from '@bedtime/core/pipeline/annotation-resolver'
 import { db } from '@bedtime/core/db/client'
-import { annotations, runSnapshots, stories } from '@bedtime/core/db/schema'
+import { annotations, runSnapshots, stories, storyComments } from '@bedtime/core/db/schema'
 import {
   buildPlotterOnlySnapshotInsert,
   buildPlotterOnlyStoriesUpdate,
@@ -115,6 +115,10 @@ export function triggerPlanRedo(
         .where(eq(stories.id, storyId))
 
       await recordStoryCharacters(storyId, result.usedCharacterIds)
+
+      if (feedback.bankedCommentIds.length > 0) {
+        await db.update(storyComments).set({ appliedAt: new Date() }).where(inArray(storyComments.id, feedback.bankedCommentIds))
+      }
 
       setPipelineStatus(storyId, 'plan_ready')
     } catch (dbError) {

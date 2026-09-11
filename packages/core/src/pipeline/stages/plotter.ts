@@ -1,5 +1,6 @@
 import { aiRunner } from '../../ai'
 import { resolvePrompt, type ResolvedPrompt } from '../prompt-resolver'
+import { wrapUserDataBlock } from '../wrap-user-data-block'
 import { buildFragmentsBlock, type EligibleFragment } from '../load-fragments'
 import { buildTopicsBlock, type EligibleTopic } from '../load-topics'
 import { selectStoryStructure, buildStructureBlock, type StoryStructure } from './story-structures'
@@ -168,7 +169,7 @@ export async function runPlotter(options: {
   }
 
   if (userFeedback !== undefined) {
-    parts.push(`\nPARENT FEEDBACK ON PREVIOUS PLAN (the parent has reviewed the plan and left these notes — address each one):\n${userFeedback}`)
+    parts.push(`\nPARENT FEEDBACK ON PREVIOUS PLAN (the parent has reviewed the plan and left these notes — address each one):\n${wrapUserDataBlock('ОТЗЫВ РОДИТЕЛЯ', userFeedback)}`)
   }
 
   if (criticNotes !== undefined) {
