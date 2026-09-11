@@ -25,7 +25,11 @@ vi.mock('@bedtime/core/db/client', () => {
       where: vi.fn(() => {
         const rows = rowsForTable(tableName(tbl))
         return {
-          orderBy: vi.fn(() => Promise.resolve(rows)),
+          orderBy: vi.fn(() => ({
+            limit: vi.fn(() => Promise.resolve(rows)),
+            then: (resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) =>
+              Promise.resolve(rows).then(resolve, reject),
+          })),
           then: (resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) =>
             Promise.resolve(rows).then(resolve, reject),
         }

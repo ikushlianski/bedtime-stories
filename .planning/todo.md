@@ -42,16 +42,17 @@
 - Out of scope: story-quality (repetition/moral-telling/illustration style) and platform-reliability (transactions, dev env, nightly batch ops) — the other two directions
 
 ### Coding tasks
-- [ ] Give plotter/writer real retrieval over past stories (see branch story-retrieval, unmerged).
-- [ ] Feed redo-round chat messages into the Plotter and Writer prompts.
+- [ ] Give the writer the same past-story retrieval the plotter already has.
+- [x] Feed redo-round chat messages into the Plotter and Writer prompts.
 - [ ] Give the plotter/writer memory blocks a single reconciliation pass instead of independent concatenation.
 - [ ] Nightly universe-memory sync has no cross-instance concurrency guard.
 - [ ] Editing a parent review or child reaction after its universe has synced never reaches the style guide.
 - [ ] Universe memory sync silently drops feedback on stories outside the newest-50 window.
-- [ ] Cap the number of banked comments folded into one regenerate call.
-- [ ] Bound plan/text chat conversation history sent per turn.
+- [x] Cap the number of banked comments folded into one regenerate call.
+- [x] Bound plan/text chat conversation history sent per turn.
 - [ ] Wrap chat/comment text in the existing data-only prompt delimiter before it reaches Plotter/Writer.
 - [ ] Wire banked story_comments into universe memory synthesis.
 
 ### Notes
 - Plan-chat endpoint needs a different injection-hardening approach (real conversation, not one-shot).
+- Writer retrieval needs a streaming-safe tool-loop, not a plotter-style copy.

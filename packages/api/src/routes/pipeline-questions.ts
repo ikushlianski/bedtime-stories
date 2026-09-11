@@ -12,6 +12,7 @@ import { resolveChatGate } from '@bedtime/core/pipeline/resolve-chat-gate'
 import { parsePatchBlock } from '@bedtime/core/pipeline/parse-patch-block'
 import { resolveTargetInText } from '@bedtime/core/pipeline/resolve-target-in-text'
 import { sendMessageSchema } from './send-message-schema'
+import { PLAN_CONVERSATION_HISTORY_LIMIT } from '@bedtime/core/pipeline/format-plan-conversation-as-feedback'
 
 const router = Router()
 
@@ -253,6 +254,7 @@ router.post('/conversations/:storyId', validate(sendMessageSchema), async (req, 
       : ''
 
     const conversationContext = priorMessages
+      .slice(-PLAN_CONVERSATION_HISTORY_LIMIT)
       .map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
       .join('\n\n')
 

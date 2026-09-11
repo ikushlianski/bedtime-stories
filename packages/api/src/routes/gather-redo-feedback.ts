@@ -1,4 +1,4 @@
-import { and, eq, isNull, or, asc } from 'drizzle-orm'
+import { and, eq, isNull, or, asc, desc } from 'drizzle-orm'
 import { db } from '@bedtime/core/db/client'
 import { annotations, storyComments, planConversations } from '@bedtime/core/db/schema'
 import { formatCommentsAsFeedback } from '@bedtime/core/pipeline/format-comments-as-feedback'
@@ -30,6 +30,8 @@ const CONTEXT_LABEL: Record<'plan' | 'text', string> = {
   text: 'тексту',
 }
 
+const BANKED_COMMENTS_LIMIT = 20
+
 function buildAnnotationFilter(storyId: number, context: 'plan' | 'text', activeTextVersionId: number | null) {
   if (context === 'plan') {
     return and(eq(annotations.storyId, storyId), eq(annotations.context, 'plan'), isNull(annotations.resolvedAt))
@@ -59,7 +61,9 @@ export async function gatherRedoFeedback({
     db
       .select({ id: storyComments.id, commentText: storyComments.commentText })
       .from(storyComments)
-      .where(and(eq(storyComments.storyId, storyId), eq(storyComments.source, 'chat'), isNull(storyComments.appliedAt))),
+      .where(and(eq(storyComments.storyId, storyId), eq(storyComments.source, 'chat'), isNull(storyComments.appliedAt)))
+      .orderBy(desc(storyComments.createdAt))
+      .limit(BANKED_COMMENTS_LIMIT),
     db
       .select({ role: planConversations.role, content: planConversations.content })
       .from(planConversations)
@@ -85,7 +89,7 @@ export async function gatherRedoFeedback({
   const annotationsFeedback = formatCommentsAsFeedback(annotationRows)
   const bankedCommentsFeedback =
     bankedComments.length > 0
-      ? `Комментарии из чата, ожидающие применения:\n${bankedComments.map((c) => `— ${c.commentText}`).join('\n')}`
+      ? `Комментарии из чата, ожидающие применения:\n${[...bankedComments].reverse().map((c) => `— ${c.commentText}`).join('\n')}`
       : ''
   const conversationFeedback = formatPlanConversationAsFeedback(conversationMessages)
   const userFeedback = [reasonBlock, annotationsFeedback, bankedCommentsFeedback, conversationFeedback]
