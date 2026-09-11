@@ -9,12 +9,14 @@ vi.mock('../../ai', () => ({
   aiRunner: { runText: vi.fn().mockResolvedValue('plan text') },
 }))
 
-vi.mock('../load-fragments', () => ({
-  buildFragmentsBlock: vi.fn().mockReturnValue(''),
-}))
-
-vi.mock('../load-topics', () => ({
-  buildTopicsBlock: vi.fn().mockReturnValue(''),
+vi.mock('../../env.js', () => ({
+  env: {
+    DATABASE_URL: 'postgresql://user:pass@localhost/db',
+    OPENROUTER_API_KEY: 'test-key',
+    JWT_SECRET: 'test-secret-at-least-32-characters-long',
+    GCS_BUCKET_NAME: 'bedtime-prod-storage',
+    GCS_REFERENCES_BUCKET_NAME: 'bedtime-prod-references',
+  },
 }))
 
 import { aiRunner } from '../../ai'
