@@ -9,15 +9,27 @@ function tableName(t: unknown): string {
 const dbState = {
   annotationRows: [] as Array<{ id: number; selectedText: string | null; noteText: string | null }>,
   bankedComments: [] as Array<{ id: number; commentText: string }>,
+  conversationMessages: [] as Array<{ role: 'user' | 'assistant'; content: string }>,
   insertedComment: null as null | Record<string, unknown>,
+}
+
+function rowsForTable(name: string): unknown[] {
+  if (name === 'story_comments') return dbState.bankedComments
+  if (name === 'plan_conversations') return dbState.conversationMessages
+  return dbState.annotationRows
 }
 
 vi.mock('@bedtime/core/db/client', () => {
   const select = vi.fn((_cols: unknown) => ({
     from: vi.fn((tbl: unknown) => ({
-      where: vi.fn(() =>
-        Promise.resolve(tableName(tbl) === 'story_comments' ? dbState.bankedComments : dbState.annotationRows),
-      ),
+      where: vi.fn(() => {
+        const rows = rowsForTable(tableName(tbl))
+        return {
+          orderBy: vi.fn(() => Promise.resolve(rows)),
+          then: (resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) =>
+            Promise.resolve(rows).then(resolve, reject),
+        }
+      }),
     })),
   }))
 
@@ -37,6 +49,7 @@ describe('gatherRedoFeedback', () => {
   beforeEach(() => {
     dbState.annotationRows = []
     dbState.bankedComments = []
+    dbState.conversationMessages = []
     dbState.insertedComment = null
   })
 
@@ -113,5 +126,18 @@ describe('gatherRedoFeedback', () => {
     const result = await gatherRedoFeedback({ storyId: 7, context: 'text' })
 
     expect(result.bankedCommentIds).toEqual([])
+  })
+
+  it('includes the plan conversation transcript so the plotter/writer sees what was discussed in chat', async () => {
+    dbState.conversationMessages = [
+      { role: 'user', content: 'пусть дракон будет добрее' },
+      { role: 'assistant', content: 'хорошо, смягчу характер дракона' },
+    ]
+
+    const result = await gatherRedoFeedback({ storyId: 7, context: 'plan' })
+
+    expect(result.userFeedback).toContain('Недавнее обсуждение в чате')
+    expect(result.userFeedback).toContain('пусть дракон будет добрее')
+    expect(result.userFeedback).toContain('хорошо, смягчу характер дракона')
   })
 })

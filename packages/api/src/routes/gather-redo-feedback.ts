@@ -1,7 +1,8 @@
-import { and, eq, isNull, or } from 'drizzle-orm'
+import { and, eq, isNull, or, asc } from 'drizzle-orm'
 import { db } from '@bedtime/core/db/client'
-import { annotations, storyComments } from '@bedtime/core/db/schema'
+import { annotations, storyComments, planConversations } from '@bedtime/core/db/schema'
 import { formatCommentsAsFeedback } from '@bedtime/core/pipeline/format-comments-as-feedback'
+import { formatPlanConversationAsFeedback } from '@bedtime/core/pipeline/format-plan-conversation-as-feedback'
 import { buildStoryCommentRecord } from '@bedtime/core/pipeline/build-story-comment-record'
 
 export interface AnnotationFeedbackRow {
@@ -50,7 +51,7 @@ export async function gatherRedoFeedback({
 }: GatherRedoFeedbackInput): Promise<GatherRedoFeedbackResult> {
   const trimmedReason = reason?.trim() ?? ''
 
-  const [annotationRows, bankedComments] = await Promise.all([
+  const [annotationRows, bankedComments, conversationMessages] = await Promise.all([
     db
       .select({ id: annotations.id, selectedText: annotations.selectedText, noteText: annotations.noteText })
       .from(annotations)
@@ -59,6 +60,11 @@ export async function gatherRedoFeedback({
       .select({ id: storyComments.id, commentText: storyComments.commentText })
       .from(storyComments)
       .where(and(eq(storyComments.storyId, storyId), eq(storyComments.source, 'chat'), isNull(storyComments.appliedAt))),
+    db
+      .select({ role: planConversations.role, content: planConversations.content })
+      .from(planConversations)
+      .where(and(eq(planConversations.storyId, storyId), eq(planConversations.context, context)))
+      .orderBy(asc(planConversations.createdAt)),
     trimmedReason
       ? db.insert(storyComments).values(
           buildStoryCommentRecord({
@@ -81,7 +87,10 @@ export async function gatherRedoFeedback({
     bankedComments.length > 0
       ? `Комментарии из чата, ожидающие применения:\n${bankedComments.map((c) => `— ${c.commentText}`).join('\n')}`
       : ''
-  const userFeedback = [reasonBlock, annotationsFeedback, bankedCommentsFeedback].filter(Boolean).join('\n\n')
+  const conversationFeedback = formatPlanConversationAsFeedback(conversationMessages)
+  const userFeedback = [reasonBlock, annotationsFeedback, bankedCommentsFeedback, conversationFeedback]
+    .filter(Boolean)
+    .join('\n\n')
 
   return { userFeedback, annotationRows, bankedCommentIds: bankedComments.map((c) => c.id) }
 }
