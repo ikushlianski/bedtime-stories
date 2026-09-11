@@ -9,7 +9,7 @@
 
 ### Coding tasks
 - [ ] Add a real deployed dev environment, auto-deployed on merge to main.
-- [ ] Wrap DELETE /stories/:id in a database transaction so a failed delete cannot leave orphaned partial state.
+- [x] Wrap DELETE /stories/:id in a database transaction so a failed delete cannot leave orphaned partial state.
 - [ ] Run character/trait extraction as a nightly batch job with a user approval/notification flow.
 
 ### Notes
@@ -56,3 +56,4 @@
 ### Notes
 - Plan-chat endpoint needs a different injection-hardening approach (real conversation, not one-shot).
 - Writer retrieval needs a streaming-safe tool-loop, not a plotter-style copy.
+- Cross-instance lock needs a claim-row migration; advisory locks don't hold over Neon's stateless HTTP driver.
