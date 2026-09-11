@@ -1,6 +1,6 @@
 import { desc, eq, and, gt, inArray } from 'drizzle-orm'
 import { db } from '../db/client'
-import { stories, annotations, feedback, parentReviews, childReactions, storyGroups } from '../db/schema'
+import { stories, annotations, feedback, parentReviews, childReactions, storyComments, storyGroups } from '../db/schema'
 import { aiRunner } from '../ai'
 import { resolveStageModel } from './derivers/resolve-stage-model'
 import { compileStyleGuide } from './derivers/style-guide'
@@ -28,12 +28,19 @@ interface FeedbackDeltaCounts {
   feedback: number
   parentReviews: number
   childReactions: number
+  storyComments: number
 }
 
 const ANNOTATION_TYPES = ['sasha_laughed', 'sasha_loved', 'sasha_disliked', 'sasha_reaction', 'my_note'] as const
 
 export function hasNewFeedback(counts: FeedbackDeltaCounts): boolean {
-  return counts.annotations > 0 || counts.feedback > 0 || counts.parentReviews > 0 || counts.childReactions > 0
+  return (
+    counts.annotations > 0 ||
+    counts.feedback > 0 ||
+    counts.parentReviews > 0 ||
+    counts.childReactions > 0 ||
+    counts.storyComments > 0
+  )
 }
 
 export async function syncUniverseMemory(universeId: number): Promise<SyncUniverseMemoryResult> {
@@ -52,12 +59,19 @@ export async function syncUniverseMemory(universeId: number): Promise<SyncUniver
 
   if (universeStories.length === 0) return { updated: false }
 
-  const storyIds = universeStories.map((s) => s.id)
-  const storyTitleById = new Map(universeStories.map((s) => [s.id, s.title]))
+  // Feedback delta scans every story in the universe, not just the 50 shown in the prompt's
+  // story list — otherwise feedback left on an older story is silently never picked up.
+  const allUniverseStories = await db
+    .select({ id: stories.id, title: stories.title })
+    .from(stories)
+    .where(and(eq(stories.groupId, universeId), inArray(stories.status, ['ready', 'read'])))
+
+  const storyIds = allUniverseStories.map((s) => s.id)
+  const storyTitleById = new Map(allUniverseStories.map((s) => [s.id, s.title]))
 
   const nextCursor = new Date()
 
-  const [deltaAnnotations, deltaFeedback, deltaParentReviews, deltaChildReactions] = await Promise.all([
+  const [deltaAnnotations, deltaFeedback, deltaParentReviews, deltaChildReactions, deltaStoryComments] = await Promise.all([
     db
       .select({
         type: annotations.type,
@@ -95,7 +109,7 @@ export async function syncUniverseMemory(universeId: number): Promise<SyncUniver
       .from(parentReviews)
       .where(
         cursor
-          ? and(inArray(parentReviews.storyId, storyIds), gt(parentReviews.createdAt, cursor))
+          ? and(inArray(parentReviews.storyId, storyIds), gt(parentReviews.updatedAt, cursor))
           : inArray(parentReviews.storyId, storyIds),
       ),
     db
@@ -112,8 +126,20 @@ export async function syncUniverseMemory(universeId: number): Promise<SyncUniver
       .from(childReactions)
       .where(
         cursor
-          ? and(inArray(childReactions.storyId, storyIds), gt(childReactions.createdAt, cursor))
+          ? and(inArray(childReactions.storyId, storyIds), gt(childReactions.updatedAt, cursor))
           : inArray(childReactions.storyId, storyIds),
+      ),
+    db
+      .select({
+        commentText: storyComments.commentText,
+        selectedText: storyComments.selectedText,
+        storyId: storyComments.storyId,
+      })
+      .from(storyComments)
+      .where(
+        cursor
+          ? and(inArray(storyComments.storyId, storyIds), eq(storyComments.source, 'chat'), gt(storyComments.createdAt, cursor))
+          : and(inArray(storyComments.storyId, storyIds), eq(storyComments.source, 'chat')),
       ),
   ])
 
@@ -122,6 +148,7 @@ export async function syncUniverseMemory(universeId: number): Promise<SyncUniver
     feedback: deltaFeedback.length,
     parentReviews: deltaParentReviews.length,
     childReactions: deltaChildReactions.length,
+    storyComments: deltaStoryComments.length,
   }
 
   if (!hasNewFeedback(deltaCounts)) return { updated: false }
@@ -140,6 +167,7 @@ export async function syncUniverseMemory(universeId: number): Promise<SyncUniver
     deltaFeedback.map((f) => ({ ...f, storyTitle: storyTitleById.get(f.storyId ?? -1) ?? null })),
     deltaParentReviews.map((p) => ({ ...p, storyTitle: storyTitleById.get(p.storyId ?? -1) ?? null })),
     deltaChildReactions.map((c) => ({ ...c, storyTitle: storyTitleById.get(c.storyId ?? -1) ?? null })),
+    deltaStoryComments.map((c) => ({ ...c, storyTitle: storyTitleById.get(c.storyId) ?? null })),
   )
 
   const choice = await resolveStageModel(universeId, 'feedbackSynthesizer')
@@ -204,6 +232,7 @@ type ChildReactionDeltaRow = {
   notes: string | null
   storyTitle: string | null
 }
+type StoryCommentDeltaRow = { commentText: string; selectedText: string | null; storyTitle: string | null }
 
 export function buildUniverseMemoryPrompt(
   existing: UniverseMemory,
@@ -212,6 +241,7 @@ export function buildUniverseMemoryPrompt(
   feedbackRows: FeedbackDeltaRow[],
   parentReviewRows: ParentReviewDeltaRow[],
   childReactionRows: ChildReactionDeltaRow[],
+  storyCommentRows: StoryCommentDeltaRow[] = [],
 ): string {
   const storyList = storyRows.map((s) => `- «${s.title ?? 'Без названия'}»`).join('\n')
 
@@ -272,6 +302,10 @@ export function buildUniverseMemoryPrompt(
     .filter(Boolean)
     .join('\n')
 
+  const storyCommentLines = storyCommentRows
+    .map((c) => `[${c.storyTitle ?? '?'}]${c.selectedText ? ` К фрагменту «${c.selectedText}»:` : ''} ${c.commentText}`)
+    .join('\n')
+
   return `Ты ведёшь накопительный гайд по стилю для серии детских сказок в одной вселенной.
 Объедини СУЩЕСТВУЮЩИЙ ГАЙД с новой обратной связью, накопленной с прошлой синхронизации. Не переписывай гайд с нуля — дистиллируй новые наблюдения в уже существующие пункты, убирая повторы.
 
@@ -298,6 +332,9 @@ ${parentReviewLines || '(нет новых данных)'}
 
 НОВЫЕ РЕАКЦИИ РЕБЁНКА:
 ${childReactionLines || '(нет новых данных)'}
+
+НОВЫЕ КОММЕНТАРИИ ИЗ ЧАТА:
+${storyCommentLines || '(нет новых данных)'}
 === КОНЕЦ ДАННЫХ ПОЛЬЗОВАТЕЛЯ ===
 
 Верни ТОЛЬКО валидный JSON без markdown и пояснений:

@@ -62,15 +62,16 @@ const baseStoryRows = [
 describe('hasNewFeedback', () => {
   it('returns false when every source has zero new rows', () => {
     expect(
-      hasNewFeedback({ annotations: 0, feedback: 0, parentReviews: 0, childReactions: 0 }),
+      hasNewFeedback({ annotations: 0, feedback: 0, parentReviews: 0, childReactions: 0, storyComments: 0 }),
     ).toBe(false)
   })
 
   it('returns true when any single source has a new row', () => {
-    expect(hasNewFeedback({ annotations: 1, feedback: 0, parentReviews: 0, childReactions: 0 })).toBe(true)
-    expect(hasNewFeedback({ annotations: 0, feedback: 1, parentReviews: 0, childReactions: 0 })).toBe(true)
-    expect(hasNewFeedback({ annotations: 0, feedback: 0, parentReviews: 1, childReactions: 0 })).toBe(true)
-    expect(hasNewFeedback({ annotations: 0, feedback: 0, parentReviews: 0, childReactions: 1 })).toBe(true)
+    expect(hasNewFeedback({ annotations: 1, feedback: 0, parentReviews: 0, childReactions: 0, storyComments: 0 })).toBe(true)
+    expect(hasNewFeedback({ annotations: 0, feedback: 1, parentReviews: 0, childReactions: 0, storyComments: 0 })).toBe(true)
+    expect(hasNewFeedback({ annotations: 0, feedback: 0, parentReviews: 1, childReactions: 0, storyComments: 0 })).toBe(true)
+    expect(hasNewFeedback({ annotations: 0, feedback: 0, parentReviews: 0, childReactions: 1, storyComments: 0 })).toBe(true)
+    expect(hasNewFeedback({ annotations: 0, feedback: 0, parentReviews: 0, childReactions: 0, storyComments: 1 })).toBe(true)
   })
 })
 
@@ -135,6 +136,21 @@ describe('buildUniverseMemoryPrompt', () => {
     expect(injectedTextIndex).toBeGreaterThan(dataStart)
     expect(injectedTextIndex).toBeLessThan(dataEnd)
   })
+
+  it('includes banked chat comments left on a story', () => {
+    const prompt = buildUniverseMemoryPrompt(
+      { works: '', doesntWork: '', techniques: '', minimize: '' },
+      baseStoryRows,
+      [],
+      [],
+      [],
+      [],
+      [{ commentText: 'пусть дракон будет добрее', selectedText: 'дракон зарычал', storyTitle: 'Story One' }],
+    )
+
+    expect(prompt).toContain('пусть дракон будет добрее')
+    expect(prompt).toContain('дракон зарычал')
+  })
 })
 
 describe('syncUniverseMemory', () => {
@@ -152,10 +168,12 @@ describe('syncUniverseMemory', () => {
     mockedDb.where
       .mockReturnValueOnce([baseGroup]) // group fetch (terminal)
       .mockReturnValueOnce(mockedDb) // stories fetch (intermediate, chains to orderBy/limit)
+      .mockReturnValueOnce(baseStoryRows) // all-universe stories fetch (terminal, for delta scope)
       .mockReturnValueOnce([{ type: 'sasha_loved', selectedText: 'dragon scene', noteText: null, storyId: 10 }]) // annotations delta
       .mockReturnValueOnce([]) // feedback delta
       .mockReturnValueOnce([]) // parentReviews delta
       .mockReturnValueOnce([]) // childReactions delta
+      .mockReturnValueOnce([]) // storyComments delta
       .mockReturnValueOnce(undefined) // final update where
     mockedDb.limit.mockReturnValueOnce(baseStoryRows)
 
@@ -178,14 +196,43 @@ describe('syncUniverseMemory', () => {
     expect(mockedDb.update).toHaveBeenCalled()
   })
 
+  it('picks up feedback left on a story outside the newest-50 prompt window', async () => {
+    const oldStory = { id: 999, title: 'Very Old Story' }
+
+    mockedDb.where
+      .mockReturnValueOnce([baseGroup]) // group fetch (terminal)
+      .mockReturnValueOnce(mockedDb) // stories fetch (intermediate, chains to orderBy/limit)
+      .mockReturnValueOnce([...baseStoryRows, oldStory]) // all-universe stories fetch (terminal, for delta scope)
+      .mockReturnValueOnce([{ type: 'my_note', selectedText: null, noteText: 'заметка по старой истории', storyId: oldStory.id }]) // annotations delta
+      .mockReturnValueOnce([]) // feedback delta
+      .mockReturnValueOnce([]) // parentReviews delta
+      .mockReturnValueOnce([]) // childReactions delta
+      .mockReturnValueOnce([]) // storyComments delta
+      .mockReturnValueOnce(undefined) // final update where
+    mockedDb.limit.mockReturnValueOnce(baseStoryRows)
+
+    vi.mocked(aiRunner.runText).mockResolvedValue(
+      JSON.stringify({ works: 'a', doesntWork: 'b', techniques: 'c', minimize: 'd' }),
+    )
+
+    const result = await syncUniverseMemory(1)
+
+    expect(result.updated).toBe(true)
+    const prompt = vi.mocked(aiRunner.runText).mock.calls[0]?.[0]?.prompt as string
+    expect(prompt).toContain('заметка по старой истории')
+    expect(prompt).toContain('Very Old Story')
+  })
+
   it('advances the cursor to a snapshot taken before the LLM call, not after it resolves', async () => {
     mockedDb.where
       .mockReturnValueOnce([baseGroup]) // group fetch (terminal)
       .mockReturnValueOnce(mockedDb) // stories fetch (intermediate, chains to orderBy/limit)
+      .mockReturnValueOnce(baseStoryRows) // all-universe stories fetch (terminal, for delta scope)
       .mockReturnValueOnce([{ type: 'sasha_loved', selectedText: 'dragon scene', noteText: null, storyId: 10 }]) // annotations delta
       .mockReturnValueOnce([]) // feedback delta
       .mockReturnValueOnce([]) // parentReviews delta
       .mockReturnValueOnce([]) // childReactions delta
+      .mockReturnValueOnce([]) // storyComments delta
       .mockReturnValueOnce(undefined) // final update where
     mockedDb.limit.mockReturnValueOnce(baseStoryRows)
 
@@ -212,10 +259,12 @@ describe('syncUniverseMemory', () => {
     mockedDb.where
       .mockReturnValueOnce([syncedGroup]) // group fetch (terminal)
       .mockReturnValueOnce(mockedDb) // stories fetch (intermediate)
+      .mockReturnValueOnce(baseStoryRows) // all-universe stories fetch (terminal, for delta scope)
       .mockReturnValueOnce([]) // annotations delta
       .mockReturnValueOnce([]) // feedback delta
       .mockReturnValueOnce([]) // parentReviews delta
       .mockReturnValueOnce([]) // childReactions delta
+      .mockReturnValueOnce([]) // storyComments delta
     mockedDb.limit.mockReturnValueOnce(baseStoryRows)
 
     const result = await syncUniverseMemory(1)
@@ -225,14 +274,57 @@ describe('syncUniverseMemory', () => {
     expect(mockedDb.update).not.toHaveBeenCalled()
   })
 
+  it('scopes parent-review and child-reaction deltas by their edit time, not their creation time', async () => {
+    function columnNamesIn(node: unknown, acc = new Set<string>()): Set<string> {
+      if (!node || typeof node !== 'object') return acc
+      const maybeName = (node as { name?: unknown }).name
+      if (typeof maybeName === 'string') acc.add(maybeName)
+      const chunks = (node as { queryChunks?: unknown }).queryChunks
+      if (Array.isArray(chunks)) {
+        for (const chunk of chunks) columnNamesIn(chunk, acc)
+      }
+      return acc
+    }
+
+    const syncedGroup = { ...baseGroup, styleGuideSyncedAt: new Date('2026-07-17T00:00:00Z') }
+
+    mockedDb.where
+      .mockReturnValueOnce([syncedGroup]) // group fetch (terminal)
+      .mockReturnValueOnce(mockedDb) // stories fetch (intermediate, chains to orderBy/limit)
+      .mockReturnValueOnce(baseStoryRows) // all-universe stories fetch (terminal, for delta scope)
+      .mockReturnValueOnce([]) // annotations delta
+      .mockReturnValueOnce([]) // feedback delta
+      .mockReturnValueOnce([{ rating: 4, pacingOk: true, wouldReuse: true, notes: 'edited later', storyId: 10 }]) // parentReviews delta
+      .mockReturnValueOnce([]) // childReactions delta
+      .mockReturnValueOnce([]) // storyComments delta
+      .mockReturnValueOnce(undefined) // final update where
+    mockedDb.limit.mockReturnValueOnce(baseStoryRows)
+
+    vi.mocked(aiRunner.runText).mockResolvedValue(
+      JSON.stringify({ works: 'a', doesntWork: 'b', techniques: 'c', minimize: 'd' }),
+    )
+
+    await syncUniverseMemory(1)
+
+    const parentReviewWhereArg = mockedDb.where.mock.calls[5]?.[0]
+    const childReactionWhereArg = mockedDb.where.mock.calls[6]?.[0]
+
+    expect(columnNamesIn(parentReviewWhereArg)).toContain('updated_at')
+    expect(columnNamesIn(parentReviewWhereArg)).not.toContain('created_at')
+    expect(columnNamesIn(childReactionWhereArg)).toContain('updated_at')
+    expect(columnNamesIn(childReactionWhereArg)).not.toContain('created_at')
+  })
+
   it('throws instead of silently returning updated:false when the LLM output cannot be parsed', async () => {
     mockedDb.where
       .mockReturnValueOnce([baseGroup]) // group fetch (terminal)
       .mockReturnValueOnce(mockedDb) // stories fetch (intermediate)
+      .mockReturnValueOnce(baseStoryRows) // all-universe stories fetch (terminal, for delta scope)
       .mockReturnValueOnce([{ type: 'sasha_loved', selectedText: 'dragon scene', noteText: null, storyId: 10 }]) // annotations delta
       .mockReturnValueOnce([]) // feedback delta
       .mockReturnValueOnce([]) // parentReviews delta
       .mockReturnValueOnce([]) // childReactions delta
+      .mockReturnValueOnce([]) // storyComments delta
     mockedDb.limit.mockReturnValueOnce(baseStoryRows)
 
     vi.mocked(aiRunner.runText).mockResolvedValue('not valid json at all')
@@ -245,10 +337,12 @@ describe('syncUniverseMemory', () => {
     mockedDb.where
       .mockReturnValueOnce([baseGroup]) // group fetch (terminal)
       .mockReturnValueOnce(mockedDb) // stories fetch (intermediate)
+      .mockReturnValueOnce(baseStoryRows) // all-universe stories fetch (terminal, for delta scope)
       .mockReturnValueOnce([{ type: 'sasha_loved', selectedText: 'dragon scene', noteText: null, storyId: 10 }]) // annotations delta
       .mockReturnValueOnce([]) // feedback delta
       .mockReturnValueOnce([]) // parentReviews delta
       .mockReturnValueOnce([]) // childReactions delta
+      .mockReturnValueOnce([]) // storyComments delta
     mockedDb.limit.mockReturnValueOnce(baseStoryRows)
 
     vi.mocked(aiRunner.runText).mockResolvedValue('')

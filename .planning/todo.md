@@ -46,12 +46,12 @@
 - [x] Feed redo-round chat messages into the Plotter and Writer prompts.
 - [ ] Give the plotter/writer memory blocks a single reconciliation pass instead of independent concatenation.
 - [ ] Nightly universe-memory sync has no cross-instance concurrency guard.
-- [ ] Editing a parent review or child reaction after its universe has synced never reaches the style guide.
-- [ ] Universe memory sync silently drops feedback on stories outside the newest-50 window.
+- [x] Editing a parent review or child reaction after its universe has synced never reaches the style guide.
+- [x] Universe memory sync silently drops feedback on stories outside the newest-50 window.
 - [x] Cap the number of banked comments folded into one regenerate call.
 - [x] Bound plan/text chat conversation history sent per turn.
-- [ ] Wrap chat/comment text in the existing data-only prompt delimiter before it reaches Plotter/Writer.
-- [ ] Wire banked story_comments into universe memory synthesis.
+- [x] Wrap chat/comment text in the existing data-only prompt delimiter before it reaches Plotter/Writer.
+- [x] Wire banked story_comments into universe memory synthesis.
 
 ### Notes
 - Plan-chat endpoint needs a different injection-hardening approach (real conversation, not one-shot).
